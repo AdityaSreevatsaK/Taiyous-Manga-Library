@@ -414,6 +414,10 @@ test.describe('offline failure handling and accessibility hardening', () => {
       };
     });
     await page.goto('/manga/mng_lanternarchive');
+    await page.getByRole('link', { name: /Read from beginning/ }).click();
+    await page.getByRole('button', { name: /Next page/ }).click();
+    await expect(page.locator('.page-navigation')).toContainText('Page 2 of 5');
+    await page.getByRole('link', { name: /Series details/ }).click();
     await page.getByRole('button', { name: 'Download chapter' }).first().click();
     await expect(page.getByRole('button', { name: 'Cancel download' })).toBeVisible();
     await page.getByRole('button', { name: 'Cancel download' }).click();
@@ -428,7 +432,8 @@ test.describe('offline failure handling and accessibility hardening', () => {
     expect(state.pages).toBe(0);
     expect(state.receipt).toBeNull();
     await expect(page.getByRole('button', { name: 'Download chapter' })).toHaveCount(3);
-    await page.getByRole('link', { name: /Read from beginning/ }).click();
+    await page.getByRole('link', { name: /Continue reading/ }).click();
+    await expect(page.locator('.page-navigation')).toContainText('Page 2 of 5');
     await expect(page.locator('.reader-page')).toBeVisible();
   });
 
