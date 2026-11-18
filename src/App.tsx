@@ -59,8 +59,11 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
   useEffect(() => {
     if (screen.kind !== 'reader' || !entry || !location || !manifest || !demo) {
       setImage(null);
+      setLoadedPageKey(null);
       return;
     }
+    // Requiring a fresh onLoad avoids reusing readiness from a prior retry.
+    setLoadedPageKey(null);
     setImageError(null);
     try {
       const key = location.chapterId + ':' + location.pageIndex;
