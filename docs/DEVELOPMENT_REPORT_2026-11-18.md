@@ -82,3 +82,9 @@ The local reader additionally offers a bounded, one-based **Go to page** selecto
 ## Public-source safety checkpoint
 
 The owner authorised public source visibility, while the connected GitHub API still reported the repository as private. No real manga binaries, protected storage addresses, secrets, authenticated requests or private catalogue records are introduced by this branch. The repository now explicitly ignores common manga/book archive formats and private import/backup directories. This is defence-in-depth, not proof that Git would reject a forced add: future imports must remain outside the public source tree. Public **source** approval is not public **data** approval.
+
+## Verified acceptance and public visibility (18 November 2026, follow-up)
+
+GitHub API now confirms public repository visibility. A real Actions runner successfully installed the npm dependencies, generated the lockfile and committed it on the feature branch. [Workflow 44327158478](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/actions/runs/44327158478) **passed** `npm ci`, `npm run typecheck`, **19/19 Vitest tests**, `npm run build`, and **12/12 Playwright Chromium browser tests**, including responsive widths 320/375/390/768/1280, search, RTL/LTR/vertical keyboard reading, touch swipe, chapter boundaries, exact resume, corrupt-page error/no skip, and offline synthetic page navigation. Built JS: **168.70 kB** (54.52 kB gzip); CSS: **12.26 kB** (3.76 kB gzip). Earlier failure reports are preserved for provenance but superseded for this tested branch.
+
+The next PR change adds a **gated** GitHub Pages static sample release (only on a successful `master` push) and a Cloudflare Pages connection runbook. The live preview cannot be claimed until its deployment output and public URL are verified. Neither hosting path connects a real catalogue or private media.

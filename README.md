@@ -79,8 +79,14 @@ After the online install, inspect and commit a *genuine* `package-lock.json`, th
 
 ### Repository visibility and content privacy
 
-On 18 November 2026 the owner explicitly approved making the **source repository public**. The connected GitHub API still reported `visibility: private` at the most recent check, so this README does not claim the visibility switch has been confirmed. A public source repository is compatible with a private personal catalogue **only** when future server-side access control, asset authorisation and storage are implemented separately. No auth, private data, private media or deployment is present in this fixture branch.
+On 18 November 2026 the owner explicitly approved making the **source repository public**. GitHub confirmed the repository is **public** on 18 November 2026. This changes code visibility only, never the privacy of future personal media or data. A public source repository is compatible with a private personal catalogue **only** when future server-side access control, asset authorisation and storage are implemented separately. No auth, private data, private media or deployment is present in this fixture branch.
 
 ### Reuse and licensing
 
 Repository visibility and code licensing are different decisions. No standalone software licence has been selected in this repository; public source visibility alone does not establish an open-source redistribution licence. Select an explicit licence before presenting this project as open-source software. Private manga and personal data must remain separately authorised regardless of any future code licence.
+
+## Live synthetic demonstration
+
+The `master` branch has a gated GitHub Pages workflow: only after `npm ci`, typechecking, **19 Vitest unit tests**, a Vite production build and **12 Playwright browser tests** succeed will it publish the synthetic demo. It cannot deploy private manga, as none is connected. A real public preview URL must be confirmed from the first successful Pages deployment; do not invent one before it exists.
+
+For a future Cloudflare Pages site, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). The Git integration build uses `npm ci && npm run build`, output `dist`, production branch `master`. Cloudflare deployment requires an owner-controlled connection in the Cloudflare dashboard. No credentials are needed or accepted in browser source.

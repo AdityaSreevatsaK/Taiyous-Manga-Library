@@ -40,3 +40,9 @@ Check build, mobile accessibility, empty/error/offline states, CSP, provider quo
 ## 18 November 2026 execution environment limitation
 
 The feature branch was developed through the authenticated GitHub connector. Local Node 22.16.0/npm 10.9.2 were available but `npm install` could not reach registry.npmjs.org (`EAI_AGAIN`), and no dependency packages existed in the npm cache (`ENOTCACHED`). The code was therefore **not** installed, typechecked, tested or built with its actual dependencies. The earlier GitHub Actions check returned no executed steps. `docs/DEVELOPMENT_REPORT_2026-11-18.md` contains exact evidence and subsequent verification commands. No lockfile was committed, so the `npm ci` switch is deliberately deferred rather than inventing a nonreproducible lockfile.
+
+## Verified Actions-run acceptance checkpoint
+
+On 18 November 2026 GitHub Actions on public repository branch `feature/local-manga-catalogue-reader` **passed** Node 22 `npm ci`, `npm run typecheck`, `npm test` (**19 tests**), `npm run build`, and `npm run test:e2e` (**12 Chromium tests**, 320/375/390/768/1280 px). Workflow: https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/actions/runs/44327158478. The actual generated lockfile is committed. Prior notes about no lockfile and unexecuted checks are historical and superseded for this SHA.
+
+A gated GitHub Pages demo is configured for successful pushes to `master`, using `--mode ghpages` to set the required path base. This is a **public synthetic-only preview**, not a private media deployment or authentication system. Its status and URL must be checked after the first successful deployment. Cloudflare Pages is separately prepared in `docs/DEPLOYMENT.md`, and remains unconnected until the owner links the GitHub repository.
