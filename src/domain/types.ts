@@ -30,6 +30,8 @@ export interface MangaProgress {
   chapterId: string;
   /** Zero-based; never use a chapter label or displayed page number as identity. */
   pageIndex: number;
+  /** Immutable page ID prevents restoring to the wrong image if order changes. */
+  pageId: string;
   updatedAt: string;
 }
 export type ImageMime = 'image/jpeg' | 'image/png' | 'image/webp' | 'image/avif';
