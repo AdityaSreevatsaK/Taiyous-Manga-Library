@@ -156,10 +156,19 @@ export function parseProgress(value: unknown, entry: MangaEntry, manifests: Read
   const pageId = id(item.pageId, 'progress.pageId', 'pg');
   if (manifest.pages[pageIndex]?.id !== pageId)
     throw new DomainValidationError('progress.pageId', 'manifest page identity changed; reconcile before resuming');
-  return {
+  const result: MangaProgress = {
     mangaId, chapterId, pageIndex, pageId,
     updatedAt: timestamp(item.updatedAt, 'progress.updatedAt'),
   };
+  if (item.readingMode !== undefined)
+    result.readingMode = literal(item.readingMode, ['rtl', 'ltr', 'vertical'], 'progress.readingMode');
+  if (item.verticalOffsetRatio !== undefined) {
+    const ratio = item.verticalOffsetRatio;
+    if (typeof ratio !== 'number' || !Number.isFinite(ratio) || ratio < 0 || ratio > 1)
+      throw new DomainValidationError('progress.verticalOffsetRatio', 'expected fraction 0 to 1');
+    result.verticalOffsetRatio = ratio;
+  }
+  return result;
 }
 export interface ArchiveEntry {
   path: string;
