@@ -152,9 +152,12 @@ export function parseProgress(value: unknown, entry: MangaEntry, manifests: Read
   const manifest = manifests.get(chapterId);
   if (!manifest) throw new DomainValidationError('progress.chapterId', 'manifest unavailable');
   if (manifest.chapterId !== chapterId) throw new DomainValidationError('progress.chapterId', 'manifest identity mismatch');
+  const pageIndex = integer(item.pageIndex, 'progress.pageIndex', 0, manifest.pages.length - 1);
+  const pageId = id(item.pageId, 'progress.pageId', 'pg');
+  if (manifest.pages[pageIndex]?.id !== pageId)
+    throw new DomainValidationError('progress.pageId', 'manifest page identity changed; reconcile before resuming');
   return {
-    mangaId, chapterId,
-    pageIndex: integer(item.pageIndex, 'progress.pageIndex', 0, manifest.pages.length - 1),
+    mangaId, chapterId, pageIndex, pageId,
     updatedAt: timestamp(item.updatedAt, 'progress.updatedAt'),
   };
 }
