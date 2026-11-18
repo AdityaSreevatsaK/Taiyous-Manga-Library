@@ -86,8 +86,15 @@ test.describe('local manga catalogue and chapter reader', () => {
     await page.getByRole('button', { name: /Read from beginning/ }).click();
     await expect(page.getByRole('alert')).toContainText('generated page could not be displayed');
     await expect(page.locator('.page-navigation')).toContainText('Page 1 of 5');
+    await expect(page.getByRole('button', { name: /Next page/ })).toBeDisabled();
+    await expect(page.getByRole('button', { name: /Previous page/ })).toBeDisabled();
     await page.getByRole('button', { name: 'Retry page' }).click();
+    await expect(page.getByRole('alert')).toContainText('generated page could not be displayed');
     await expect(page.locator('.page-navigation')).toContainText('Page 1 of 5');
+    await page.getByRole('button', { name: /Series details/ }).click();
+    // A page that could not load must never be falsely recorded as read.
+    await expect(page.getByRole('button', { name: /Read from beginning/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Continue reading/ })).toHaveCount(0);
   });
   test('synthetic sample remains readable offline without protected external requests', async ({ page, context }) => {
     const external: string[] = [];
