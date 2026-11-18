@@ -92,12 +92,16 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
     setNotice('');
   }
   function markPageViewed(item: MangaEntry, viewed: ReaderLocation) {
+    const viewedManifest = manifests.get(viewed.chapterId);
+    const pageId = viewedManifest?.pages[viewed.pageIndex]?.id;
+    if (!pageId || viewedManifest?.chapterId !== viewed.chapterId) return;
     setProgress(previous => ({
       ...previous,
       [item.id]: {
         mangaId: item.id,
         chapterId: viewed.chapterId,
         pageIndex: viewed.pageIndex,
+        pageId,
         updatedAt: new Date().toISOString(),
       },
     }));
