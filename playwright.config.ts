@@ -7,7 +7,9 @@ export default defineConfig({
   expect: { timeout: 7000 },
   fullyParallel: true,
   retries: process.env.CI ? 1 : 0,
-  reporter: 'list',
+  reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
+  outputDir: 'test-results',
+  screenshot: 'only-on-failure',
   use: {
     ...devices['Desktop Chrome'],
     hasTouch: true,
