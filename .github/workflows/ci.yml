@@ -23,23 +23,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      # Use npm ci whenever a genuine lockfile exists; npm install for the bootstrap PR only.
-      # Do not generate or commit a fabricated offline lockfile.
-      - name: Install locked dependencies
-        if: ${{ hashFiles('package-lock.json') != '' }}
+            - name: Install locked dependencies
         run: npm ci --no-audit --no-fund
-      - name: Bootstrap dependencies until lockfile is committed
-        id: bootstrap
-        if: ${{ hashFiles('package-lock.json') == '' }}
-        run: npm install --no-audit --no-fund
-      - name: Preserve generated lockfile for review
-        if: ${{ steps.bootstrap.outcome == 'success' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: manga-bootstrap-lockfile
-          path: package-lock.json
-          if-no-files-found: error
-          retention-days: 7
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
@@ -57,11 +42,7 @@ jobs:
         with:
           node-version: '22'
       - name: Install locked dependencies
-        if: ${{ hashFiles('package-lock.json') != '' }}
         run: npm ci --no-audit --no-fund
-      - name: Bootstrap dependencies until lockfile is committed
-        if: ${{ hashFiles('package-lock.json') == '' }}
-        run: npm install --no-audit --no-fund
       - name: Install isolated Chromium
         run: npx playwright install --with-deps chromium
       - name: Run browser acceptance tests
