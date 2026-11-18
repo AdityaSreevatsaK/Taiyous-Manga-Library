@@ -30,3 +30,5 @@ Initial scaffolds intentionally omit persistence, authentication, image/video de
 `src/App.test.tsx`: React server-rendered catalogue and honest unconnected-library empty state.
 
 **These test files have been committed but could not run:** npm registry DNS is unavailable, and GitHub Actions has not started any job steps. The React markup tests are *not* interactive browser coverage. Browser verification plan is in `docs/DEVELOPMENT_REPORT_2026-11-18.md`; a future Playwright suite must exercise interactions at 320, 375, 390, 768, 1280 px, chapter transitions and failed image/offline flows. No test pass claim is authorised yet.
+
+The separate `e2e/manga-reader.spec.ts` Playwright suite adds **unexecuted** responsive/browser interaction tests for source switching, filters, keyboard navigation, physical swipes, RTL/LTR/vertical selection, chapter boundaries, exact session resume, synthetic offline operation, corrupt canvas error and retry, and no non-local requests. Install browser binaries with `npx playwright install chromium`, then run `npm run test:e2e` once npm dependencies are available. CI has not reached runner steps.
