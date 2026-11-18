@@ -52,11 +52,16 @@ describe('reader traversal and exact resume', () => {
     expect(nextPreloadIndex(-1,100)).toBeNull();
   });
   it('restores exactly, or fails closed on stale and missing pages', () => {
-    const progress={mangaId:entry.id,chapterId:'ch_second000',pageIndex:2,updatedAt:'2026-11-18T00:00:00Z'};
+    const progress={mangaId:entry.id,chapterId:'ch_second000',pageIndex:2,pageId:'pg_page002',updatedAt:'2026-11-18T00:00:00Z'};
     expect(restoreProgress(entry,manifests,progress)).toEqual({chapterId:'ch_second000',pageIndex:2});
     const renamed = { ...entry, title: 'Renamed series', chapters: entry.chapters.map(chapter => ({ ...chapter, label: 'Renamed chapter' })) };
     expect(restoreProgress(renamed,manifests,progress)).toEqual({chapterId:'ch_second000',pageIndex:2});
     expect(restoreProgress(entry,manifests,{...progress,pageIndex:3})).toBeNull();
+    expect(restoreProgress(entry,manifests,{...progress,pageId:'pg_page001'})).toBeNull();
+    const reordered = new Map(manifests);
+    const original = manifests.get('ch_second000')!;
+    reordered.set('ch_second000', { ...original, pages: [original.pages[2]!, original.pages[1]!, original.pages[0]!] });
+    expect(restoreProgress(entry,reordered,progress)).toBeNull();
     expect(restoreProgress(entry,new Map(),progress)).toBeNull();
   });
 });
