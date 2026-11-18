@@ -23,7 +23,7 @@ function hasBrowserStorage() {
 }
 function hasMediaCache() { return typeof caches !== 'undefined' && typeof crypto !== 'undefined' && !!crypto.subtle; }
 function key(chapterId: string) { return OFFLINE_KEY_PREFIX + chapterId; }
-function receiptIsValid(data: unknown, manifest: ChapterManifest): data is ChapterReceipt {
+export function receiptIsValid(data: unknown, manifest: ChapterManifest): data is ChapterReceipt {
   if (!data || typeof data !== 'object' || Array.isArray(data)) return false;
   const value = data as Partial<ChapterReceipt>;
   return value.schemaVersion === 1 && value.mediaKind === 'manga' && value.chapterId === manifest.chapterId &&
