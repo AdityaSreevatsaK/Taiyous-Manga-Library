@@ -1,20 +1,69 @@
-name: Verify scaffold
+name: Verify Manga Library
+
 on:
   push:
     branches: [master]
   pull_request:
+  workflow_dispatch:
+
 permissions:
   contents: read
+
+concurrency:
+  group: manga-quality-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   quality:
+    name: Typecheck, unit tests and build
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      # No lockfile on the initial scaffold. Commit one and switch to npm ci.
-      - run: npm install --no-audit --no-fund
+      # Use npm ci whenever a genuine lockfile exists; npm install for the bootstrap PR only.
+      # Do not generate or commit a fabricated offline lockfile.
+      - name: Install locked dependencies
+        if: ${{ hashFiles('package-lock.json') != '' }}
+        run: npm ci --no-audit --no-fund
+      - name: Bootstrap dependencies until lockfile is committed
+        if: ${{ hashFiles('package-lock.json') == '' }}
+        run: npm install --no-audit --no-fund
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      - name: Report bundle assets
+        run: du -h dist/assets/* || true
+
+  browser:
+    name: Responsive, keyboard, touch and offline browser tests
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install locked dependencies
+        if: ${{ hashFiles('package-lock.json') != '' }}
+        run: npm ci --no-audit --no-fund
+      - name: Bootstrap dependencies until lockfile is committed
+        if: ${{ hashFiles('package-lock.json') == '' }}
+        run: npm install --no-audit --no-fund
+      - name: Install isolated Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Run browser acceptance tests
+        run: npm run test:e2e
+      - name: Attach Playwright traces/screenshots on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: manga-browser-failures
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 7
