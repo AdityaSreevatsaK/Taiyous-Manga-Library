@@ -15,7 +15,8 @@ export function stepReader(
   const index = chapters.findIndex(chapter => chapter.id === location.chapterId);
   if (index < 0) return null;
   const current = manifests.get(location.chapterId);
-  if (!current || current.pages.length === 0 || location.pageIndex < 0 || location.pageIndex >= current.pages.length) return null;
+  if (!current || current.chapterId !== location.chapterId || current.pages.length === 0 ||
+      location.pageIndex < 0 || location.pageIndex >= current.pages.length) return null;
   const nextPage = location.pageIndex + delta;
   if (nextPage >= 0 && nextPage < current.pages.length) return { chapterId: location.chapterId, pageIndex: nextPage };
   const adjacentChapter = chapters[index + delta];
@@ -56,6 +57,8 @@ export function restoreProgress(
   if (!progress || progress.mangaId !== entry.id || !entry.chapters.some(chapter => chapter.id === progress.chapterId)) return null;
   const manifest = manifests.get(progress.chapterId);
   if (!manifest || manifest.chapterId !== progress.chapterId ||
-      !Number.isSafeInteger(progress.pageIndex) || progress.pageIndex < 0 || progress.pageIndex >= manifest.pages.length) return null;
+      !Number.isSafeInteger(progress.pageIndex) || progress.pageIndex < 0 ||
+      progress.pageIndex >= manifest.pages.length ||
+      manifest.pages[progress.pageIndex]?.id !== progress.pageId) return null;
   return { chapterId: progress.chapterId, pageIndex: progress.pageIndex };
 }
