@@ -1,6 +1,8 @@
 # Taiyou's Manga Library
 
-> **Public-source-ready, fixture-stage application.** The local development branch adds a fictional three-series catalogue, series/chapter views, original browser-generated sample pages, RTL/LTR/vertical page-step navigation, session-only exact page resume and runtime validators. **No real catalogue, private media, backend, sign-in, persistent progress, cross-device sync or deployment is connected.** Node checks are not yet passing: npm registry access and Actions runner execution are blocked. Never represent a placeholder as a finished feature.
+> **Public, fictional-data demonstration.** The baseline `master` at `6a6e337` contains a React/Vite catalogue and a page-step reader. Node 22 typecheck, 19 Vitest tests, build and 12 Playwright tests previously passed, but its latest GitHub Pages publish job failed. **Cloudflare production availability remains unverified.** No private manga media, account sign-in, cloud progress or real offline chapters are connected.
+>
+> **Mobile reader milestone (feature branch):** continuous vertical scrolling, bounded adjacent image generation, focus view and mobile safe-area layout are under review. PR CI must pass before merging or treating this as released.
 
 ## Mission
 Read and organise legitimately acquired manga with chapter/page-level progress and optional offline access. The user experience should remain readable, fast, polished and accessible on phones, tablets and desktop. The existing novel library is the visual inspiration, not an implementation dependency.
