@@ -29,8 +29,17 @@ jobs:
         if: ${{ hashFiles('package-lock.json') != '' }}
         run: npm ci --no-audit --no-fund
       - name: Bootstrap dependencies until lockfile is committed
+        id: bootstrap
         if: ${{ hashFiles('package-lock.json') == '' }}
         run: npm install --no-audit --no-fund
+      - name: Preserve generated lockfile for review
+        if: ${{ steps.bootstrap.outcome == 'success' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: manga-bootstrap-lockfile
+          path: package-lock.json
+          if-no-files-found: error
+          retention-days: 7
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
