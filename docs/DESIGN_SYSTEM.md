@@ -20,3 +20,8 @@ Panel and page ordering, right-to-left versus left-to-right reading, vertical sc
 
 ## Performance
 Use responsive images, lazy decoding, bounded preloading and virtualised large lists. Avoid shipping unnecessary media assets in the frontend bundle. Measure improvements instead of guessing. Never introduce client-side code that repeatedly fetches private data on every keystroke or navigation event.
+
+
+## Manga fixture-reader visual implementation (feature branch)
+
+The local prototype uses a navy/teal background, warm gold focus and active controls, editorial Georgia headings, original CSS-only fictional covers, a responsive 3-to-2-column catalogue, explicit source-mode tabs and an uncluttered reader. The generated manga illustrations are abstract fixtures, not fetched images. Existing React controls have labelled filter inputs, aria-pressed states, keyboard focus and reduced-motion CSS. Automated responsive and real-device accessibility verification remains outstanding; do not claim WCAG compliance until tested.

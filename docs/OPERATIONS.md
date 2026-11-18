@@ -35,3 +35,8 @@ For code: revert the PR or redeploy the last known good tested commit. For a fut
 
 ## Operational checklist
 Check build, mobile accessibility, empty/error/offline states, CSP, provider quota/rate limits, private asset authorisation, logs redaction, cache versions, two-device conflict behaviour and any cost implications. Document actual results before claiming production readiness.
+
+
+## 18 November 2026 execution environment limitation
+
+The feature branch was developed through the authenticated GitHub connector. Local Node 22.16.0/npm 10.9.2 were available but `npm install` could not reach registry.npmjs.org (`EAI_AGAIN`), and no dependency packages existed in the npm cache (`ENOTCACHED`). The code was therefore **not** installed, typechecked, tested or built with its actual dependencies. The earlier GitHub Actions check returned no executed steps. `docs/DEVELOPMENT_REPORT_2026-11-18.md` contains exact evidence and subsequent verification commands. No lockfile was committed, so the `npm ci` switch is deliberately deferred rather than inventing a nonreproducible lockfile.

@@ -19,3 +19,14 @@ Successful locked install, typecheck, tests, build, vulnerability review, browse
 
 ## Risk register
 Initial scaffolds intentionally omit persistence, authentication, image/video delivery, end-to-end tests, production CSP configuration and provider integrations. These omissions are documented, not hidden.
+
+
+## Fixture reader branch test inventory (written, not executed)
+
+`src/domain/validation.test.ts`: valid and duplicate series/chapter IDs, page formats and paths, malicious traversal/URL/SVG input, manifest limits, page-index bounds, rights evidence and archive-entry preflight.
+`src/domain/reader.test.ts`: stable chapter sequence, forward/back chapter boundaries, corrupt/missing manifest rejection, physical RTL/LTR/vertical key/swipe mapping, one-page preloading and exact resume.
+`src/domain/filters.test.ts`: alias search, status, tag, collection and sort semantics.
+`src/data/fixtures.test.ts`: synthetic provenance, coherent page counts and local paths.
+`src/App.test.tsx`: React server-rendered catalogue and honest unconnected-library empty state.
+
+**These test files have been committed but could not run:** npm registry DNS is unavailable, and GitHub Actions has not started any job steps. The React markup tests are *not* interactive browser coverage. Browser verification plan is in `docs/DEVELOPMENT_REPORT_2026-11-18.md`; a future Playwright suite must exercise interactions at 320, 375, 390, 768, 1280 px, chapter transitions and failed image/offline flows. No test pass claim is authorised yet.

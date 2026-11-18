@@ -26,7 +26,9 @@ The latest original workflow run [44256824021](https://github.com/AdityaSreevats
 
 - `node --version`: **v22.16.0**.
 - `npm --version`: **10.9.2**.
-- `npm install --offline --no-audit --no-fund`: **blocked** with `ENOTCACHED` because npm registry packages are not cached (first missing package: `@types/react`). The environment cannot resolve github.com and has no npm registry access.
+- `npm install --offline --no-audit --no-fund`: **blocked** with `ENOTCACHED`; `@types/react` is not cached.
+- `npm install --no-audit --no-fund --fetch-retries=0 --fetch-timeout=3000`: **blocked** with `EAI_AGAIN` due to DNS resolution of `registry.npmjs.org`.
+- An unrelated minimal empty local lockfile created by the first setup attempt was discarded. No `package-lock.json` has been committed to GitHub.
 - `npm run typecheck`: **not a meaningful source check**. Dependencies and project source were unavailable in the local sandbox, so the global TypeScript CLI showed usage information. It is not a compilation result.
 - `npm test`: **not run**; `vitest: not found`.
 - `npm run build`: **not run**; Vite/React dependencies unavailable.

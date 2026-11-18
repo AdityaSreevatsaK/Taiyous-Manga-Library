@@ -1,6 +1,6 @@
 # Taiyou's Manga Library
 
-> **Private, scaffold-stage application.** This repository has a functioning starter UI, local search, typechecked Manga domain models, basic tests and a build workflow. It has **no private catalogue adapter, authentication, import/export, cloud synchronisation, playback or production deployment yet**. Never represent a placeholder as a finished feature.
+> **Private, fixture-stage application.** The local development branch adds a fictional three-series catalogue, series/chapter views, original browser-generated sample pages, RTL/LTR/vertical page-step navigation, session-only exact page resume and runtime validators. **No real catalogue, private media, backend, sign-in, persistent progress, cross-device sync or deployment is connected.** Node checks are not yet passing: npm registry access and Actions runner execution are blocked. Never represent a placeholder as a finished feature.
 
 ## Mission
 Read and organise legitimately acquired manga with chapter/page-level progress and optional offline access. The user experience should remain readable, fast, polished and accessible on phones, tablets and desktop. The existing novel library is the visual inspiration, not an implementation dependency.
@@ -57,3 +57,22 @@ Panel and page ordering, right-to-left versus left-to-right reading, vertical sc
 
 ## Status statement
 Scaffold committed, domain adapters **not connected**, no external providers and no active production URL. Work remaining is documented rather than silently treated as done. 
+
+
+## Fixture reader development (18 November 2026)
+
+The `feature/local-manga-catalogue-reader` branch adds a fully fictional demonstration separate from an **empty** private collection. It uses CSS cover studies and locally generated abstract PNG page illustrations, not real manga assets. The demo's rating, tags and collections are synthetic and safe to include in public source code. The reader has in-session page resume, keyboard/touch navigation, one-page-ahead preloading, an offline indicator, honest no-data/error states and no external media URL requests. Vertical mode currently steps one page at a time rather than providing continuous scroll.
+
+This is **not** proof of production readiness. See [development/verification report](docs/DEVELOPMENT_REPORT_2026-11-18.md), [source-rights/private adapter proposal](docs/adr/006-manga-rights-and-private-asset-adapter.md) and [potential Shared Core components](docs/SHARED_CORE_RFC_001.md). The code has **not** had an online npm install, reliable typecheck, Vitest, Vite build or responsive browser run in this environment.
+
+### Quick test once npm and GitHub Actions execution are restored
+
+```bash
+npm install --no-audit --no-fund
+npm run typecheck
+npm test
+npm run build
+npm run dev
+```
+
+After the online install, inspect and commit a *genuine* `package-lock.json`, then replace the CI install step with `npm ci`. Do not commit an empty/offline-generated lockfile.
