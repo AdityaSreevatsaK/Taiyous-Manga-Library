@@ -42,3 +42,6 @@ Stop a destructive operation, forced push, production data migration, deletion o
 ## First engineering milestone
 A read-only local catalogue with an explicit no-data state, a chapter manifest validator, and a page reader prototype using generated/owned fixture images.
 **Definition of done:** Fixtures prove correct RTL/LTR page ordering, chapter transitions, resume on exact page, keyboard/touch operation and offline behaviour without exposing private image assets. Run all local checks and keep the production system unaffected.
+
+## Visibility approval
+The owner authorised public **source code** on 18 November 2026. This is not approval to publish private manga, private datasets, credentials or production access details. Actual GitHub API visibility still needs confirmation; the last report remained private.
