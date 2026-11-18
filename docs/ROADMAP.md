@@ -1,3 +1,14 @@
+# Current milestone execution (18 November 2026)
+
+- PR A, mobile reader/responsive UX: **feature branch, awaiting CI**. Genuine vertical document scroll, bounded synthetic image window and focus view. Do not mark as deployed.
+- PR B, deep links and browser navigation: pending.
+- PR C, schema-versioned local progress and preferences: pending.
+- PR D, true opt-in offline chapter storage and cold-start app shell: pending.
+- PR E, accessibility, performance, security and integrated browser verification: pending.
+- Private media and Hugging Face integration must not begin until the reader acceptance gates pass.
+
+---
+
 # Manga Roadmap and Definition of Done
 
 ## Phase 0: safe foundation (current)
