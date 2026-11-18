@@ -27,9 +27,14 @@ describe('offline chapter manifest integrity', () => {
     expect(receiptIsValid({...complete,pages:[{...complete.pages[0],byteSize:0},...complete.pages.slice(1)]},manifest)).toBe(false);
     expect(receiptIsValid({...complete,pages:[{...complete.pages[0],byteSize:80*1024*1024},...complete.pages.slice(1)]},manifest)).toBe(false);
     expect(receiptIsValid({...complete,pages:[{...complete.pages[0],sha256:undefined},...complete.pages.slice(1)]},manifest)).toBe(false);
+    expect(receiptIsValid({...complete,pages:manifest.pages.map((page)=>({
+      pageId:page.id,sha256:'b'.repeat(64),byteSize:20*1024*1024,
+    }))},manifest)).toBe(false);
   });
   it('rejects corrupt completion timestamps and type confusion',()=>{
     expect(receiptIsValid({...complete,completedAt:'invalid'},manifest)).toBe(false);
+    expect(receiptIsValid({...complete,completedAt:'2026-11-18'},manifest)).toBe(false);
+    expect(receiptIsValid({...complete,completedAt:'2026-11-18T15:00:00+05:30'},manifest)).toBe(false);
     expect(receiptIsValid({...complete,completedAt:0},manifest)).toBe(false);
     expect(receiptIsValid(null,manifest)).toBe(false);
     expect(receiptIsValid([],manifest)).toBe(false);
