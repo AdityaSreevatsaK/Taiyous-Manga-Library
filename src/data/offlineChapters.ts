@@ -27,7 +27,7 @@ export function receiptIsValid(data: unknown, manifest: ChapterManifest): data i
   if (!data || typeof data !== 'object' || Array.isArray(data)) return false;
   const value = data as Partial<ChapterReceipt>;
   return value.schemaVersion === 1 && value.mediaKind === 'manga' && value.chapterId === manifest.chapterId &&
-    typeof value.completedAt === 'string' && /^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$/.test(value.completedAt) &&
+    typeof value.completedAt === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value.completedAt) &&
     Number.isFinite(Date.parse(value.completedAt)) &&
     Array.isArray(value.pages) && value.pages.length === manifest.pages.length &&
     value.pages.every((page, i) => page && page.pageId === manifest.pages[i]?.id &&
