@@ -67,6 +67,17 @@ test.describe('local manga catalogue and chapter reader', () => {
     await expect(page.locator('.page-navigation')).toContainText('Page 5 of 5');
     await expect(page.locator('.reader-heading')).toContainText('The forgotten key');
   });
+  test('page selector jumps to an exact zero-based location and resumes it', async ({ page }) => {
+    await openSampleReader(page);
+    await page.getByRole('combobox', { name: 'Go to page' }).selectOption('4');
+    await expect(page.locator('.page-navigation')).toContainText('Page 5 of 5');
+    await expect(page.locator('.reader-page')).toBeVisible();
+    await page.getByRole('button', { name: /Series details/ }).click();
+    await page.getByRole('button', { name: /Continue reading/ }).click();
+    await expect(page.locator('.page-navigation')).toContainText('Page 5 of 5');
+    await page.getByRole('combobox', { name: 'Choose chapter' }).selectOption('ch_lanternrooftop');
+    await expect(page.locator('.page-navigation')).toContainText('Page 1 of 4');
+  });
   test('RTL swipe changes the canonical page, not reverse image ordering', async ({ page }) => {
     await openSampleReader(page);
     await page.locator('.reader-stage').evaluate(node => {
