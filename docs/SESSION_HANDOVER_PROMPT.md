@@ -44,3 +44,16 @@ Work already committed in PR: runtime contracts/validators for entries, manifest
 **Next agent's first tasks:** read `docs/DEVELOPMENT_REPORT_2026-11-18.md`, inspect PR diff and newest Actions logs, restore runner execution, use an online Node 22 environment to `npm install`, commit the genuine lockfile and switch CI to `npm ci`, then run and fix `npm run typecheck`, `npm test`, `npm run build` and `npm run test:e2e`. Playwright requires `npx playwright install chromium`. Verify 320/375/390/768/1280 px layouts and synthetic offline/error behaviours. **None of these commands has passed in the current sandbox.** The last feature-branch Actions run also failed before any job steps started.
 
 Do not enable real manga imports, sync, private auth, offline media caching or production deployments without separately approved source-rights/storage ADR and secure adapters. Keep Shared Core independent; the candidate reuse proposal is `docs/SHARED_CORE_RFC_001.md` and must be conveyed to Session 1 rather than committing to that repo.
+
+## Development continuation update (18 November, after source-visibility approval)
+
+The owner approved public source visibility, but the latest connected GitHub metadata still reported `private`. All PR Actions jobs continued failing **before runner steps**; see latest run links from PR #2 rather than assuming these are code failures.
+
+Latest feature branch changes:
+- CI has a manual trigger, separate Node 22 quality and Playwright browser jobs, lockfile bootstrap artefact, and failure traces. Until a genuine lockfile exists it uses `npm install`; afterwards it automatically selects `npm ci`.
+- Reader requires a successful, correctly keyed image `onLoad` before storing progress or enabling navigation. Corrupt images cannot be silently skipped.
+- `MangaProgress` now requires immutable `pageId` together with `chapterId` and zero-based `pageIndex`; reordered manifests fail closed.
+- New bounded 'Go to page' selector and tests, mobile cover clipping fixes, public-source security policy (`SECURITY.md`), media-import ignore entries and PR-only Dependabot updates.
+- No real media/source/auth/backend/offline cache or deployment exists. No test suite was able to execute in CI or the local sandbox. Do not merge draft PR #2 before successful verification.
+
+**First action for the next engineer:** confirm GitHub visibility actually shows Public for this exact repo. Then inspect Actions job annotations, rerun quality, recover genuine generated `package-lock.json` from the CI artefact, commit it, verify `npm ci` and browser tests, inspect actual bundle assets, then review PR #2 for merge. No other Taiyou repositories may be modified from this session.
