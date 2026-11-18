@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { entries as realEntries } from './data/catalogue';
 import { demoEntries, demoManifests, fixtureStatement } from './data/fixtures';
 import { makeFixturePage } from './data/fixtureArt';
+import { VerticalReader } from './components/VerticalReader';
 import { filterCatalogue, type SortMode } from './domain/filters';
 import { keyNavigation, nextPreloadIndex, orderedChapters, restoreProgress, stepReader, swipeNavigation, type ReaderLocation } from './domain/reader';
 import type { ChapterManifest, MangaEntry, MangaProgress, PublicationStatus, ReadingDirection } from './domain/types';
@@ -19,6 +20,8 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
   const [collection, setCollection] = useState('');
   const [sort, setSort] = useState<SortMode>('title');
   const [direction, setDirection] = useState<ReadingDirection>('rtl');
+  const [immersive, setImmersive] = useState(false);
+  const [jumpToken, setJumpToken] = useState(0);
   const [location, setLocation] = useState<ReaderLocation | null>(null);
   const [progress, setProgress] = useState<Record<string, MangaProgress>>({});
   const [notice, setNotice] = useState('');
@@ -37,7 +40,8 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
   const activePageKey = location ? location.chapterId + ':' + location.pageIndex : null;
   // Do not momentarily show the previous page under a new location while its effect runs.
   const displayedImage = image?.key === activePageKey ? image.src : null;
-  const pageReady = !!displayedImage && !!activePageKey && loadedPageKey === activePageKey && !imageError;
+  const pageReady = direction === 'vertical' ? !!activePageKey && loadedPageKey === activePageKey :
+    !!displayedImage && !!activePageKey && loadedPageKey === activePageKey && !imageError;
   const chapters = entry ? orderedChapters(entry) : [];
   const activeChapter = chapters.find(chapter => chapter.id === location?.chapterId);
   const allTags = [...new Set(catalogue.flatMap(item => item.tags))].sort();
@@ -57,6 +61,13 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
     if (screen.kind === 'reader') readerRef.current?.focus();
   }, [screen.kind]);
   useEffect(() => {
+    const syncFullscreen = () => { if (!document.fullscreenElement) setImmersive(false); };
+    document.addEventListener('fullscreenchange', syncFullscreen);
+    return () => document.removeEventListener('fullscreenchange', syncFullscreen);
+  }, []);
+  useEffect(() => {
+    // VerticalReader owns its small image window; do not recreate a page on every scroll.
+    if (direction === 'vertical' && screen.kind === 'reader') return;
     if (screen.kind !== 'reader' || !entry || !location || !manifest || !demo) {
       setImage(null);
       setLoadedPageKey(null);
@@ -87,11 +98,13 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
       setImage(null);
       setImageError('The generated page could not be displayed. Retry this page.');
     }
-  }, [screen.kind, entry, location, manifest, demo, imageRetry]);
+  }, [screen.kind, entry, location, manifest, demo, imageRetry, direction]);
   function updateLocation(next: ReaderLocation) {
     // Selecting a page is not proof it was successfully loaded or read.
     // Progress is committed only after the active image has loaded.
     setLocation(next);
+    setLoadedPageKey(null);
+    if (direction === 'vertical') setJumpToken(value => value + 1);
     setNotice('');
   }
   function markPageViewed(item: MangaEntry, viewed: ReaderLocation) {
@@ -128,16 +141,37 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
     if (next) updateLocation(next);
     else setNotice(delta === 1 ? 'End of available chapters. No pages were skipped.' : 'Start of this series.');
   }
+  function exitImmersive() {
+    if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
+    setImmersive(false);
+  }
+  async function toggleImmersive() {
+    if (document.fullscreenElement) {
+      await document.exitFullscreen();
+      return;
+    }
+    const reader = readerRef.current;
+    if (reader?.requestFullscreen) {
+      try {
+        await reader.requestFullscreen();
+        setImmersive(true);
+        return;
+      } catch { /* CSS focus mode remains available when fullscreen is blocked. */ }
+    }
+    setImmersive(value => !value);
+  }
   function goCatalogue() {
+    exitImmersive();
     setScreen({ kind: 'catalogue' }); setNotice('');
   }
   function changeDemo(value: boolean) {
+    exitImmersive();
     setDemo(value); setLocation(null); setNotice(''); setScreen({ kind: 'catalogue' });
     cache.current.clear(); setQuery(''); setTag(''); setCollection(''); setStatus('all');
   }
   const progressForEntry = entry ? restoreProgress(entry, manifests, progress[entry.id]) : null;
 
-  return <div className="app-shell">
+  return <div className={immersive && screen.kind === 'reader' ? 'app-shell reading-immersive' : 'app-shell'}>
     <a className="skip" href="#content">Skip to content</a>
     <header className="site-header">
       <button className="wordmark" type="button" onClick={goCatalogue} aria-label="Taiyou Manga home">
@@ -231,16 +265,21 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
         </section>
       </>}
       {screen.kind === 'reader' && entry && location && <section className="reader-shell" ref={readerRef} tabIndex={0}
-        onKeyDown={event=>{if (event.target !== event.currentTarget) return; const delta=keyNavigation(direction,event.key);if(delta){event.preventDefault();move(delta);}}}
-        aria-label="Manga reader, use arrow keys to navigate">
-        <div className="reader-topline"><button className="back" type="button" onClick={()=>{setScreen({kind:'details',id:entry.id});setNotice('');}}>← Series details</button>
-          <button className="back" type="button" onClick={goCatalogue}>Shelf ↗</button></div>
+        onKeyDown={event=>{if (event.target !== event.currentTarget || direction === 'vertical') return; const delta=keyNavigation(direction,event.key);if(delta){event.preventDefault();move(delta);}}}
+        aria-label="Manga reader">
+        <div className="reader-topline">
+          <button className="back" type="button" onClick={()=>{exitImmersive();setScreen({kind:'details',id:entry.id});setNotice('');}}>← Series details</button>
+          <div className="reader-topline-actions">
+            <button className="back" type="button" onClick={goCatalogue}>Shelf ↗</button>
+            <button className="secondary focus-toggle" type="button" aria-pressed={immersive}
+              onClick={()=>{void toggleImmersive();}}>{immersive ? 'Exit focus view' : 'Focus view'}</button>
+          </div>
+        </div>
         <div className="reader-controls">
-          <div className="reader-heading"><p className="eyebrow">ORIGINAL / SYNTHETIC PAGE READER</p>
-            <h1>{entry.title}</h1><p>{activeChapter?.label ?? 'Unknown chapter'}</p></div>
+          <div className="reader-heading"><h1>{entry.title}</h1><p>{activeChapter?.label ?? 'Unknown chapter'}</p></div>
           <div className="reader-options"><fieldset><legend>Reading direction</legend>
               {directions.map(option=><button type="button" key={option} className={direction===option?'chip active':'chip'}
-                aria-pressed={direction===option} onClick={()=>{setDirection(option);setNotice('');}}>
+                aria-pressed={direction===option} onClick={()=>{setDirection(option);setLoadedPageKey(null);setImageError(null);setNotice('');}}>
                 {option==='rtl'?'Right to left':option==='ltr'?'Left to right':'Vertical'}</button>)}
             </fieldset>
             <div className="reader-selectors">
@@ -259,6 +298,14 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
               </label>}
             </div></div>
         </div>
+        {direction === 'vertical' && manifest ?
+          <VerticalReader key={manifest.chapterId} manifest={manifest} activeIndex={location.pageIndex} jumpToken={jumpToken}
+            onActivePage={index => setLocation(previous => previous?.chapterId === manifest.chapterId && previous.pageIndex === index
+              ? previous : { chapterId: manifest.chapterId, pageIndex: index })}
+            onViewedPage={index => {
+              setLoadedPageKey(manifest.chapterId + ':' + index);
+              markPageViewed(entry, { chapterId: manifest.chapterId, pageIndex: index });
+            }} /> :
         <div className="reader-stage" onTouchStart={event=>{
           const start=event.touches[0];if(start)touch.current={x:start.clientX,y:start.clientY};
         }} onTouchEnd={event=>{
@@ -282,14 +329,14 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
               <button className="secondary" type="button" onClick={()=>{cache.current.clear();setImageRetry(value=>value+1);}}>Retry page</button>
             </div>}
           <div className="page-stamp">{location.pageIndex+1} / {manifest?.pages.length ?? '?'}</div>
-        </div>
+        </div>}
         <div className="page-navigation">
           <button className="secondary" type="button" disabled={!manifest || !pageReady} onClick={()=>move(-1)}>← Previous page</button>
           <p aria-live="polite">Page {location.pageIndex+1} of {manifest?.pages.length ?? '?'} <span aria-hidden="true">·</span> {activeChapter?.label}</p>
           <button className="primary" type="button" disabled={!manifest || !pageReady} onClick={()=>move(1)}>Next page →</button>
         </div>
         {notice && <p className="reader-notice" role="status">{notice}</p>}
-        <p className="reader-hint">Tap Previous / Next or swipe. Focus the reader and use {direction==='vertical'?'↑ / ↓':'← / →'} arrow keys. Vertical mode moves page by page, not continuous scroll.</p>
+        <p className="reader-hint">{direction === 'vertical' ? 'Scroll continuously through the chapter. Only nearby images are loaded.' : 'Use Previous / Next, swipe or focus the reader and use ← / → arrow keys.'}</p>
         <p className="fine-print">Offline: these pages are drawn locally. Private manga downloads and offline caching are not implemented.</p>
       </section>}
       {screen.kind !== 'catalogue' && !entry && <div className="empty-state" role="alert"><h2>Series unavailable</h2>
