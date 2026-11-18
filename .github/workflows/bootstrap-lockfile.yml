@@ -1,0 +1,58 @@
+name: One-time dependency lockfile bootstrap
+
+on:
+  push:
+    branches:
+      - feature/local-manga-catalogue-reader
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  commit-reviewed-lock:
+    if: ${{ github.repository == 'AdityaSreevatsaK/Taiyous-Manga-Library' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/local-manga-catalogue-reader
+          persist-credentials: true
+      - name: Check whether the lockfile already exists
+        id: check
+        shell: bash
+        run: |
+          if test -f package-lock.json; then echo "exists=true" >> "$GITHUB_OUTPUT"; else echo "exists=false" >> "$GITHUB_OUTPUT"; fi
+      - name: Download genuine lockfile from the successful npm installation
+        if: ${{ steps.check.outputs.exists == 'false' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: manga-bootstrap-lockfile
+          run-id: 44315646015
+          github-token: ${{ github.token }}
+      - name: Verify exact generated lockfile and manifest consistency
+        if: ${{ steps.check.outputs.exists == 'false' }}
+        shell: bash
+        run: |
+          echo "1cf37ab975dedaaa0b4fa9c8d0c0504bd8b09e80ea11ae3b2323faccfa23ce14  package-lock.json" | sha256sum --check
+          node --input-type=commonjs <<'NODE'
+          const fs = require('node:fs');
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          const lock = JSON.parse(fs.readFileSync('package-lock.json', 'utf8'));
+          if (lock.lockfileVersion !== 3 || lock.name !== pkg.name) throw Error('Unexpected lockfile');
+          for (const key of ['dependencies', 'devDependencies']) {
+            if (JSON.stringify(pkg[key]) !== JSON.stringify(lock.packages[''][key]))
+              throw Error('Lockfile root ' + key + ' does not match package.json');
+          }
+          console.log('Authenticated npm-generated dependency lockfile verified.');
+          NODE
+      - name: Commit lockfile on the feature branch only
+        if: ${{ steps.check.outputs.exists == 'false' }}
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- package-lock.json
+          git commit -m "build: commit verified npm-generated dependency lockfile"
+          git push origin HEAD:refs/heads/feature/local-manga-catalogue-reader
