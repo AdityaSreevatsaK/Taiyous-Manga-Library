@@ -2,6 +2,7 @@
 export type AppRoute =
   | { kind: 'home' }
   | { kind: 'library' }
+  | { kind: 'offline' }
   | { kind: 'details'; mangaId: string }
   | { kind: 'reader'; mangaId: string; chapterId: string; pageIndex: number }
   | { kind: 'not-found' };
@@ -24,6 +25,7 @@ export function parseAppRoute(pathname: string, search = '', basePath = '/'): Ap
   const parts = relative.split('/').filter(Boolean);
   if (parts.length === 0) return { kind: 'home' };
   if (parts.length === 1 && parts[0] === 'library') return { kind: 'library' };
+  if (parts.length === 1 && parts[0] === 'offline') return { kind: 'offline' };
   if (parts[0] !== 'manga') return { kind: 'not-found' };
   if (parts.length === 2) {
     const mangaId = readId(parts[1]!);
@@ -46,6 +48,7 @@ export function routeHref(route: Exclude<AppRoute, { kind: 'not-found' }>, baseP
   const base = prefixFor(basePath);
   if (route.kind === 'home') return base + '/';
   if (route.kind === 'library') return base + '/library';
+  if (route.kind === 'offline') return base + '/offline';
   if (route.kind === 'details') return base + '/manga/' + encodeURIComponent(route.mangaId);
   return base + '/manga/' + encodeURIComponent(route.mangaId) +
     '/chapters/' + encodeURIComponent(route.chapterId) + '?page=' + (route.pageIndex + 1);
