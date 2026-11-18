@@ -22,7 +22,8 @@ test.describe('local manga catalogue and chapter reader', () => {
       await expect(page.getByRole('heading', { name: 'Chapters & volumes' })).toBeVisible();
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
       await page.getByRole('button', { name: /Read from beginning/ }).click();
-      await expect(page.locator('.reader-page')).toBeVisible();
+      // Alphabetical first series defaults to genuine vertical mode.
+      await expect(page.locator('.reader-page,.vertical-page-image').first()).toBeVisible();
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     });
   }
