@@ -24,6 +24,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
   const [notice, setNotice] = useState('');
   const [image, setImage] = useState<{ key: string; src: string } | null>(null);
   const [imageError, setImageError] = useState<string | null>(null);
+  const [loadedPageKey, setLoadedPageKey] = useState<string | null>(null);
   const [imageRetry, setImageRetry] = useState(0);
   const [online, setOnline] = useState(() => typeof navigator === 'undefined' ? true : navigator.onLine);
   const cache = useRef(new Map<string, string>());
@@ -36,6 +37,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
   const activePageKey = location ? location.chapterId + ':' + location.pageIndex : null;
   // Do not momentarily show the previous page under a new location while its effect runs.
   const displayedImage = image?.key === activePageKey ? image.src : null;
+  const pageReady = !!displayedImage && !!activePageKey && loadedPageKey === activePageKey && !imageError;
   const chapters = entry ? orderedChapters(entry) : [];
   const activeChapter = chapters.find(chapter => chapter.id === location?.chapterId);
   const allTags = [...new Set(catalogue.flatMap(item => item.tags))].sort();
@@ -114,7 +116,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
   }
   function move(delta: -1 | 1) {
     // A failed image must not be skipped or recorded as read via arrows/swipes.
-    if (!entry || !location || !manifest || !displayedImage || imageError) return;
+    if (!entry || !location || !manifest || !pageReady) return;
     const next = stepReader(entry, manifests, location, delta);
     if (next) updateLocation(next);
     else setNotice(delta === 1 ? 'End of available chapters. No pages were skipped.' : 'Start of this series.');
@@ -248,7 +250,10 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
         }} style={{touchAction:direction==='vertical'?'pan-x':'pan-y'}}>
           {manifest && displayedImage && !imageError ? <img key={location.chapterId + ':' + location.pageIndex} className="reader-page" src={displayedImage}
             alt={'Synthetic illustration, '+(activeChapter?.label??'chapter')+', page '+(location.pageIndex+1)}
-            onLoad={()=>markPageViewed(entry, location)}
+            onLoad={()=>{
+              setLoadedPageKey(activePageKey);
+              markPageViewed(entry, location);
+            }}
             onError={()=>setImageError('This sample page is unavailable. Retry rather than silently skipping it.')}
             decoding="async" /> : manifest && !imageError && !displayedImage ?
             <div className="page-error" role="status"><h2>Preparing sample page</h2>
@@ -260,9 +265,9 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
           <div className="page-stamp">{location.pageIndex+1} / {manifest?.pages.length ?? '?'}</div>
         </div>
         <div className="page-navigation">
-          <button className="secondary" type="button" disabled={!manifest || !displayedImage || !!imageError} onClick={()=>move(-1)}>← Previous page</button>
+          <button className="secondary" type="button" disabled={!manifest || !pageReady} onClick={()=>move(-1)}>← Previous page</button>
           <p aria-live="polite">Page {location.pageIndex+1} of {manifest?.pages.length ?? '?'} <span aria-hidden="true">·</span> {activeChapter?.label}</p>
-          <button className="primary" type="button" disabled={!manifest || !displayedImage || !!imageError} onClick={()=>move(1)}>Next page →</button>
+          <button className="primary" type="button" disabled={!manifest || !pageReady} onClick={()=>move(1)}>Next page →</button>
         </div>
         {notice && <p className="reader-notice" role="status">{notice}</p>}
         <p className="reader-hint">Tap Previous / Next or swipe. Focus the reader and use {direction==='vertical'?'↑ / ↓':'← / →'} arrow keys. Vertical mode moves page by page, not continuous scroll.</p>
