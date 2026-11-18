@@ -11,3 +11,13 @@ coverage/
 .vscode/
 *.log
 *.tsbuildinfo
+
+# Untrusted or private media imports and backups must never enter the source repository.
+private-media/
+imports/
+backups/
+*.cbz
+*.cbr
+*.epub
+*.rar
+*.7z
