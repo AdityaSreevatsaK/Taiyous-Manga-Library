@@ -7,7 +7,7 @@ Stacked draft PRs:
 2. [#11 Browser routes](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/pull/11), branch `feature/browser-routes-deep-links-20261118`, green 23 + 22, CI run `44357819382`.
 3. [#12 Local persistence](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/pull/12), branch `feature/local-reader-persistence-20261118`, green 29 + 27, CI run `44359535976`.
 4. [#13 Genuine synthetic offline reading](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/pull/13), branch `feature/offline-shell-synthetic-chapters-20261118`, green 29 + 32 **on production Vite preview**, CI run `44363425900`.
-5. **PR E reliability hardening**, branch `feature/reader-reliability-hardening-20261118`, based on #13: stricter receipt validation, interruption/quota/update/mobile accessibility tests, bundle budgets, and removal of obsolete GitHub Pages publication. **Not verified until its CI run passes**.
+5. **PR E reliability hardening**, branch `feature/reader-reliability-hardening-20261118`, based on #13: stricter receipt validation, interruption/quota/update/mobile accessibility tests, bundle budgets, and removal of obsolete GitHub Pages publication. **Verified:** 34 Vitest tests, 37 Playwright Chromium production tests, TypeScript, build and bundle budgets passed in [run 44366411933](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/actions/runs/44366411933).
 
 Use `npm ci` with Node 22. Local and GH Actions TypeScript/Vitest/build/Playwright. For production E2E: `npm run build` then `E2E_PRODUCTION=1 npm run test:e2e`.
 
