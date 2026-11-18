@@ -2,7 +2,7 @@
 
 > **Public, fictional-data demonstration.** Production `master` remains at `6a6e337` until the owner approves deployment. Cloudflare Pages is the intended host; live deployment has not been independently verified.
 >
-> **Verified feature PRs (stacked, unmerged):** [#10 mobile reader](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/pull/10), [#11 browser navigation](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/pull/11), [#12 local progress](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/pull/12), [#13 synthetic offline reading](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/pull/13). PR #13 passed 29 unit and 32 production-browser tests. Final hardening is staged separately.
+> **Verified feature PRs (stacked, unmerged):** [#10 mobile reader](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/pull/10), [#11 browser navigation](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/pull/11), [#12 local progress](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/pull/12), [#13 synthetic offline reading](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/pull/13). PR #13 passed 29 unit and 32 production-browser tests. Final hardening [#14](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/pull/14) also passed 34 unit and 37 production-browser tests, TypeScript, build and bundle budgets. All five PRs remain draft/unmerged.
 >
 > **Never upload real manga images or credentials to public Git.** Private Hugging Face storage, authentication and cross-device progress are not connected.
 
