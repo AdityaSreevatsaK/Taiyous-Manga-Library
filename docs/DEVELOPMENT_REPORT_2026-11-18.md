@@ -68,3 +68,9 @@ There is **no** authentication, source integration, private catalogue, backgroun
 ## Playwright tests added after the initial report
 
 A real-browser test entry point (`npm run test:e2e`) and `playwright.config.ts` were committed with an explicit `@playwright/test` dev dependency. The suite covers 320/375/390/768/1280px, filters, sample/private empty states, keyboard and touch navigation, chapter boundaries, exact resume, offline network isolation and corrupt image generation/retry. **These tests remain unexecuted** due to missing dependencies, browser binary and failed pre-step Actions scheduling. Run `npx playwright install chromium` before `npm run test:e2e` on an online machine.
+
+## Follow-up on 18 November, after owner-reported visibility change
+
+The connected GitHub repository API **still reports `visibility: private`**. Fresh PR Actions run [44313408708](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/actions/runs/44313408708) recorded the quality job as failure before runner steps, while dependent browser tests were skipped. The rerun of [44280940971](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/actions/runs/44280940971) similarly failed with no steps. This is a runner/account/repository visibility diagnostic, **not** a TypeScript/Vitest/Playwright failure. The owner-reported visibility change is not independently confirmed by the authenticated repository metadata; do not claim it is publicly accessible.
+
+The feature branch now adds an explicit manual trigger plus separate quality/browser GitHub Actions jobs, and automatically prefers `npm ci` when a real lockfile exists. Until a genuine lockfile can be installed and committed, CI bootstraps with `npm install`. Chromium checks run only after a successful quality job, with browser failure artefacts retained for seven days. Reader progress is now written only after the relevant image loads, and failed pages cannot be skipped by buttons, swipes or keyboard.
