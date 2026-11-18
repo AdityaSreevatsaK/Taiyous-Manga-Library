@@ -140,7 +140,7 @@ test.describe('local manga catalogue and chapter reader', () => {
     await page.goto('/');
     await page.locator('.book-card').filter({ hasText: 'The Lantern Archive' }).click();
     await page.getByRole('link', { name: /Read from beginning/ }).click();
-    await expect(page.getByRole('alert')).toContainText('generated page could not be displayed');
+    await expect(page.getByRole('alert')).toContainText('offline copy is unavailable or corrupt');
     await expect(page.locator('.page-navigation')).toContainText('Page 1 of 5');
     await expect(page.getByRole('button', { name: /Next page/ })).toBeDisabled();
     await expect(page.getByRole('button', { name: /Previous page/ })).toBeDisabled();
@@ -355,8 +355,21 @@ test.describe('explicit offline chapter storage and application shell', () => {
     await page.evaluate(async () => { await navigator.serviceWorker.ready; });
     await page.reload(); // control the current client before the simulated cold restart
     await expect.poll(async () => page.evaluate(() => navigator.serviceWorker.controller !== null)).toBe(true);
+    const cacheInspection = await page.evaluate(async () => {
+      const names = (await caches.keys()).filter(name => name.startsWith('taiyou-manga-shell-v1-')).sort().reverse();
+      const store = await caches.open(names[0]!);
+      const script = [...document.querySelectorAll<HTMLScriptElement>('script[src]')].map(el => el.src);
+      const stylesheet = [...document.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]')].map(el => el.href);
+      const files = [...script,...stylesheet];
+      return { keys: (await store.keys()).map(key=>key.url), required:files,
+        missing: (await Promise.all(files.map(async url => await store.match(url) ? null : url))).filter(Boolean) };
+    });
+    expect(cacheInspection.missing, JSON.stringify(cacheInspection)).toEqual([]);
+    expect(cacheInspection.required.length).toBeGreaterThanOrEqual(2);
     await context.setOffline(true);
     await page.goto('/offline');
+    const offlineControl = await page.evaluate(() => navigator.serviceWorker.controller?.scriptURL ?? 'not-controlled');
+    expect(offlineControl).toContain('/sw.js');
     await expect(page.getByRole('heading', { name: 'Offline chapters' })).toBeVisible();
     await expect(page.locator('.offline-series-link')).toHaveCount(1);
     await page.locator('.offline-series-link').click();
