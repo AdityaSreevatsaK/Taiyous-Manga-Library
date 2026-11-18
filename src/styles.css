@@ -241,7 +241,7 @@ a.book-card:focus-visible,a.chapter-row:focus-visible,a.back:focus-visible,a.pri
 .chapter-entry{border-top:1px solid #3f4f56;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:6px 10px}
 .chapter-entry .chapter-row{border:0;flex:1 1 250px;padding:14px 0}
 .offline-chapter-control{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:8px;max-width:100%}
-.offline-chapter-control .secondary{font-size:11px;min-height:43px;padding:9px 12px}
+.offline-chapter-control .secondary{font-size:11px;min-height:48px;padding:9px 12px}
 .offline-chapter-state{font-size:11px;color:#bcd0cb}
 .offline-download-progress{width:120px;accent-color:#ddbd84}
 .offline-chapter-feedback{flex-basis:100%;font-size:11px;text-align:right;color:#edd6a9}
