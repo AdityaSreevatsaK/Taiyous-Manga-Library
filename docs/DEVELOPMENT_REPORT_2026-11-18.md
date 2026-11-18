@@ -78,3 +78,7 @@ The feature branch now adds an explicit manual trigger plus separate quality/bro
 The local reader additionally offers a bounded, one-based **Go to page** selector while retaining zero-based internal progress. A dedicated browser test checks page 5 resume and switching chapters. The new selector and browser test are committed but unverified.
 
 **Reader consistency hardening:** successful page image loads are now required before progress writes or navigation; stale images cannot momentarily masquerade as a new page. Progress includes immutable `pageId` alongside zero-based `pageIndex`, and a reordered manifest invalidates old progress instead of reopening the wrong image. Unit tests were added for this regression, but still cannot be executed while runner/npm access remains blocked.
+
+## Public-source safety checkpoint
+
+The owner authorised public source visibility, while the connected GitHub API still reported the repository as private. No real manga binaries, protected storage addresses, secrets, authenticated requests or private catalogue records are introduced by this branch. The repository now explicitly ignores common manga/book archive formats and private import/backup directories. This is defence-in-depth, not proof that Git would reject a forced add: future imports must remain outside the public source tree. Public **source** approval is not public **data** approval.
