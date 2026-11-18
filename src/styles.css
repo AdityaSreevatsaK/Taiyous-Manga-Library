@@ -99,6 +99,8 @@ input::placeholder{color:#9baeb4}
 .reader-options fieldset{margin:0;padding:0;display:flex;gap:6px;border:0;flex-wrap:wrap}
 .reader-options legend{margin-bottom:8px;color:#b6c5c5;font-size:11px}
 .reader-options label{width:min(100%,320px)}
+.reader-selectors{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap}
+.reader-selectors label{min-width:155px;flex:1}
 .reader-stage{position:relative;margin:25px auto 0;max-width:760px;min-height:340px;background:#293139;display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid #52606a;box-shadow:0 20px 70px #0005}
 .reader-page{width:100%;height:auto;display:block;max-height:80vh;object-fit:contain;background:#eddfc9}
 .page-stamp{position:absolute;bottom:10px;right:10px;background:#101922d9;padding:6px 9px;border-radius:5px;font-size:11px}
@@ -113,3 +115,7 @@ input::placeholder{color:#9baeb4}
 @media(max-width:740px){.site-header{min-height:75px}.header-right{display:none}.hero{grid-template-columns:1fr;padding:52px 0 30px;gap:25px}.hero-art{height:180px;max-width:100%;border-radius:120px 120px 8px 8px}.hero-moon{width:75px;height:75px;top:30px}.hero-art-label{font-size:8px}.mode-bar{display:block;padding:22px}.mode-actions{margin-top:19px}.toolbar{grid-template-columns:repeat(2,minmax(0,1fr))}.search-label{grid-column:span 2}.book-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.book-cover{padding:15px}.cover-title{font-size:29px}.series-detail{grid-template-columns:1fr;gap:35px}.detail-cover{max-width:240px}.reader-options{align-items:flex-start;width:100%}.reader-controls{align-items:flex-start}.site-footer{flex-direction:column}}
 @media(max-width:410px){.book-grid{gap:11px}.book-card{padding:7px}.book-cover{padding:12px}.cover-title{font-size:24px}.book-details{padding:12px 4px}.book-details strong{font-size:15px}.toolbar{gap:10px}.reader-options fieldset{gap:5px}.reader-options .chip{padding:10px;font-size:11px}.page-navigation{gap:7px}.page-navigation .primary,.page-navigation .secondary{padding:10px 11px;font-size:11px}.page-navigation p{font-size:11px}.stat-strip{gap:17px}}
 @media(prefers-reduced-motion:reduce){html{scroll-behaviour:auto}.book-card{transition:none}}
+
+@media(max-width:520px){.reader-selectors{width:100%}.reader-selectors label{min-width:0;width:100%;flex-basis:100%}}
+.cover-title{overflow-wrap:anywhere}
+button:disabled{opacity:.52;cursor:not-allowed}
