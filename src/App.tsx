@@ -98,7 +98,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
       setImage(null);
       setImageError('The generated page could not be displayed. Retry this page.');
     }
-  }, [screen.kind, entry, location, manifest, demo, imageRetry, direction]);
+  }, [screen.kind, entry, location, manifest, demo, imageRetry, direction === 'vertical']);
   function updateLocation(next: ReaderLocation) {
     // Selecting a page is not proof it was successfully loaded or read.
     // Progress is committed only after the active image has loaded.
@@ -279,7 +279,12 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
           <div className="reader-heading"><h1>{entry.title}</h1><p>{activeChapter?.label ?? 'Unknown chapter'}</p></div>
           <div className="reader-options"><fieldset><legend>Reading direction</legend>
               {directions.map(option=><button type="button" key={option} className={direction===option?'chip active':'chip'}
-                aria-pressed={direction===option} onClick={()=>{setDirection(option);setLoadedPageKey(null);setImageError(null);setNotice('');}}>
+                aria-pressed={direction===option} onClick={()=>{
+                  if (direction === option) return;
+                  // Switching physical arrow direction must not invalidate an already loaded image.
+                  if (direction === 'vertical' || option === 'vertical') {setLoadedPageKey(null);setImageError(null);}
+                  setDirection(option);setNotice('');
+                }}>
                 {option==='rtl'?'Right to left':option==='ltr'?'Left to right':'Vertical'}</button>)}
             </fieldset>
             <div className="reader-selectors">
