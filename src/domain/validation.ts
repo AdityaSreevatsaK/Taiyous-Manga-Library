@@ -32,9 +32,9 @@ function textList(value: unknown, field: string, maxItems: number): string[] {
   return values;
 }
 function integer(value: unknown, field: string, min: number, max: number): number {
-  if (!Number.isSafeInteger(value) || (value as number) < min || (value as number) > max)
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < min || value > max)
     throw new DomainValidationError(field, 'invalid integer');
-  return value as number;
+  return value;
 }
 const idPattern = /^(?:mng|ch|pg)_[a-zA-Z0-9_-]{8,64}$/;
 function id(value: unknown, field: string, prefix: 'mng' | 'ch' | 'pg'): string {
