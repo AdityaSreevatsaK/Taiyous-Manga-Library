@@ -6,7 +6,7 @@ All milestones are implemented on **stacked draft PRs**, not merged or deployed 
 - **PR B #11:** stable URLs, native hyperlinks, direct chapters/pages, Back/Forward. 23/23 unit, 22/22 Chromium tests passed.
 - **PR C #12:** isolated persisted exact progress, reader mode, fit/theme and scroll anchors. 29/29 unit, 27/27 Chromium tests passed.
 - **PR D #13:** verified synthetic chapter downloads, offline shell, cold launch, corruption detection, safe deletion. 29/29 unit, 32/32 production-browser tests passed.
-- **PR E (feature branch):** final audit, quota/cancellation/update security regression tests, touch target and performance budgets. Pending CI, not merged.
+- **PR E #14:** final audit, quota/cancellation/update regression tests, 44px touch targets, bundle budgets, redundant GitHub Pages removal. **Verified:** 34/34 unit, 37/37 production-browser tests passed. Still draft/unmerged.
 - **Remaining after PR E:** owner-approved Cloudflare deployment and live smoke, real-device mobile tests, and separately reviewed private media/auth storage. No real manga data uploaded.
 
 ---
