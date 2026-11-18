@@ -402,3 +402,96 @@ test.describe('explicit offline chapter storage and application shell', () => {
     expect(downloads).toBe(0);
   });
 });
+
+test.describe('offline failure handling and accessibility hardening', () => {
+  test('cancelled opt-in download cleans partial media without clearing progress', async ({ page }) => {
+    await page.addInitScript(() => {
+      const put = Cache.prototype.put;
+      Cache.prototype.put = function(this: Cache, request: RequestInfo | URL, response: Response) {
+        return new Promise<void>((resolve, reject) => {
+          setTimeout(() => { put.call(this, request, response).then(resolve, reject); }, 350);
+        });
+      };
+    });
+    await page.goto('/manga/mng_lanternarchive');
+    await page.getByRole('button', { name: 'Download chapter' }).first().click();
+    await expect(page.getByRole('button', { name: 'Cancel download' })).toBeVisible();
+    await page.getByRole('button', { name: 'Cancel download' }).click();
+    await expect(page.getByText('Chapter download cancelled')).toBeVisible();
+    const state = await page.evaluate(async () => {
+      const cache = await caches.open('taiyou-manga-synthetic-chapters-v1');
+      return {
+        pages: (await cache.keys()).length,
+        receipt: localStorage.getItem('taiyou-manga:offline-chapter:v1:ch_lanternopening'),
+      };
+    });
+    expect(state.pages).toBe(0);
+    expect(state.receipt).toBeNull();
+    await expect(page.getByRole('button', { name: 'Download chapter' })).toHaveCount(3);
+    await page.getByRole('link', { name: /Read from beginning/ }).click();
+    await expect(page.locator('.reader-page')).toBeVisible();
+  });
+
+  test('cache quota refusal is explicit and never marks the chapter as downloaded', async ({ page }) => {
+    await page.addInitScript(() => {
+      Cache.prototype.put = async () => { throw new DOMException('Synthetic quota exceeded', 'QuotaExceededError'); };
+    });
+    await page.goto('/manga/mng_lanternarchive');
+    await page.getByRole('button', { name: 'Download chapter' }).first().click();
+    await expect(page.getByText(/Synthetic quota exceeded/)).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Offline (0)' })).toBeVisible();
+    expect(await page.evaluate(() => localStorage.getItem('taiyou-manga:offline-chapter:v1:ch_lanternopening'))).toBeNull();
+  });
+
+  test('service worker update check preserves verified media and progress', async ({ page }) => {
+    await page.goto('/manga/mng_lanternarchive');
+    await page.getByRole('button', { name: 'Download chapter' }).first().click();
+    await expect(page.getByText('Available offline')).toHaveCount(1);
+    await page.getByRole('link', { name: /Read from beginning/ }).click();
+    await page.getByRole('button', { name: /Next page/ }).click();
+    await expect(page.locator('.page-navigation')).toContainText('Page 2 of 5');
+    await page.evaluate(async () => {
+      const registration = await navigator.serviceWorker.ready;
+      await registration.update();
+    });
+    await page.reload();
+    await expect(page.locator('.page-navigation')).toContainText('Page 2 of 5');
+    await expect.poll(async () => page.locator('.reader-page').getAttribute('src')).toMatch(/^blob:/);
+    await expect(page.getByRole('link', { name: 'Offline (1)' })).toBeVisible();
+    const cache = await page.evaluate(() => caches.keys());
+    expect(cache).toContain('taiyou-manga-synthetic-chapters-v1');
+  });
+
+  test('mobile navigation and download actions have safe 44px targets without overflow', async ({ page }) => {
+    for (const width of [320, 375, 390, 430, 768, 1024, 1280]) {
+      await page.setViewportSize({ width, height: 760 });
+      await page.goto('/manga/mng_lanternarchive');
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      const heights = await page.locator('.site-nav-link, .offline-chapter-control button')
+        .evaluateAll(elements => elements.map(el => Math.round(el.getBoundingClientRect().height)));
+      expect(heights.every(height => height >= 44), 'touch target width ' + width + ': ' + heights).toBe(true);
+      await page.getByRole('link', { name: /Read from beginning/ }).click();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      const readerHeights = await page.locator('.reader-options button, .page-navigation button, .reader-selectors select')
+        .evaluateAll(elements => elements.map(el => Math.round(el.getBoundingClientRect().height)));
+      expect(readerHeights.every(height => height >= 44), 'reader touch targets ' + width + ': ' + readerHeights).toBe(true);
+    }
+  });
+
+  test('offline inventory honours keyboard navigation and reduced motion', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.goto('/manga/mng_lanternarchive');
+    await page.getByRole('button', { name: 'Download chapter' }).first().click();
+    await expect(page.getByText('Available offline')).toHaveCount(1);
+    await page.getByRole('link', { name: 'Offline (1)' }).focus();
+    await expect(page.getByRole('link', { name: 'Offline (1)' })).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL('/offline');
+    const link = page.locator('.offline-series-link');
+    await expect(link).toHaveCount(1);
+    expect(await link.evaluate(el => getComputedStyle(el).transitionDuration)).toMatch(/^0s/);
+    await link.focus();
+    await page.keyboard.press('Enter');
+    await expect(page.locator('.reader-page')).toBeVisible();
+  });
+});
