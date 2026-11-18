@@ -80,3 +80,7 @@ After the online install, inspect and commit a *genuine* `package-lock.json`, th
 ### Repository visibility and content privacy
 
 On 18 November 2026 the owner explicitly approved making the **source repository public**. The connected GitHub API still reported `visibility: private` at the most recent check, so this README does not claim the visibility switch has been confirmed. A public source repository is compatible with a private personal catalogue **only** when future server-side access control, asset authorisation and storage are implemented separately. No auth, private data, private media or deployment is present in this fixture branch.
+
+### Reuse and licensing
+
+Repository visibility and code licensing are different decisions. No standalone software licence has been selected in this repository; public source visibility alone does not establish an open-source redistribution licence. Select an explicit licence before presenting this project as open-source software. Private manga and personal data must remain separately authorised regardless of any future code licence.
