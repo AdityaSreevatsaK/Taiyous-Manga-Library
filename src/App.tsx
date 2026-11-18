@@ -94,7 +94,8 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
       setNotice('No verified demonstration pages are available for this chapter.');
       return;
     }
-    setDirection(item.direction);
+    // Keep the user's active direction when changing chapters inside the reader.
+    if (screen.kind !== 'reader') setDirection(item.direction);
     updateLocation(item, target);
     setScreen({ kind: 'reader', id: item.id });
   }
