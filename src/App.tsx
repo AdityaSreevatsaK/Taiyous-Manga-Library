@@ -236,9 +236,21 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
                 aria-pressed={direction===option} onClick={()=>{setDirection(option);setNotice('');}}>
                 {option==='rtl'?'Right to left':option==='ltr'?'Left to right':'Vertical'}</button>)}
             </fieldset>
-            <label>Choose chapter
-              <select value={location.chapterId} onChange={event=>openChapter(entry,event.target.value)}>
-                {chapters.map(chapter=><option key={chapter.id} value={chapter.id}>{chapter.label}</option>)}</select></label></div>
+            <div className="reader-selectors">
+              <label>Choose chapter
+                <select value={location.chapterId} onChange={event=>openChapter(entry,event.target.value)}>
+                  {chapters.map(chapter=><option key={chapter.id} value={chapter.id}>{chapter.label}</option>)}</select>
+              </label>
+              {manifest && <label>Go to page
+                <select value={location.pageIndex} onChange={event=>{
+                  const pageIndex = Number(event.target.value);
+                  if (Number.isSafeInteger(pageIndex) && pageIndex >= 0 && pageIndex < manifest.pages.length)
+                    updateLocation({chapterId:location.chapterId, pageIndex});
+                }}>
+                  {manifest.pages.map((page,index)=><option value={index} key={page.id}>Page {index + 1} of {manifest.pages.length}</option>)}
+                </select>
+              </label>}
+            </div></div>
         </div>
         <div className="reader-stage" onTouchStart={event=>{
           const start=event.touches[0];if(start)touch.current={x:start.clientX,y:start.clientY};
