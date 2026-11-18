@@ -30,6 +30,9 @@ describe('runtime media schemas', () => {
     }
     expect(() => parseChapterManifest({ ...manifest, pages: [{ ...manifest.pages[0], mimeType: 'image/svg+xml' }] })).toThrow();
     expect(() => parseChapterManifest({ ...manifest, pages: [manifest.pages[0], manifest.pages[0]] })).toThrow(/duplicate/);
+    expect(() => parseChapterManifest({ ...manifest, pages: [
+      manifest.pages[0], { ...manifest.pages[1], assetPath: manifest.pages[0]!.assetPath },
+    ] })).toThrow(/duplicate/);
     expect(() => parseChapterManifest({ ...manifest, schemaVersion: 9 })).toThrow(/version/);
     expect(() => parseChapterManifest({ ...manifest, pages: [{ ...manifest.pages[0], width: 15000, height: 15000 }] })).toThrow(/pixel/);
   });
