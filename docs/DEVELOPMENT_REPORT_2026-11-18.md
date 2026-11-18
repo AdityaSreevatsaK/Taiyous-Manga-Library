@@ -64,3 +64,7 @@ There is **no** authentication, source integration, private catalogue, backgroun
 3. Add Playwright or comparable responsive interaction tests once the dependency chain is available; the current server-rendered tests do not replace a browser run.
 4. Verify a small-screen reader, real-device swipe focus and memory usage. Current vertical mode changes pages, **not** continuous long-strip scrolling.
 5. Approve source rights, storage and authentication choices before any actual manga is uploaded.
+
+## Playwright tests added after the initial report
+
+A real-browser test entry point (`npm run test:e2e`) and `playwright.config.ts` were committed with an explicit `@playwright/test` dev dependency. The suite covers 320/375/390/768/1280px, filters, sample/private empty states, keyboard and touch navigation, chapter boundaries, exact resume, offline network isolation and corrupt image generation/retry. **These tests remain unexecuted** due to missing dependencies, browser binary and failed pre-step Actions scheduling. Run `npx playwright install chromium` before `npm run test:e2e` on an online machine.
