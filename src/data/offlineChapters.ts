@@ -27,11 +27,13 @@ export function receiptIsValid(data: unknown, manifest: ChapterManifest): data i
   if (!data || typeof data !== 'object' || Array.isArray(data)) return false;
   const value = data as Partial<ChapterReceipt>;
   return value.schemaVersion === 1 && value.mediaKind === 'manga' && value.chapterId === manifest.chapterId &&
-    typeof value.completedAt === 'string' && Number.isFinite(Date.parse(value.completedAt)) &&
+    typeof value.completedAt === 'string' && /^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$/.test(value.completedAt) &&
+    Number.isFinite(Date.parse(value.completedAt)) &&
     Array.isArray(value.pages) && value.pages.length === manifest.pages.length &&
     value.pages.every((page, i) => page && page.pageId === manifest.pages[i]?.id &&
       typeof page.sha256 === 'string' && digestPattern.test(page.sha256) &&
-      Number.isSafeInteger(page.byteSize) && page.byteSize > 0 && page.byteSize <= MAX_CHAPTER_BYTES);
+      Number.isSafeInteger(page.byteSize) && page.byteSize > 0 && page.byteSize <= MAX_CHAPTER_BYTES) &&
+    value.pages.reduce((sum, page) => sum + page.byteSize, 0) <= MAX_CHAPTER_BYTES;
 }
 export function readReceipt(manifest: ChapterManifest): { status: 'missing' | 'invalid' | 'ok'; receipt?: ChapterReceipt } {
   const store = hasBrowserStorage();
