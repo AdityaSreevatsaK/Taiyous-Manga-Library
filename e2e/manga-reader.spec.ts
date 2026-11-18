@@ -77,6 +77,18 @@ test.describe('local manga catalogue and chapter reader', () => {
     });
     await expect(page.locator('.page-navigation')).toContainText('Page 2 of 5');
   });
+  test('corrupt canvas images show a recoverable error and do not advance progress', async ({ page }) => {
+    await page.addInitScript(() => {
+      HTMLCanvasElement.prototype.toDataURL = function () { throw new Error('Synthetic canvas failure'); };
+    });
+    await page.goto('/');
+    await page.locator('.book-card').filter({ hasText: 'The Lantern Archive' }).click();
+    await page.getByRole('button', { name: /Read from beginning/ }).click();
+    await expect(page.getByRole('alert')).toContainText('generated page could not be displayed');
+    await expect(page.locator('.page-navigation')).toContainText('Page 1 of 5');
+    await page.getByRole('button', { name: 'Retry page' }).click();
+    await expect(page.locator('.page-navigation')).toContainText('Page 1 of 5');
+  });
   test('synthetic sample remains readable offline without protected external requests', async ({ page, context }) => {
     const external: string[] = [];
     page.on('request', request => {
