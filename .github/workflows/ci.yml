@@ -85,7 +85,7 @@ jobs:
         with:
           enablement: true
       - name: Upload only static compiled output
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
           path: dist
       - name: Publish demo
