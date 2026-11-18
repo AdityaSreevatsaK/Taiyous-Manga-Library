@@ -53,7 +53,7 @@ function unique(values: string[], field: string) {
 }
 function timestamp(value: unknown, field: string): string {
   const result = text(value, field, 40);
-  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/.test(result) || !Number.isFinite(Date.parse(result)))
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/.test(result) || (!Number.isFinite(Date.parse(result)) || new Date(Date.parse(result)).toISOString().slice(0, 10) !== result.slice(0, 10)))
     throw new DomainValidationError(field, 'expected UTC ISO timestamp');
   return result;
 }
@@ -136,6 +136,7 @@ export function parseChapterManifest(value: unknown): ChapterManifest {
   });
   if (pages.length === 0) throw new DomainValidationError('manifest.pages', 'empty chapter');
   unique(pages.map(page => page.id), 'manifest.pages');
+  unique(pages.map(page => page.assetPath), 'manifest.assetPaths');
   return {
     schemaVersion: 1,
     mediaKind: literal(item.mediaKind, ['manga'], 'manifest.mediaKind'),
