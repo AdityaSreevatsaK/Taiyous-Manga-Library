@@ -28,6 +28,8 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      - name: Enforce production bundle budgets
+        run: node scripts/check-bundle.mjs
       - name: Report bundle assets
         run: du -h dist/assets/* || true
 
@@ -60,36 +62,3 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-  public-demo:
-    name: Publish synthetic demo to GitHub Pages
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
-    needs: [quality, browser]
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-      - name: Install verified dependencies
-        run: npm ci --no-audit --no-fund
-      - name: Build sample-only site for GitHub Pages subpath
-        run: npm run build -- --mode ghpages
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
-        with:
-          enablement: true
-      - name: Upload only static compiled output
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: dist
-      - name: Publish demo
-        id: deployment
-        uses: actions/deploy-pages@v4
