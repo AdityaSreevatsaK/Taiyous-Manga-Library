@@ -79,13 +79,22 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
       setImageError('The generated page could not be displayed. Retry this page.');
     }
   }, [screen.kind, entry, location, manifest, demo, imageRetry]);
-  function updateLocation(item: MangaEntry, next: ReaderLocation) {
+  function updateLocation(next: ReaderLocation) {
+    // Selecting a page is not proof it was successfully loaded or read.
+    // Progress is committed only after the active image has loaded.
     setLocation(next);
+    setNotice('');
+  }
+  function markPageViewed(item: MangaEntry, viewed: ReaderLocation) {
     setProgress(previous => ({
       ...previous,
-      [item.id]: { mangaId: item.id, chapterId: next.chapterId, pageIndex: next.pageIndex, updatedAt: new Date().toISOString() },
+      [item.id]: {
+        mangaId: item.id,
+        chapterId: viewed.chapterId,
+        pageIndex: viewed.pageIndex,
+        updatedAt: new Date().toISOString(),
+      },
     }));
-    setNotice('');
   }
   function openChapter(item: MangaEntry, chapterId?: string, resume = false) {
     const target = resume ? restoreProgress(item, manifests, progress[item.id]) :
@@ -96,13 +105,14 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
     }
     // Keep the user's active direction when changing chapters inside the reader.
     if (screen.kind !== 'reader') setDirection(item.direction);
-    updateLocation(item, target);
+    updateLocation(target);
     setScreen({ kind: 'reader', id: item.id });
   }
   function move(delta: -1 | 1) {
-    if (!entry || !location) return;
+    // A failed image must not be skipped or recorded as read via arrows/swipes.
+    if (!entry || !location || !manifest || !image || imageError) return;
     const next = stepReader(entry, manifests, location, delta);
-    if (next) updateLocation(entry, next);
+    if (next) updateLocation(next);
     else setNotice(delta === 1 ? 'End of available chapters. No pages were skipped.' : 'Start of this series.');
   }
   function goCatalogue() {
@@ -232,8 +242,9 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
           const delta=swipeNavigation(direction,end.clientX-start.x,end.clientY-start.y);
           if(delta)move(delta);
         }} style={{touchAction:direction==='vertical'?'pan-x':'pan-y'}}>
-          {manifest && image && !imageError ? <img className="reader-page" src={image}
+          {manifest && image && !imageError ? <img key={location.chapterId + ':' + location.pageIndex} className="reader-page" src={image}
             alt={'Synthetic illustration, '+(activeChapter?.label??'chapter')+', page '+(location.pageIndex+1)}
+            onLoad={()=>markPageViewed(entry, location)}
             onError={()=>setImageError('This sample page is unavailable. Retry rather than silently skipping it.')}
             decoding="async" /> :
             <div className="page-error" role="alert"><h2>Page unavailable</h2>
@@ -243,9 +254,9 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
           <div className="page-stamp">{location.pageIndex+1} / {manifest?.pages.length ?? '?'}</div>
         </div>
         <div className="page-navigation">
-          <button className="secondary" type="button" onClick={()=>move(-1)}>← Previous page</button>
+          <button className="secondary" type="button" disabled={!manifest || !image || !!imageError} onClick={()=>move(-1)}>← Previous page</button>
           <p aria-live="polite">Page {location.pageIndex+1} of {manifest?.pages.length ?? '?'} <span aria-hidden="true">·</span> {activeChapter?.label}</p>
-          <button className="primary" type="button" onClick={()=>move(1)}>Next page →</button>
+          <button className="primary" type="button" disabled={!manifest || !image || !!imageError} onClick={()=>move(1)}>Next page →</button>
         </div>
         {notice && <p className="reader-notice" role="status">{notice}</p>}
         <p className="reader-hint">Tap Previous / Next or swipe. Focus the reader and use {direction==='vertical'?'↑ / ↓':'← / →'} arrow keys. Vertical mode moves page by page, not continuous scroll.</p>
