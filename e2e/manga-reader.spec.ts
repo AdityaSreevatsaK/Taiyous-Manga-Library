@@ -6,6 +6,7 @@ async function openSampleReader(page: Page) {
   await expect(page.getByRole('heading', { name: 'The Lantern Archive' })).toBeVisible();
   await page.getByRole('button', { name: /Read from beginning/ }).click();
   await expect(page.locator('.reader-page')).toBeVisible();
+  await expect(page.getByRole('button', { name: /Next page/ })).toBeEnabled();
   await expect(page.locator('.page-navigation')).toContainText('Page 1 of 5');
 }
 
@@ -72,6 +73,7 @@ test.describe('local manga catalogue and chapter reader', () => {
     await page.getByRole('combobox', { name: 'Go to page' }).selectOption('4');
     await expect(page.locator('.page-navigation')).toContainText('Page 5 of 5');
     await expect(page.locator('.reader-page')).toBeVisible();
+    await expect(page.getByRole('button', { name: /Next page/ })).toBeEnabled();
     await page.getByRole('button', { name: /Series details/ }).click();
     await page.getByRole('button', { name: /Continue reading/ }).click();
     await expect(page.locator('.page-navigation')).toContainText('Page 5 of 5');
