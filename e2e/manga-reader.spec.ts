@@ -475,7 +475,8 @@ test.describe('offline failure handling and accessibility hardening', () => {
       const heights = await page.locator('.site-nav-link, .offline-chapter-control button')
         .evaluateAll(elements => elements.map(el => Math.round(el.getBoundingClientRect().height)));
       expect(heights.every(height => height >= 44), 'touch target width ' + width + ': ' + heights).toBe(true);
-      await page.getByRole('link', { name: /Read from beginning/ }).click();
+      // Repeating viewport checks should use either the fresh start or the stored resume link.
+      await page.getByRole('link', { name: /Read from beginning|Continue reading/ }).click();
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
       const readerHeights = await page.locator('.reader-options button, .page-navigation button, .reader-selectors select')
         .evaluateAll(elements => elements.map(el => Math.round(el.getBoundingClientRect().height)));
