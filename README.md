@@ -1,6 +1,6 @@
 # Taiyou's Manga Library
 
-> **Private, fixture-stage application.** The local development branch adds a fictional three-series catalogue, series/chapter views, original browser-generated sample pages, RTL/LTR/vertical page-step navigation, session-only exact page resume and runtime validators. **No real catalogue, private media, backend, sign-in, persistent progress, cross-device sync or deployment is connected.** Node checks are not yet passing: npm registry access and Actions runner execution are blocked. Never represent a placeholder as a finished feature.
+> **Public-source-ready, fixture-stage application.** The local development branch adds a fictional three-series catalogue, series/chapter views, original browser-generated sample pages, RTL/LTR/vertical page-step navigation, session-only exact page resume and runtime validators. **No real catalogue, private media, backend, sign-in, persistent progress, cross-device sync or deployment is connected.** Node checks are not yet passing: npm registry access and Actions runner execution are blocked. Never represent a placeholder as a finished feature.
 
 ## Mission
 Read and organise legitimately acquired manga with chapter/page-level progress and optional offline access. The user experience should remain readable, fast, polished and accessible on phones, tablets and desktop. The existing novel library is the visual inspiration, not an implementation dependency.
@@ -34,7 +34,7 @@ docs/                     Architecture, contracts, threat model, operations and 
 Panel and page ordering, right-to-left versus left-to-right reading, vertical scrolling, chapter/volume structure, image dimensions, page preload limits and full-screen touch navigation.
 
 ## Non-negotiable boundaries
-- Repo visibility: private until the owner explicitly approves changing it.
+- The owner has authorised public repository source visibility. Verify the actual GitHub setting before asserting that the change is live. No personal media or private credentials may be added to Git.
 - No real private media or credentials in Git, browser bundles, test fixtures or GitHub Actions logs.
 - No unapproved automatic production deployment. New code is developed on short-lived branches and reviewed through pull requests.
 - No cross-app single sign-on promises. The deployed Novel Library's Hugging Face OAuth cookie cannot simply authenticate unrelated app origins.
@@ -76,3 +76,7 @@ npm run dev
 ```
 
 After the online install, inspect and commit a *genuine* `package-lock.json`, then replace the CI install step with `npm ci`. Do not commit an empty/offline-generated lockfile.
+
+### Repository visibility and content privacy
+
+On 18 November 2026 the owner explicitly approved making the **source repository public**. The connected GitHub API still reported `visibility: private` at the most recent check, so this README does not claim the visibility switch has been confirmed. A public source repository is compatible with a private personal catalogue **only** when future server-side access control, asset authorisation and storage are implemented separately. No auth, private data, private media or deployment is present in this fixture branch.
