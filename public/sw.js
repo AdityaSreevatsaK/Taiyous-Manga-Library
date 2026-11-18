@@ -3,6 +3,7 @@ const SHELL_PREFIX = 'taiyou-manga-shell-v1-';
 const SCOPE_URL = self.registration.scope;
 const SCOPE = new URL(SCOPE_URL);
 const APP_URL = SCOPE.href;
+const OFFLINE_DOCUMENT = new URL('__offline_shell__.html', APP_URL).href;
 const SAFE_ASSET = /\.(?:js|css)$/i;
 
 function scoped(url) {
@@ -31,6 +32,35 @@ async function installShell() {
     await cache.put(APP_URL, response);
     // An incomplete update cannot claim the new cache as usable.
     await cache.addAll(files);
+    // In Chromium's emulated cold-offline mode, cached HTML can load while
+    // subresource requests still fail. Prepare a self-contained fall-back
+    // using ONLY the two verified, first-party production assets.
+    const source = new Map();
+    for (const file of files) {
+      const asset = await cache.match(file);
+      if (!asset) throw new Error('Offline bundle asset missing');
+      source.set(file, await asset.text());
+    }
+    let scripts = 0;
+    let styles = 0;
+    const offlineHtml = html
+      .replace(/<script\b[^>]*\bsrc=["']([^"']+\.js)["'][^>]*>\s*<\/script>/gi, (tag, path) => {
+        const js = source.get(scoped(path));
+        if (!js) return tag;
+        scripts++;
+        // Guard the surrounding HTML parser; source is the trusted Vite build.
+        return '<script type="module">' + js.replace(/<\/script/gi, '<\\/script') + '</script>';
+      })
+      .replace(/<link\b[^>]*\bhref=["']([^"']+\.css)["'][^>]*>/gi, (tag, path) => {
+        const css = source.get(scoped(path));
+        if (!css) return tag;
+        styles++;
+        return '<style>' + css.replace(/<\/style/gi, '<\\/style') + '</style>';
+      });
+    if (scripts < 1 || styles < 1) throw new Error('Could not prepare self-contained offline document');
+    await cache.put(OFFLINE_DOCUMENT, new Response(offlineHtml, {
+      headers: { 'content-type': 'text/html; charset=utf-8' },
+    }));
     await cache.put(new URL('__shell_ready__', APP_URL).href, new Response('ready'));
   } catch (error) {
     await caches.delete(key);
@@ -66,7 +96,7 @@ self.addEventListener('fetch', event => {
         if (network.ok) return network;
       } catch { /* Offline navigation falls back to last verified build. */ }
       const cache = await activeShell();
-      const fallback = await cache?.match(APP_URL);
+      const fallback = await cache?.match(OFFLINE_DOCUMENT) || await cache?.match(APP_URL);
       return fallback || new Response('Offline application shell unavailable', { status: 503 });
     })());
     return;
