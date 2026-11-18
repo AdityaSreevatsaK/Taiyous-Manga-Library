@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { entries as realEntries } from './data/catalogue';
 import { demoEntries, demoManifests, fixtureStatement } from './data/fixtures';
-import { makeFixturePage } from './data/fixtureArt';
+import { resolveSyntheticPage, type PageSource } from './data/pageSource';
+import { downloadSyntheticChapter, readReceipt, removeOfflineChapter, verifyOfflineChapter } from './data/offlineChapters';
 import { VerticalReader } from './components/VerticalReader';
 import { parseAppRoute, routeHref, type AppRoute } from './domain/routes';
 import { defaultReaderPreferences, laterProgress, loadAllProgress, loadPreferences, loadProgress,
@@ -66,7 +67,11 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
   const [loadedPageKey, setLoadedPageKey] = useState<string | null>(null);
   const [imageRetry, setImageRetry] = useState(0);
   const [online, setOnline] = useState(() => typeof navigator === 'undefined' ? true : navigator.onLine);
-  const cache = useRef(new Map<string, string>());
+  const cache = useRef(new Map<string, PageSource>());
+  function clearPageCache() {
+    for (const source of cache.current.values()) source.release();
+    cache.current.clear();
+  }
   const touch = useRef<{ x: number; y: number } | null>(null);
   const readerRef = useRef<HTMLElement | null>(null);
   const catalogue = demo ? demoEntries : realEntries;
@@ -125,38 +130,52 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
     return () => document.removeEventListener('fullscreenchange', syncFullscreen);
   }, []);
   useEffect(() => {
-    // VerticalReader owns its small image window; do not recreate a page on every scroll.
+    // Only one image is displayed in horizontal mode. Cached copies are verified
+    // before reading; failed integrity never results in silent page skipping.
     if (direction === 'vertical' && screen.kind === 'reader') return;
     if (screen.kind !== 'reader' || !entry || !location || !manifest || !demo) {
-      setImage(null);
-      setLoadedPageKey(null);
+      setImage(null); setLoadedPageKey(null);
       return;
     }
-    // Requiring a fresh onLoad avoids reusing readiness from a prior retry.
+    let cancelled = false;
     setLoadedPageKey(null);
     setImageError(null);
-    try {
-      const key = location.chapterId + ':' + location.pageIndex;
-      const neighbour = nextPreloadIndex(location.pageIndex, manifest.pages.length);
-      const nextKey = neighbour === null ? null : location.chapterId + ':' + neighbour;
-      const keep = new Set([key, ...(nextKey ? [nextKey] : [])]);
-      for (const cached of cache.current.keys()) if (!keep.has(cached)) cache.current.delete(cached);
-      for (const wanted of keep) {
-        if (!cache.current.has(wanted)) {
-          const position = wanted === key ? location.pageIndex : neighbour!;
-          cache.current.set(wanted, makeFixturePage(location.chapterId, position));
+    const key = location.chapterId + ':' + location.pageIndex;
+    const neighbour = nextPreloadIndex(location.pageIndex, manifest.pages.length);
+    const nextKey = neighbour === null ? null : location.chapterId + ':' + neighbour;
+    const keep = new Set([key, ...(nextKey ? [nextKey] : [])]);
+    for (const cached of cache.current.keys()) if (!keep.has(cached)) {
+      cache.current.get(cached)?.release();
+      cache.current.delete(cached);
+    }
+    void (async () => {
+      try {
+        if (!cache.current.has(key)) {
+          const source = await resolveSyntheticPage(manifest, location.pageIndex);
+          if (cancelled) { source.release(); return; }
+          cache.current.set(key, source);
+        }
+        if (cancelled) return;
+        setImage({ key, src: cache.current.get(key)!.src });
+        if (nextKey && neighbour !== null && !cache.current.has(nextKey)) {
+          try {
+            const near = await resolveSyntheticPage(manifest, neighbour);
+            if (cancelled) near.release();
+            else {
+              cache.current.set(nextKey, near);
+              const preload = new Image();
+              preload.src = near.src;
+            }
+          } catch { /* Neighbour failure does not skip or fail the active page. */ }
+        }
+      } catch {
+        if (!cancelled) {
+          setImage(null);
+          setImageError('This page or its offline copy is unavailable or corrupt. Retry or remove the offline chapter.');
         }
       }
-      const src = cache.current.get(key);
-      setImage(src ? { key, src } : null);
-      if (nextKey) {
-        const preloaded = new Image();
-        preloaded.src = cache.current.get(nextKey) ?? '';
-      }
-    } catch {
-      setImage(null);
-      setImageError('The generated page could not be displayed. Retry this page.');
-    }
+    })();
+    return () => { cancelled = true; };
   }, [screen.kind, entry, location, manifest, demo, imageRetry, direction === 'vertical']);
   function updateLocation(next: ReaderLocation) {
     // Selecting a page is not proof it was successfully loaded or read.
@@ -297,7 +316,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
   function changeDemo(value: boolean) {
     exitImmersive();
     setDemo(value); setLocation(null); setNotice(''); goCatalogue('home');
-    cache.current.clear(); setQuery(''); setTag(''); setCollection(''); setStatus('all');
+    clearPageCache(); setQuery(''); setTag(''); setCollection(''); setStatus('all');
   }
   const progressForEntry = entry ? restoreProgress(entry, manifests, progress[entry.id]) : null;
 
@@ -498,7 +517,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
               <p>Generating this original illustration locally.</p></div> :
             <div className="page-error" role="alert"><h2>Page unavailable</h2>
               <p>{imageError ?? 'No verified page image exists for this chapter.'}</p>
-              <button className="secondary" type="button" onClick={()=>{cache.current.clear();setImageRetry(value=>value+1);}}>Retry page</button>
+              <button className="secondary" type="button" onClick={()=>{clearPageCache();setImageRetry(value=>value+1);}}>Retry page</button>
             </div>}
           <div className="page-stamp">{location.pageIndex+1} / {manifest?.pages.length ?? '?'}</div>
         </div>}
