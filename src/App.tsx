@@ -10,8 +10,8 @@ import './styles.css';
 type Screen = { kind: 'catalogue' } | { kind: 'details' | 'reader'; id: string };
 const directions: ReadingDirection[] = ['rtl', 'ltr', 'vertical'];
 
-export default function App() {
-  const [demo, setDemo] = useState(true);
+export default function App({ initialDemo = true }: { initialDemo?: boolean } = {}) {
+  const [demo, setDemo] = useState(initialDemo);
   const [screen, setScreen] = useState<Screen>({ kind: 'catalogue' });
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState<PublicationStatus | 'all'>('all');
