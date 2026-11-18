@@ -2,7 +2,7 @@
 
 **Repository:** https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library  
 **Recommended description:** Private manga catalogue and future image chapter reader with page progress, collections and offline reading.  
-**Visibility:** Private (confirmed on creation; only owner may change).  
+**Visibility:** Owner authorised public-source access on 18 November 2026, but the connected GitHub API still returned `private` at the last check. Verify the repo setting rather than assuming the change applied. Private personal data and all media remain excluded from Git.  
 **Default branch:** master.  
 **Topics:** manga, personal-library, react, typescript, reader, cloudflare-pages.  
 **Homepage URL:** leave empty until there is an actual verified deployment.

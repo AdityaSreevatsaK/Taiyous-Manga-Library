@@ -43,3 +43,10 @@ Current: **none configured**. The CI workflow is a quality gate, not a release p
 
 ## Architecture review checklist
 Does each API preserve the identity/progress semantics? Can the app run if the hub is down? Does it expose private data in client bundles or public files? Are cross-origin auth assumptions explicit? Are destructive changes reversible? Are tests and rollback specified? If any answer is unclear, write an ADR before code.
+
+
+## In-branch demonstration implementation (18 November 2026)
+
+The `feature/local-manga-catalogue-reader` branch adds `src/domain/validation.ts` (runtime schemas, rights and archive-index preflight), `src/domain/reader.ts` (pure chapter/page navigation), `src/domain/filters.ts`, `src/data/fixtures.ts` (three entirely fictional sample series) and `src/data/fixtureArt.ts` (original canvas-generated PNG illustrations). The React app provides a sample-mode shelf, series details and a page-step reader. The existing empty `src/data/catalogue.ts` remains the only real catalogue placeholder. All progress is retained in React state only and discarded on refresh. The image cache keeps the current page and at most the next page. No server or external asset resolver exists.
+
+This implementation is in a working branch and **has not passed its dependency-backed quality gates**. See `docs/DEVELOPMENT_REPORT_2026-11-18.md`. It does not change the intended future ports or the explicit no-backend integration boundary.

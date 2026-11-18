@@ -25,3 +25,7 @@
 
 ### ADR template
 Create `docs/adr/NNN-title.md` with: Status; Date; Problem; Options and cost; Decision; Rationale; Data/security impact; Compatibility/migration; Rollback; Tests; Owner approval. Never silently re-decide an accepted ADR.
+
+
+## Proposed ADR-006: Manga rights, manifests and private image access (18 November 2026)
+**Status: proposed, not approved for real media.** The synthetic catalogue has runtime schema validators but no authorised source, storage or credentials. `docs/adr/006-manga-rights-and-private-asset-adapter.md` describes private rights evidence, versioned manifest, relative page identifiers, archive/image rejection controls, revision-safe private adapters, opt-in offline caching, recovery and unresolved provider choices. Do not implement real uploads or storage on the strength of this proposal alone.

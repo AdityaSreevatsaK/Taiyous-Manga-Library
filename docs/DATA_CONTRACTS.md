@@ -31,3 +31,14 @@ Distinguish reversible removal from a shelf, clearing an offline cache, soft-del
 
 ## Next schema work
 Write `docs/DECISIONS.md` ADR for source/provider mapping; add runtime parsers and fixtures with valid, invalid and legacy versions; write migration tests; then implement an adapter behind a typed interface. Until then, the current catalogue is empty by design.
+
+
+## Feature-branch runtime parser checkpoint (18 November 2026)
+
+`src/domain/validation.ts` now accepts `unknown` at input boundaries and validates opaque IDs, series and chapter arrays, duplicate IDs/order keys, zero-based progress with manifest bounds, versioned chapter image records, strict relative asset paths, allowed raster MIME types, dimensions, archive-entry metadata and source-rights evidence. `src/domain/reader.ts` preserves exact chapter/page progress and refuses to silently skip missing manifests. Tests exist on draft PR #2, but local npm/CI execution has not succeeded.
+
+This **does not** provide a deployed persisted schema, image bytes inspection, actual ZIP extraction, cloud auth, database migration, persistence or sync. The rights and private adapter proposal is documented in `docs/adr/006-manga-rights-and-private-asset-adapter.md`; it is not approved for real data.
+
+## Immutable page identity (feature branch, 18 November 2026)
+
+The local prototype's `MangaProgress` now requires both `chapterId`, a **zero-based** `pageIndex` and immutable `pageId`. Runtime parsing and resume reject a record if `pageId` no longer matches the page at `pageIndex` in the validated chapter manifest. This is intentional fail-closed behaviour rather than quietly restoring to the wrong image after page reordering. Since there is no deployed progress persistence, this adds no data migration. Any future legacy migration must explicitly reconcile missing IDs before enabling resumption.

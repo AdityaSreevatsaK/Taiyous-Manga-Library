@@ -1,0 +1,23 @@
+import { describe, expect, it } from 'vitest';
+import { renderToStaticMarkup } from 'react-dom/server';
+import App from './App';
+
+describe('accessible catalogue baseline (server-rendered markup)', () => {
+  it('shows a clearly identified synthetic sample catalogue and functional navigation targets', () => {
+    const html = renderToStaticMarkup(<App />);
+    expect(html).toContain('Fictional demonstration');
+    expect(html).toContain('The Lantern Archive');
+    expect(html).toContain('The Silver Garden');
+    expect(html).toContain('Clockwork Shore');
+    expect(html).toContain('aria-label="Manga catalogue"');
+    expect(html).toContain('href="#content"');
+    expect((html.match(/class="book-card"/g) ?? []).length).toBe(3);
+  });
+  it('does not pretend to contain private media when the empty source is selected', () => {
+    const html = renderToStaticMarkup(<App initialDemo={false} />);
+    expect(html).toContain('Your collection is not connected yet');
+    expect(html).toContain('No private source has been configured');
+    expect(html).not.toContain('The Lantern Archive');
+    expect(html).not.toContain('A real private reader is connected');
+  });
+});

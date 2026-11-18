@@ -30,3 +30,6 @@ Use only user-owned, authorised or appropriately licensed media and metadata. Ke
 
 ## Security tests
 Unit tests for malicious strings, invalid IDs, malformed manifests and boundary values. Integration tests for unauthorised reads/writes, expired credentials, CSRF, conflict rejection, failed uploads, rollback, and offline cache eviction. Do not run private integration tests in public CI without isolated disposable fixtures.
+
+## Public static demo host
+The GitHub Pages preview uses synthetic fixtures only. Cloudflare Pages may apply `public/_headers` strict CSP and security headers; verify behaviour in deployed response headers. No hosting choice implies protection for private source media, which remains unimplemented.

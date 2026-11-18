@@ -4,7 +4,7 @@
 - [x] Repository created private, with `master`.
 - [x] TypeScript/React/Vite scaffold and responsive, honest no-data UI.
 - [x] Domain model and local search tests.
-- [x] CI typecheck/test/build (no deploy).
+- [x] CI typecheck/test/build workflow defined (runner execution still unverified; no deploy).
 - [x] Agent, architecture, security, contracts and operations documentation.
 - [ ] Generate and commit `package-lock.json`; move CI to `npm ci`.
 - [ ] Run a full local/CI acceptance pass and record the SHA.
@@ -39,3 +39,10 @@
 
 ## Out of scope until separately approved
 No unlicensed manga downloads, paywall bypass, scraping of protected sites, reader requests to arbitrary URLs, or remote image proxying without SSRF protection. No unreviewed bulk migrations, unlicensed content acquisition or automatic deployment. The scaffold must not be marketed as a complete reader/tracker.
+
+
+## Implementation-in-progress checkpoint (18 November 2026)
+
+On `feature/local-manga-catalogue-reader`, **implemented but not yet validated or merged**: runtime identity/manifest/progress parsers, archive-entry preflight, local synthetic catalogue with filters and details, generated image page reader, RTL/LTR/vertical page stepping, exact in-session page resume, synthetic offline operation, and pure unit/SSR markup regression tests. Do not mark the corresponding Phase 1/3 acceptance gates complete until online typecheck, tests, production build and browser/mobile evidence exist.
+
+**Still blocked:** authentic `package-lock.json` creation and `npm ci` switch (npm DNS inaccessible), unstarted GitHub Actions jobs, browser interaction/320–1280 px checks and real-device memory measurement. **Still unapproved:** real media import, private provider, auth, persistent offline cache and Cloudflare deployment. Proposed rights/storage ADR: `docs/adr/006-manga-rights-and-private-asset-adapter.md`.
