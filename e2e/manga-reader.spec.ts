@@ -145,7 +145,7 @@ test.describe('local manga catalogue and chapter reader', () => {
     await expect(page.getByRole('button', { name: /Next page/ })).toBeDisabled();
     await expect(page.getByRole('button', { name: /Previous page/ })).toBeDisabled();
     await page.getByRole('button', { name: 'Retry page' }).click();
-    await expect(page.getByRole('alert')).toContainText('generated page could not be displayed');
+    await expect(page.getByRole('alert')).toContainText('offline copy is unavailable or corrupt');
     await expect(page.locator('.page-navigation')).toContainText('Page 1 of 5');
     await page.getByRole('link', { name: /Series details/ }).click();
     // A page that could not load must never be falsely recorded as read.
