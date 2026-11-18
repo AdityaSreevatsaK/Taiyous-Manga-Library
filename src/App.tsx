@@ -250,7 +250,9 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
             alt={'Synthetic illustration, '+(activeChapter?.label??'chapter')+', page '+(location.pageIndex+1)}
             onLoad={()=>markPageViewed(entry, location)}
             onError={()=>setImageError('This sample page is unavailable. Retry rather than silently skipping it.')}
-            decoding="async" /> :
+            decoding="async" /> : manifest && !imageError && !displayedImage ?
+            <div className="page-error" role="status"><h2>Preparing sample page</h2>
+              <p>Generating this original illustration locally.</p></div> :
             <div className="page-error" role="alert"><h2>Page unavailable</h2>
               <p>{imageError ?? 'No verified page image exists for this chapter.'}</p>
               <button className="secondary" type="button" onClick={()=>{cache.current.clear();setImageRetry(value=>value+1);}}>Retry page</button>
