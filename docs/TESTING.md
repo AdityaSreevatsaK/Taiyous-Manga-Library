@@ -8,9 +8,10 @@ All validated work remains in draft stacked feature branches; canonical producti
 | #11 deep links | 23 passed | 22 passed | No |
 | #12 local persistence | 29 passed | 27 passed | No |
 | #13 cold offline reading | 29 passed | 32 passed | **Yes** |
-| PR E final hardening | Pending | Pending | **Required** |
+| PR E final hardening | **34 passed** | **37 passed** | **Yes** |
 
 PR #13 success: https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/actions/runs/44363425900
+PR #14 success: https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/actions/runs/44366411933
 
 Full CI runs Node 22 typecheck, Vitest, production build, production Playwright Chromium and static bundle budgets. The previous GitHub Pages publication failure is unrelated to application quality; its redundant job is removed in PR E.
 
