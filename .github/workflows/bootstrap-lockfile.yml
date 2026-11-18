@@ -42,7 +42,7 @@ jobs:
           const lock = JSON.parse(fs.readFileSync('package-lock.json', 'utf8'));
           if (lock.lockfileVersion !== 3 || lock.name !== pkg.name) throw Error('Unexpected lockfile');
           for (const key of ['dependencies', 'devDependencies']) {
-            if (JSON.stringify(pkg[key]) !== JSON.stringify(lock.packages[''][key]))
+            if (JSON.stringify(Object.entries(pkg[key]).sort()) !== JSON.stringify(Object.entries(lock.packages[''][key]).sort()))
               throw Error('Lockfile root ' + key + ' does not match package.json');
           }
           console.log('Authenticated npm-generated dependency lockfile verified.');
