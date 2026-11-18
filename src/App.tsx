@@ -444,7 +444,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
         <a className="secondary" href={routeHref({kind:'library'},import.meta.env.BASE_URL)}
           onClick={event=>followLink(event,()=>goCatalogue())}>Open the library</a></div>}
       {(screen.kind === 'details' || screen.kind === 'reader') && !entry && <div className="empty-state" role="alert"><h2>Series unavailable</h2>
-        <p>This series is no longer in the selected catalogue.</p><button className="secondary" onClick={goCatalogue}>Return to the shelf</button></div>}
+        <p>This series is no longer in the selected catalogue.</p><button className="secondary" onClick={()=>goCatalogue()}>Return to the shelf</button></div>}
       {notice && screen.kind !== 'reader' && <p className="reader-notice" role="status">{notice}</p>}
     </main>
     <footer className="site-footer"><span>TAIYOU / PERSONAL MANGA LIBRARY</span>
