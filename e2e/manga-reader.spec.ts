@@ -11,7 +11,7 @@ async function openSampleReader(page: Page) {
 }
 
 test.describe('local manga catalogue and chapter reader', () => {
-  for (const width of [320, 375, 390, 768, 1280]) {
+  for (const width of [320, 375, 390, 430, 768, 1024, 1280]) {
     test('responsive shelf and details at ' + width + 'px', async ({ page }) => {
       await page.setViewportSize({ width, height: 860 });
       await page.goto('/');
@@ -40,7 +40,7 @@ test.describe('local manga catalogue and chapter reader', () => {
     await expect(page.getByText('Your collection is not connected yet')).toBeVisible();
     await expect(page.locator('.book-card')).toHaveCount(0);
   });
-  test('RTL/LTR/vertical arrows and exact page resume within the tab', async ({ page }) => {
+  test('RTL/LTR arrows and true continuous vertical scrolling with exact resume within the tab', async ({ page }) => {
     await openSampleReader(page);
     const reader = page.locator('.reader-shell');
     await reader.focus();
@@ -51,13 +51,55 @@ test.describe('local manga catalogue and chapter reader', () => {
     await page.keyboard.press('ArrowRight');
     await expect(page.locator('.page-navigation')).toContainText('Page 3 of 5');
     await page.getByRole('button', { name: 'Vertical' }).click();
-    await reader.focus();
-    await page.keyboard.press('ArrowDown');
+    await expect(page.locator('.vertical-page')).toHaveCount(5);
+    await expect(page.locator('.vertical-page-image')).toHaveCount(3);
+    // Page 4 is physically below page 3, not a stepper pretending to scroll.
+    await page.locator('.vertical-page').nth(3).evaluate(element => element.scrollIntoView({ block: 'start' }));
     await expect(page.locator('.page-navigation')).toContainText('Page 4 of 5');
+    await expect(page.locator('.vertical-page-image')).toHaveCount(3);
     await page.getByRole('button', { name: /Series details/ }).click();
     await page.getByRole('button', { name: /Continue reading/ }).click();
     await expect(page.locator('.page-navigation')).toContainText('Page 4 of 5');
   });
+
+  test('vertical page selector jumps without changing the chapter order or decoding every page', async ({ page }) => {
+    await openSampleReader(page);
+    await page.getByRole('button', { name: 'Vertical' }).click();
+    await page.getByRole('combobox', { name: 'Go to page' }).selectOption('4');
+    await expect(page.locator('.page-navigation')).toContainText('Page 5 of 5');
+    await expect(page.locator('.vertical-page-image')).toHaveCount(2);
+    expect(await page.locator('.vertical-page').nth(4).evaluate(node => {
+      const rect = node.getBoundingClientRect();
+      return rect.top >= -30 && rect.top < window.innerHeight / 2;
+    })).toBe(true);
+    // No page has been silently removed or reordered.
+    await expect(page.locator('.vertical-page')).toHaveCount(5);
+  });
+
+  test('focus view keeps exit and navigation reachable on narrow landscape screens', async ({ page }) => {
+    await page.setViewportSize({ width: 430, height: 320 });
+    await openSampleReader(page);
+    await page.getByRole('button', { name: 'Focus view' }).click();
+    await expect(page.getByRole('button', { name: 'Exit focus view' })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.getByRole('button', { name: 'Exit focus view' }).click();
+    await expect(page.getByRole('button', { name: 'Focus view' })).toBeVisible();
+  });
+
+  test('vertical fixture generation failure is explicit and does not falsely record progress', async ({ page }) => {
+    await page.addInitScript(() => {
+      HTMLCanvasElement.prototype.toDataURL = function () { throw new Error('Synthetic canvas failure'); };
+    });
+    await page.goto('/');
+    await page.locator('.book-card').filter({ hasText: 'The Lantern Archive' }).click();
+    await page.getByRole('button', { name: /Read from beginning/ }).click();
+    await page.getByRole('button', { name: 'Vertical' }).click();
+    await expect(page.locator('.vertical-page-error').first()).toContainText('could not be loaded');
+    await expect(page.getByRole('button', { name: /Next page/ })).toBeDisabled();
+    await page.getByRole('button', { name: /Series details/ }).click();
+    await expect(page.getByRole('button', { name: /Read from beginning/ })).toBeVisible();
+  });
+
   test('chapter transitions never silently skip missing pages', async ({ page }) => {
     await openSampleReader(page);
     const next = page.getByRole('button', { name: /Next page/ });
