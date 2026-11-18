@@ -5,6 +5,8 @@ describe('stable browser routes', () => {
   it('distinguishes home, library, details, and chapter page', () => {
     expect(parseAppRoute('/', '')).toEqual({ kind: 'home' });
     expect(parseAppRoute('/library')).toEqual({ kind: 'library' });
+    expect(parseAppRoute('/offline')).toEqual({ kind: 'offline' });
+    expect(routeHref({kind:'offline'})).toBe('/offline');
     expect(parseAppRoute('/manga/mng_sample')).toEqual({ kind: 'details', mangaId: 'mng_sample' });
     expect(parseAppRoute('/manga/mng_sample/chapters/ch_first', '?page=5')).toEqual({
       kind: 'reader', mangaId: 'mng_sample', chapterId: 'ch_first', pageIndex: 4,
