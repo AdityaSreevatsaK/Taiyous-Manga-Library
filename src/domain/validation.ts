@@ -161,7 +161,7 @@ export function parseProgress(value: unknown, entry: MangaEntry, manifests: Read
     updatedAt: timestamp(item.updatedAt, 'progress.updatedAt'),
   };
   if (item.readingMode !== undefined)
-    result.readingMode = literal(item.readingMode, ['rtl', 'ltr', 'vertical'], 'progress.readingMode');
+    result.readingMode = literal(item.readingMode, ['rtl', 'ltr', 'vertical'] as const, 'progress.readingMode');
   if (item.verticalOffsetRatio !== undefined) {
     const ratio = item.verticalOffsetRatio;
     if (typeof ratio !== 'number' || !Number.isFinite(ratio) || ratio < 0 || ratio > 1)
