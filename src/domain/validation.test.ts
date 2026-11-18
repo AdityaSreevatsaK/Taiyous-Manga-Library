@@ -39,7 +39,9 @@ describe('runtime media schemas', () => {
   it('rejects stale/out-of-bounds progress instead of silently clamping it', () => {
     const manga = parseMangaEntry(entry);
     const manifests = new Map([['ch_example001', parseChapterManifest(manifest)]]);
-    expect(parseProgress({ mangaId: manga.id, chapterId: 'ch_example001', pageIndex: 0, updatedAt: '2026-11-18T00:00:00Z' }, manga, manifests).pageIndex).toBe(0);
+    expect(parseProgress({ mangaId: manga.id, chapterId: 'ch_example001', pageIndex: 0, pageId: 'pg_example000', updatedAt: '2026-11-18T00:00:00Z' }, manga, manifests).pageIndex).toBe(0);
+    expect(() => parseProgress({ mangaId: manga.id, chapterId: 'ch_example001', pageIndex: 0, updatedAt: '2026-11-18T00:00:00Z' }, manga, manifests)).toThrow(/pageId/);
+    expect(() => parseProgress({ mangaId: manga.id, chapterId: 'ch_example001', pageIndex: 0, pageId: 'pg_example001', updatedAt: '2026-11-18T00:00:00Z' }, manga, manifests)).toThrow(/pageId/);
     expect(() => parseProgress({ mangaId: manga.id, chapterId: 'ch_example001', pageIndex: 2, updatedAt: '2026-11-18T00:00:00Z' }, manga, manifests)).toThrow();
     expect(() => parseProgress({ mangaId: manga.id, chapterId: 'ch_elsewhere0', pageIndex: 0, updatedAt: '2026-11-18T00:00:00Z' }, manga, manifests)).toThrow();
   });
