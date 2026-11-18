@@ -1,3 +1,23 @@
+# Current verified test evidence, 18 November 2026
+
+All validated work remains in draft stacked feature branches; canonical production `master` unchanged.
+
+| PR | Unit tests | Playwright Chromium | Production browser build |
+|---|---:|---:|---|
+| #10 mobile reader | 19 passed | 17 passed | No |
+| #11 deep links | 23 passed | 22 passed | No |
+| #12 local persistence | 29 passed | 27 passed | No |
+| #13 cold offline reading | 29 passed | 32 passed | **Yes** |
+| PR E final hardening | Pending | Pending | **Required** |
+
+PR #13 success: https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/actions/runs/44363425900
+
+Full CI runs Node 22 typecheck, Vitest, production build, production Playwright Chromium and static bundle budgets. The previous GitHub Pages publication failure is unrelated to application quality; its redundant job is removed in PR E.
+
+Remaining manual acceptance: real iOS/Android devices, memory benchmarks on long actual pages, Cloudflare live deep-link/reload/offline deployment smoke, strict-CSP review before private data, and browser storage eviction. Never claim these are automated.
+
+---
+
 # Current quality gates (18 November 2026)
 
 The baseline on `master` passed 19 unit tests and 12 Playwright tests at widths 320/375/390/768/1280. Latest overall workflow failed in GitHub Pages publish configuration. PR A adds continuous vertical-scroll, bounded image window, 430/1024 widths, focus/landscape and broken image tests. **PR A tests are not confirmed passing until GitHub Actions executes them.**
