@@ -4,7 +4,7 @@ import { demoEntries, demoManifests, fixtureStatement } from './data/fixtures';
 import { makeFixturePage } from './data/fixtureArt';
 import { filterCatalogue, type SortMode } from './domain/filters';
 import { keyNavigation, nextPreloadIndex, orderedChapters, restoreProgress, stepReader, swipeNavigation, type ReaderLocation } from './domain/reader';
-import type { MangaEntry, MangaProgress, PublicationStatus, ReadingDirection } from './domain/types';
+import type { ChapterManifest, MangaEntry, MangaProgress, PublicationStatus, ReadingDirection } from './domain/types';
 import './styles.css';
 
 type Screen = { kind: 'catalogue' } | { kind: 'details' | 'reader'; id: string };
@@ -31,7 +31,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
   const touch = useRef<{ x: number; y: number } | null>(null);
   const readerRef = useRef<HTMLElement | null>(null);
   const catalogue = demo ? demoEntries : realEntries;
-  const manifests = demo ? demoManifests : new Map();
+  const manifests: ReadonlyMap<string, ChapterManifest> = demo ? demoManifests : new Map<string, ChapterManifest>();
   const entry = screen.kind === 'catalogue' ? undefined : catalogue.find(item => item.id === screen.id);
   const manifest = location ? manifests.get(location.chapterId) : undefined;
   const activePageKey = location ? location.chapterId + ':' + location.pageIndex : null;
