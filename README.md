@@ -1,8 +1,10 @@
 # Taiyou's Manga Library
 
-> **Public, fictional-data demonstration.** The baseline `master` at `6a6e337` contains a React/Vite catalogue and a page-step reader. Node 22 typecheck, 19 Vitest tests, build and 12 Playwright tests previously passed, but its latest GitHub Pages publish job failed. **Cloudflare production availability remains unverified.** No private manga media, account sign-in, cloud progress or real offline chapters are connected.
+> **Public, fictional-data demonstration.** Production `master` remains at `6a6e337` until the owner approves deployment. Cloudflare Pages is the intended host; live deployment has not been independently verified.
 >
-> **Mobile reader milestone (feature branch):** continuous vertical scrolling, bounded adjacent image generation, focus view and mobile safe-area layout are under review. PR CI must pass before merging or treating this as released.
+> **Verified feature PRs (stacked, unmerged):** [#10 mobile reader](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/pull/10), [#11 browser navigation](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/pull/11), [#12 local progress](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/pull/12), [#13 synthetic offline reading](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/pull/13). PR #13 passed 29 unit and 32 production-browser tests. Final hardening is staged separately.
+>
+> **Never upload real manga images or credentials to public Git.** Private Hugging Face storage, authentication and cross-device progress are not connected.
 
 ## Mission
 Read and organise legitimately acquired manga with chapter/page-level progress and optional offline access. The user experience should remain readable, fast, polished and accessible on phones, tablets and desktop. The existing novel library is the visual inspiration, not an implementation dependency.
@@ -14,8 +16,8 @@ Read and organise legitimately acquired manga with chapter/page-level progress a
 - Other modules remain independently versioned and deployed.
 
 ## Quick start (Node.js 22+)
-1. Clone this private repository and open it in your editor.
-2. Run `npm install` to install dependencies. **Commit the generated `package-lock.json` in the first dependency-maintenance PR**, then migrate CI to `npm ci`.
+1. Clone this public repository and open it in your editor.
+2. Run `npm ci` to install dependencies from the committed lockfile.
 3. Run `npm run dev` and open the Vite URL displayed in the terminal (normally http://127.0.0.1:5173).
 4. Run `npm run typecheck`, `npm test`, and `npm run build`.
 5. Review [AGENTS.md](AGENTS.md) and [the session handover](docs/SESSION_HANDOVER_PROMPT.md) before feature development.
