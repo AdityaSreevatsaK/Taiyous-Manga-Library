@@ -273,6 +273,42 @@ test.describe('browser history and deep links', () => {
   });
 });
 
+test.describe('continue reading shelf', () => {
+  test('does not show continue cards until an actual page is loaded', async ({page}) => {
+    await page.goto('/');
+    await expect(page.locator('.continue-card')).toHaveCount(0);
+    await page.locator('.book-card').filter({hasText:'The Lantern Archive'}).click();
+    await page.getByRole('link',{name:/Read from beginning/}).click();
+    await expect(page.locator('.vertical-page-image').first()).toBeVisible();
+    await page.locator('.vertical-page').nth(2).evaluate(el=>el.scrollIntoView({block:'start'}));
+    await expect(page.locator('.page-navigation')).toContainText('Page 3 of 5');
+    await page.getByRole('link',{name:'Taiyou Manga home'}).click();
+    const card=page.locator('.continue-card').filter({hasText:'The Lantern Archive'});
+    await expect(card).toContainText('Chapter 1 of 3 · Page 3 of 5');
+    await expect(page.locator('.book-card').filter({hasText:'The Lantern Archive'}))
+      .toContainText('In progress · Chapter 1 of 3');
+    await card.click();
+    await expect(page.locator('.page-navigation')).toContainText('Page 3 of 5');
+    await page.reload();
+    await page.getByRole('link',{name:'Taiyou Manga home'}).click();
+    await expect(page.locator('.continue-card')).toHaveCount(1);
+  });
+
+  test('recent entries sort by latest saved progress without affecting the empty private catalogue', async ({page}) => {
+    await page.goto('/manga/mng_lanternarchive');
+    await page.getByRole('link',{name:/Read from beginning/}).click();
+    await expect(page.locator('.vertical-page-image').first()).toBeVisible();
+    await page.goto('/manga/mng_fivechaptertrial');
+    await page.getByRole('link',{name:/Read from beginning/}).click();
+    await expect(page.locator('.vertical-page-image').first()).toBeVisible();
+    await page.getByRole('link',{name:'Taiyou Manga home'}).click();
+    await expect(page.locator('.continue-card')).toHaveCount(2);
+    await expect(page.locator('.continue-card').first()).toContainText('Five Chapter Scroll Trial');
+    await page.getByRole('button',{name:'My library (empty)'}).click();
+    await expect(page.locator('.continue-card')).toHaveCount(0);
+  });
+});
+
 test.describe('persistent browser reading state', () => {
   test('page identity and location survive reload and new tab on one browser', async ({ page, context }) => {
     await openSampleReader(page);
