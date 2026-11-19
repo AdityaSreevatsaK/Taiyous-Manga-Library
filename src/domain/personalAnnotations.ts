@@ -14,7 +14,7 @@ export interface PersonalAnnotation {
   favourite?: boolean;
   updatedAt: string;
 }
-export type AnnotationPatch = Partial<Pick<PersonalAnnotation, 'rating' | 'notes' | 'tags'>>;
+export type AnnotationPatch = Partial<Pick<PersonalAnnotation, 'rating' | 'notes' | 'tags' | 'favourite'>>;
 export type AnnotationResult =
   | { status: 'ok'; value: PersonalAnnotation | null }
   | { status: 'invalid' | 'unavailable' };
