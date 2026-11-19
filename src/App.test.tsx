@@ -17,7 +17,7 @@ describe('accessible catalogue baseline (server-rendered markup)', () => {
   it('does not pretend to contain private media when the empty source is selected', () => {
     const html = renderToStaticMarkup(<App initialDemo={false} />);
     expect(html).toContain('Your collection is not connected yet');
-    expect(html).toContain('No private source has been configured');
+    expect(html).toContain('Sign in with Hugging Face to connect your private manga library.');
     expect(html).not.toContain('The Lantern Archive');
     expect(html).not.toContain('A real private reader is connected');
   });
