@@ -120,8 +120,7 @@ export function importAnnotation(record: PersonalAnnotation, store: Storage | nu
   catch { return 'invalid'; }
   if (!store) return 'unavailable';
   const current = readAnnotation(incoming.mangaId, store);
-  if (current.status === 'invalid') return 'invalid';
-  if (current.status === 'unavailable') return 'unavailable';
+  if (current.status !== 'ok') return current.status;
   if (current.value && Date.parse(current.value.updatedAt) >= Date.parse(incoming.updatedAt))
     return 'stale';
   try {
