@@ -58,3 +58,6 @@ The owner authorised public **source code** on 18 November 2026. This is not app
 
 ## Personal metadata acceptance
 Keep personal rating, notes, tags and shelves strictly in device-local versioned stores until reviewed server-side authorisation. Do not expose them in public static fixtures, telemetry, assets or URLs. Reader and publication statuses must stay independent. All destructive personal data operations require an application confirmation, not a browser alert. Treat invalid existing storage as immutable recovery evidence.
+
+## Nested collections constraints
+Treat collection IDs as immutable; preserve the tree on invalid data, reject cyclic reparenting and same-parent duplicates, protect writes by revision, and require an app dialog before deleting a collection subtree or membership. Never delete manga image bytes or reading progress as a side effect of collection operations. Deploy after green CI/merge.
