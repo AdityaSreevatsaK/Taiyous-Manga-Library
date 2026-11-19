@@ -3,10 +3,13 @@ import { entries as realEntries } from './data/catalogue';
 import { demoEntries, demoManifests, fixtureStatement } from './data/fixtures';
 import { verifyOfflineChapter } from './data/offlineChapters';
 import { OfflineChapterControl } from './components/OfflineChapterControl';
+import { CollectionManager } from './components/CollectionManager';
 import { LocalBackupControl } from './components/LocalBackupControl';
 import { VerticalReader } from './components/VerticalReader';
 import { CATALOGUE_SECTIONS, parseAppRoute, routeHref, type AppRoute, type CatalogueSection } from './domain/routes';
 import { loadShelves, saveShelf, type PersonalShelf, type ShelfSelection } from './domain/personalShelves';
+import { collectionBreadcrumb, loadCollections, saveCollections, setCollectionMembership,
+  type CollectionState } from './domain/personalCollections';
 import { addPersonalTag, loadAnnotations, saveAnnotation, type AnnotationPatch,
   type PersonalAnnotation } from './domain/personalAnnotations';
 import { defaultReaderPreferences, laterProgress, loadAllProgress, loadPreferences, loadProgress,
@@ -49,6 +52,13 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
     window.matchMedia?.('(max-width: 740px)').matches || false);
   const [personalShelves, setPersonalShelves] = useState<Record<string, PersonalShelf>>(() =>
     loadShelves(initialDemo ? demoEntries : realEntries).shelves);
+  const [collections, setCollections] = useState<CollectionState>(() => {
+    const read=loadCollections();return read.status==='ok' ? read.value : {
+      schemaVersion:1,mediaKind:'manga',revision:0,items:[],
+    };
+  });
+  const [confirmMembershipRemoval, setConfirmMembershipRemoval] =
+    useState<{collectionId:string;mangaId:string}|null>(null);
   const [annotations, setAnnotations] = useState<Record<string, PersonalAnnotation>>(() =>
     loadAnnotations(initialDemo ? demoEntries : realEntries).annotations);
   const [noteDraft, setNoteDraft] = useState('');
@@ -84,6 +94,8 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
   const allTags = [...new Set(catalogue.flatMap(item =>
     [...item.tags, ...(annotations[item.id]?.tags ?? [])]))].sort((a,b)=>a.localeCompare(b));
   const allCollections = [...new Set(catalogue.flatMap(item => item.collections ?? []))].sort();
+  const sortedPersonalCollections = [...collections.items].sort((a,b)=>
+    collectionBreadcrumb(collections,a.id).localeCompare(collectionBreadcrumb(collections,b.id)));
   const labels: Record<CatalogueSection, string> = {
     home: 'Home', reading: 'Currently Reading', trying: 'Trying Out',
     offline: 'Available Offline', finished: 'Finished', 'to-read': 'To Be Read',
@@ -107,11 +119,15 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
     ['reading','trying','offline'].includes(section)) : CATALOGUE_SECTIONS;
   const moreNav = compactNav ? CATALOGUE_SECTIONS.filter(section => !currentNav.includes(section)) : [];
 
-  const filtered = useMemo(() => filterCatalogue(catalogue, query, status, '', collection, sort)
-    .filter(item => !tag || [...item.tags,...(annotations[item.id]?.tags ?? [])]
-      .some(value => value.toLocaleLowerCase('en') === tag.toLocaleLowerCase('en'))),
-    [catalogue, query, status, tag, collection, sort, annotations],
-  );
+  const filtered = useMemo(() => {
+    const personalId=collection.startsWith('personal:')?collection.slice('personal:'.length):null;
+    const builtInCollection=personalId?'':collection;
+    return filterCatalogue(catalogue, query, status, '', builtInCollection, sort)
+      .filter(item => (!tag || [...item.tags,...(annotations[item.id]?.tags ?? [])]
+        .some(value => value.toLocaleLowerCase('en') === tag.toLocaleLowerCase('en'))) &&
+        (!personalId || collections.items.some(folder=>
+          folder.id===personalId && folder.mangaIds.includes(item.id))));
+  }, [catalogue, query, status, tag, collection, sort, annotations, collections]);
   const offlineSeries = catalogue.filter(item => item.chapters.some(chapter => offlineChapterIds.has(chapter.id)));
   const displayed = screen.kind === 'catalogue' ? filtered.filter(item => onShelf(item, screen.section)) : filtered;
   const continueReading = catalogue
@@ -163,6 +179,17 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
   // Changing a rating must not erase unsaved notes; only change drafts when the manga changes.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entry?.id]);
+  useEffect(() => {
+    const onStorageCollections=(event:StorageEvent)=>{
+      if(event.key===null||event.key==='taiyou-manga:personal-collections:v1') {
+        const result=loadCollections();
+        if(result.status==='ok')setCollections(result.value);
+        else setStorageNotice('Collection storage is damaged or unavailable; existing data was preserved.');
+      }
+    };
+    window.addEventListener('storage',onStorageCollections);
+    return ()=>window.removeEventListener('storage',onStorageCollections);
+  }, []);
   useEffect(() => {
     const onStorageAnnotations = (event: StorageEvent) => {
       if (event.key === null || event.key.startsWith('taiyou-manga:personal-annotation:v1:')) {
@@ -368,6 +395,40 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
       'The saved shelf record is invalid and was preserved. Please export your data before recovery.' :
       'Browser storage is unavailable. Your shelf selection was not saved.');
   }
+  function commitCollections(next:CollectionState,message:string):boolean {
+    const result=saveCollections(next,collections.revision);
+    if(result.status==='ok') {
+      setCollections(result.value);
+      setShelfNotice(message);
+      if(collection.startsWith('personal:') && !result.value.items.some(item=>
+        item.id===collection.slice('personal:'.length)))setCollection('');
+      return true;
+    }
+    if(result.status==='stale') {
+      const fresh=loadCollections();
+      if(fresh.status==='ok')setCollections(fresh.value);
+    }
+    setStorageNotice(result.status==='stale' ?
+      'Collections changed in another tab. Review the refreshed list and try again.' :
+      result.status==='invalid' ?
+      'Saved collections are invalid and were preserved for recovery.' :
+      'Browser storage is unavailable or full; collection changes were not saved.');
+    return false;
+  }
+  function updateMembership(item:MangaEntry,collectionId:string,add:boolean):void {
+    try {
+      const next=setCollectionMembership(collections,collectionId,item.id,add);
+      if(commitCollections(next,add?'Added manga to collection':'Removed manga from collection'))
+        setConfirmMembershipRemoval(null);
+    } catch(e) {
+      setStorageNotice(e instanceof Error?e.message:'Collection membership could not be changed.');
+    }
+  }
+  function filterPersonalCollection(collectionId:string) {
+    setCollection('personal:'+collectionId);
+    setTag('');
+    goCatalogue('library');
+  }
   function changeAnnotation(item: MangaEntry, patch: AnnotationPatch, message: string): boolean {
     const saved = saveAnnotation(item.id, patch);
     if (saved.status === 'ok') {
@@ -436,6 +497,25 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
           </details>}
       </nav>
       <div className="header-right">
+        <div className="header-explore">
+          <details className="header-menu"><summary>Tags</summary>
+            <div className="header-menu-content">
+              <button type="button" onClick={event=>{setTag('');goCatalogue('library');event.currentTarget.closest('details')?.removeAttribute('open');}}>All tags</button>
+              {allTags.map(value=><button type="button" key={value}
+                onClick={event=>{jumpToFilter('tag',value);event.currentTarget.closest('details')?.removeAttribute('open');}}>{value}</button>)}
+            </div>
+          </details>
+          <details className="header-menu"><summary>Collections</summary>
+            <div className="header-menu-content">
+              <button type="button" onClick={event=>{setCollection('');goCatalogue('library');event.currentTarget.closest('details')?.removeAttribute('open');}}>All collections</button>
+              {sortedPersonalCollections.map(folder=><button type="button" key={folder.id}
+                onClick={event=>{filterPersonalCollection(folder.id);event.currentTarget.closest('details')?.removeAttribute('open');}}>
+                {collectionBreadcrumb(collections,folder.id)}</button>)}
+              {allCollections.map(name=><button type="button" key={'source:'+name}
+                onClick={event=>{jumpToFilter('collection',name);event.currentTarget.closest('details')?.removeAttribute('open');}}>{name} (source)</button>)}
+            </div>
+          </details>
+        </div>
         <label className="app-theme-label">App theme
           <select aria-label="App theme" value={preferences.theme}
             onChange={event=>updatePreferences({...preferences,theme:event.target.value as ReaderPreferences['theme']})}>
@@ -536,13 +616,23 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
               <select value={tag} onChange={e=>setTag(e.target.value)}><option value="">All tags</option>
                 {allTags.map(value=><option key={value} value={value}>{value}</option>)}</select></label>
             <label>Collection
-              <select value={collection} onChange={e=>setCollection(e.target.value)}><option value="">All collections</option>
-                {allCollections.map(value=><option key={value} value={value}>{value}</option>)}</select></label>
+              <select value={collection} onChange={e=>setCollection(e.target.value)}>
+                <option value="">All collections</option>
+                <optgroup label="My collections">
+                  {sortedPersonalCollections.map(item=><option key={item.id} value={'personal:'+item.id}>
+                    {collectionBreadcrumb(collections,item.id)}</option>)}
+                </optgroup>
+                <optgroup label="Imported collection labels">
+                  {allCollections.map(value=><option key={value} value={value}>{value}</option>)}
+                </optgroup>
+              </select></label>
             <label>Sort
               <select value={sort} onChange={e=>setSort(e.target.value as SortMode)}>
                 <option value="title">Title A to Z</option><option value="rating">Rating</option><option value="chapters">Chapter count</option>
               </select></label>
           </div>
+          {screen.section==='library' && <CollectionManager state={collections}
+            onCommit={commitCollections} onFilter={filterPersonalCollection}/>}
           {displayed.length ? <div className="book-grid">{displayed.map((item, index) =>
             <a className="book-card" key={item.id} href={routeHref({kind:'details',mangaId:item.id},import.meta.env.BASE_URL)}
               onClick={event=>followLink(event,()=>navigateTo({kind:'details',mangaId:item.id}))}>
@@ -557,6 +647,9 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
                 {progress[item.id] && restoreProgress(item,manifests,progress[item.id]) &&
                   <span className="book-progress">In progress · Chapter {orderedChapters(item)
                     .findIndex(chapter=>chapter.id===progress[item.id]!.chapterId) + 1} of {item.chapters.length}</span>}
+                {collections.items.some(folder=>folder.mangaIds.includes(item.id)) &&
+                  <span className="book-collection">In {collections.items.filter(folder=>
+                    folder.mangaIds.includes(item.id)).length} personal collection(s)</span>}
                 <span className="book-micro">{annotations[item.id]?.rating ? '★ ' + annotations[item.id]!.rating + '/10 (mine)' :
                   item.rating ? '★ ' + item.rating + '/10 (sample)' : ''} <span aria-hidden="true">↗</span></span>
               </span>
@@ -606,6 +699,29 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
               {progressForEntry && <a className="secondary"
                 href={routeHref({kind:'reader',mangaId:entry.id,chapterId:chapters[0]?.id ?? 'unavailable',pageIndex:0},import.meta.env.BASE_URL)}
                 onClick={event=>followLink(event,()=>openChapter(entry,chapters[0]?.id))}>Start from chapter one</a>}</div>
+            <div className="collection-membership">
+              <label>Add to collection
+                <select aria-label="Add to collection" value="" onChange={event=>{
+                  if(event.target.value)updateMembership(entry,event.target.value,true);
+                }}>
+                  <option value="">Choose a collection</option>
+                  {sortedPersonalCollections.map(folder=><option key={folder.id} value={folder.id}
+                    disabled={folder.mangaIds.includes(entry.id)}>
+                    {collectionBreadcrumb(collections,folder.id)}{folder.mangaIds.includes(entry.id)?' (already added)':''}
+                  </option>)}
+                </select>
+              </label>
+              <div className="collection-memberships">
+                {collections.items.filter(folder=>folder.mangaIds.includes(entry.id)).map(folder=>
+                  <span className="collection-member" key={folder.id}>
+                    <button className="tag" type="button" onClick={()=>filterPersonalCollection(folder.id)}>
+                      {collectionBreadcrumb(collections,folder.id)}</button>
+                    <button type="button" aria-label={'Remove from collection ' + folder.name}
+                      onClick={()=>setConfirmMembershipRemoval({collectionId:folder.id,mangaId:entry.id})}>×</button>
+                  </span>)}
+              </div>
+              {collections.items.length===0 && <p>No personal collections yet. Create one in All Manga.</p>}
+            </div>
             <p className="fine-print">Reading progress and personal notes stay on this device. Cross-device synchronisation is not enabled.</p>
           </div>
         </section>
@@ -764,6 +880,18 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
       {(screen.kind === 'details' || screen.kind === 'reader') && !entry && <div className="empty-state" role="alert"><h2>Series unavailable</h2>
         <p>This series is no longer in the selected catalogue.</p><button className="secondary" onClick={()=>goCatalogue()}>Return to the shelf</button></div>}
       {notice && screen.kind !== 'reader' && <p className="reader-notice" role="status">{notice}</p>}
+      {confirmMembershipRemoval && entry && screen.kind==='details' && <div className="dialog-scrim">
+        <div role="dialog" className="app-dialog" aria-modal="true" aria-labelledby="remove-member-title">
+          <h2 id="remove-member-title">Remove from this collection?</h2>
+          <p>This removes the manga from the selected collection, not from your library or offline downloads.</p>
+          <div className="dialog-actions">
+            <button className="secondary" autoFocus type="button"
+              onClick={()=>setConfirmMembershipRemoval(null)}>Cancel</button>
+            <button className="primary" type="button"
+              onClick={()=>updateMembership(entry,confirmMembershipRemoval.collectionId,false)}>Remove manga</button>
+          </div>
+        </div>
+      </div>}
       {confirmRemoveTag && entry && screen.kind === 'details' && <div className="dialog-scrim"
         onKeyDown={event=>{if(event.key==='Escape')setConfirmRemoveTag(null);}}>
         <div className="app-dialog" role="dialog" aria-modal="true" aria-labelledby="confirm-tag-title">
