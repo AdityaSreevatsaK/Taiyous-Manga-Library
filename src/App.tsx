@@ -773,7 +773,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
           </div>
         </div>
       </div>}
-      {storageNotice && <p className="storage-notice" role="status">{storageNotice}</p>
+      {storageNotice && <p className="storage-notice" role="status">{storageNotice}</p>}
       {shelfNotice && <div className="success-toast" role="status">
         <span>{shelfNotice}</span><button type="button" aria-label="Dismiss notification" onClick={()=>setShelfNotice('')}>×</button>
       </div>}
