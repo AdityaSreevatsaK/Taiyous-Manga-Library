@@ -1,20 +1,35 @@
 # Manga Library: current roadmap, 19 November 2026
 
-Verified production `master` with automated Cloudflare smoke checks. The original scaffold planning text below is retained solely for historical evidence.
+**Development checkpoint:** PRs #32–#35 merged on `master`. CI passed for each feature. The live Cloudflare page and physical Android/iOS devices have not been independently reverified against the latest four merges in this handover. Earlier live smoke results remain valid historical evidence. The original scaffold planning text below is retained solely for historical evidence.
 
 | Phase | State | Evidence / next acceptance |
 | --- | --- | --- |
-| A. Release reliability | Implemented | Service-worker release fingerprints, bounded synthetic media and automatic deployed smoke checks |
+| A. Release reliability | Implemented in code | Release fingerprints, ready-marked two-version offline cache rollback (#32) and automatic smoke checks; recheck the latest live deployment |
 | B. Branding, navigation and themes | Implemented | Eight sections, responsive mobile More, approved Sun artwork and six themes, Sepia default, PR #23 |
 | C. Catalogue and details | Implemented for synthetic data | Status ribbons, chapter search, personal rating/notes, local filters, PR #24 |
 | D. Local organisation and backups | Implemented | Reading shelves, personal tags, arbitrary nested collections, confirmation, safe v2 backup and legacy import, PRs #25 to #27 |
 | E. Search, analytics and browser parity | Implemented for synthetic/local data | Advanced Search, evidence-based analytics, Firefox/WebKit smoke alongside full Chromium, PRs #28 to #29 |
-| E. Deep performance and device assurance | Pending | 300–1,000-page realistic decode/memory test, mobile iOS/Android, two-release offline upgrade/rollback, accessibility audit |
-| F. Private originals and sync | Blocked pending secure backend | Per-app OAuth, object-level access, user-cleared rights, owner-configured private HF secrets, server-side revisions and disposable test dataset |
+| E. Deep performance and device assurance | Partially implemented | 1,000-page deterministic geometry and bounded image window (#33), two-release offline simulator (#32); real 300–1,000-page image decode/memory testing and Android/iOS hardware remain pending |
+| F. Private originals and sync | Not connected | Fail-closed typed security contracts (#30) exist, but per-app OAuth, object-level access, owner-cleared rights, secure HF credentials, server-side revisions and disposable test dataset remain prerequisites |
 
 The live application is a **fictional synthetic demo only**. No real manga data, authenticated Hugging Face image delivery or automatic multi-device progress synchronisation exists. Never publish private originals, credentials or annotations in GitHub or Cloudflare public files.
 
 **Current release procedure:** short-lived branch -> PR -> typecheck, unit, build, bundle and browser checks -> merge green PR -> Cloudflare automatic deploy -> verify live Cloudflare smoke. Owner permits routine green non-destructive merges without another approval.
+
+## Delivered since the independent UI audit
+
+- [PR #32](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/pull/32): service-worker ready cache, two-version verified rollback and CI safety tests.
+- [PR #33](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/pull/33): logarithmic long-chapter geometry tracking with synthetic 1,000-page coverage. Not a measured physical memory benchmark.
+- [PR #34](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/pull/34): personal favourites, curated Home, backwards-compatible v2 backup.
+- [PR #35](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/pull/35): explicit chapter completion, protected ownership validation and backup import.
+
+## Next acceptance gates
+
+1. Inspect the Cloudflare live-smoke workflow after the latest `master` release and verify its build fingerprint, deep links, branding, reader, offline shell and navigation.
+2. Perform the attached [real-device checklist](REAL_DEVICE_ACCEPTANCE.md) on at least one Android Chrome and one iOS Safari device. Automations are not hardware evidence.
+3. Stress-test a licensed disposable 300–1,000-page chapter on a low-RAM phone; record image decode memory, scrolling responsiveness, app resume and cache eviction. Do not upload protected content into CI.
+4. Enforce repository rules on `master` and gate production on green checks. Cloudflare's independent Git-triggered deployment can otherwise publish before CI finishes.
+5. Only with explicit owner-approved private data and architecture, implement same-origin authentication, server-only storage tokens, CSRF/object authorisation, revisioned writes and disposable integration tests. Do not connect real manga originals first.
 
 ## Historical scaffold plan, archived verbatim
 
