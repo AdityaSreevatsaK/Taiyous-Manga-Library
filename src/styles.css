@@ -300,3 +300,10 @@ a.book-card:focus-visible,a.chapter-row:focus-visible,a.back:focus-visible,a.pri
   .vertical-reader.reader-fit-page,.vertical-reader.reader-fit-width{max-width:100%}
   .page-navigation{margin-top:10px}
 }
+
+/* Keep the chapter label on a dedicated row on phones.
+   Constraining it to 48ch previously squeezed a navigation button to 37px. */
+@media(max-width:740px){
+  .page-navigation p{max-width:100%;width:100%;flex:0 0 100%;order:-1}
+  .page-navigation button{flex:1 1 145px;min-width:min(100%,130px);white-space:normal;overflow-wrap:break-word}
+}
