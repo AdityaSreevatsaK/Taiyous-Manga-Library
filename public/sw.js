@@ -7,6 +7,13 @@ const SCOPE = new URL(SCOPE_URL);
 const APP_URL = SCOPE.href;
 const OFFLINE_DOCUMENT = new URL('__offline_shell__.html', APP_URL).href;
 const SAFE_ASSET = /\.(?:js|css)$/i;
+/** Explicitly public, approved application artwork. Never cache arbitrary private images. */
+const BRAND_SHELL_ASSETS = [
+  'branding/sun-dark.webp', 'branding/sun-light.webp',
+  'branding/favicon-dark.png', 'branding/favicon-light.png',
+  'branding/taiyou-app-192.png', 'branding/taiyou-app-512.png',
+  'manifest.webmanifest',
+];
 
 function scoped(url) {
   const target = new URL(url, SCOPE_URL);
@@ -33,7 +40,7 @@ async function installShell() {
   try {
     await cache.put(APP_URL, response);
     // An incomplete update cannot claim the new cache as usable.
-    await cache.addAll(files);
+    await cache.addAll([...files, ...BRAND_SHELL_ASSETS.map(asset => scoped(asset))]);
     // In Chromium's emulated cold-offline mode, cached HTML can load while
     // subresource requests still fail. Prepare a self-contained fall-back
     // using ONLY the two verified, first-party production assets.
@@ -103,7 +110,7 @@ self.addEventListener('fetch', event => {
     })());
     return;
   }
-  if (SAFE_ASSET.test(url.pathname)) {
+  if (SAFE_ASSET.test(url.pathname) || BRAND_SHELL_ASSETS.some(asset => scoped(asset) === url.href)) {
     event.respondWith((async () => {
       for (const name of await shellCaches()) {
         const cached = await (await caches.open(name)).match(request);
