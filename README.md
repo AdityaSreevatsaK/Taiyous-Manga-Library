@@ -27,7 +27,7 @@ Read and organise legitimately acquired manga with chapter/page-level progress a
 - Continuous full-chapter vertical scrolling with Previous/Next navigating **chapters only**, mobile layouts, focus mode and reading preferences.
 - Browser deep links and Back/Forward navigation for catalogue, series and chapters.
 - Eight primary catalogue sections with mobile More navigation, six persisted themes (Sepia default), approved Taiyou Sun artwork and status ribbons.
-- Personal rating, notes, custom tags, reading shelves and arbitrary nested collections with validated device-local storage and green success notices.
+- Personal rating, notes, custom tags, favourites, reading shelves and arbitrary nested collections with validated device-local storage and green success notices. On Home, favourites are shown first; All Manga retains alphabetical sorting.
 - Advanced on-device Search and personal Analytics derived from real saved positions and ratings, not fabricated reading durations.
 - Versioned local progress, Continue Reading, and manual JSON v2 backups including personal metadata and collections. Malformed data is preserved; v1 backups still import.
 - Opt-in offline downloads for fictional chapters, offline navigation, release-fingerprinted service worker and cache-integrity checks.

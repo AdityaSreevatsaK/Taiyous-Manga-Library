@@ -176,8 +176,13 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
   }),[filtered,advanced,progress,personalShelves,annotations,offlineChapterIds]);
   const analytics=computeLocalReadingAnalytics(catalogue,contextForDiscovery);
   const offlineSeries = catalogue.filter(item => item.chapters.some(chapter => offlineChapterIds.has(chapter.id)));
-  const displayed = screen.kind === 'catalogue' ?
-    (screen.section==='library'?advancedResults:filtered).filter(item => onShelf(item, screen.section)) : filtered;
+  const displayed = screen.kind === 'catalogue' ? (() => {
+    const items = (screen.section==='library'?advancedResults:filtered)
+      .filter(item => onShelf(item, screen.section));
+    // Home is curated by this device's favourites; All Manga stays alphabetical.
+    return screen.section==='home' ? [...items].sort((a,b)=>
+      Number(!!annotations[b.id]?.favourite)-Number(!!annotations[a.id]?.favourite)) : items;
+  })() : filtered;
   const continueReading = catalogue
     .map(item => ({ item, saved: progress[item.id], resume: restoreProgress(item, manifests, progress[item.id]) }))
     .filter((value): value is { item: MangaEntry; saved: MangaProgress; resume: ReaderLocation } =>
@@ -813,6 +818,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
                 <span className="cover-title">{item.title}</span><span className="cover-foot">ORIGINAL DEMONSTRATION</span>
               </span>
               <span className="book-details"><strong>{item.title}</strong>
+                {annotations[item.id]?.favourite && <span className="book-favourite">★ Favourite</span>}
                 <span>{item.chapters.length} chapters <span aria-hidden="true">·</span> {item.creators.join(', ')}</span>
                 {progress[item.id] && restoreProgress(item,manifests,progress[item.id]) &&
                   <span className="book-progress">In progress · Chapter {orderedChapters(item)
@@ -868,7 +874,12 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
                 {progressForEntry ? 'Continue reading' : 'Read from beginning'} <span aria-hidden="true">↗</span></a>
               {progressForEntry && <a className="secondary"
                 href={routeHref({kind:'reader',mangaId:entry.id,chapterId:chapters[0]?.id ?? 'unavailable',pageIndex:0},import.meta.env.BASE_URL)}
-                onClick={event=>followLink(event,()=>openChapter(entry,chapters[0]?.id))}>Start from chapter one</a>}</div>
+                onClick={event=>followLink(event,()=>openChapter(entry,chapters[0]?.id))}>Start from chapter one</a>}
+              <button type="button" className="secondary" aria-pressed={!!annotations[entry.id]?.favourite}
+                onClick={()=>changeAnnotation(entry,{favourite:!annotations[entry.id]?.favourite},
+                  annotations[entry.id]?.favourite?'Removed from favourites':'Added to favourites')}>
+                {annotations[entry.id]?.favourite?'★ Remove from favourites':'☆ Add to favourites'}
+              </button></div>
             <div className="collection-membership">
               <label>Add to collection
                 <select aria-label="Add to collection" value="" onChange={event=>{

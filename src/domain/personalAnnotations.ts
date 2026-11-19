@@ -10,9 +10,11 @@ export interface PersonalAnnotation {
   rating: number | null;
   notes: string;
   tags: string[];
+  /** Device-local favourite flag. Absence in older records means not favourited. */
+  favourite?: boolean;
   updatedAt: string;
 }
-export type AnnotationPatch = Partial<Pick<PersonalAnnotation, 'rating' | 'notes' | 'tags'>>;
+export type AnnotationPatch = Partial<Pick<PersonalAnnotation, 'rating' | 'notes' | 'tags' | 'favourite'>>;
 export type AnnotationResult =
   | { status: 'ok'; value: PersonalAnnotation | null }
   | { status: 'invalid' | 'unavailable' };
@@ -54,6 +56,7 @@ export function validatePersonalAnnotation(id: string, value: unknown): Personal
       typeof value.notes !== 'string' || value.notes.length > MAX_NOTES ||
       /[\u0000-\u0008\u000b\u000c\u000e-\u001f]/u.test(value.notes) ||
       !Array.isArray(value.tags) ||
+      (value.favourite !== undefined && typeof value.favourite !== 'boolean') ||
       typeof value.updatedAt !== 'string' || !Number.isFinite(Date.parse(value.updatedAt)) ||
       !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d/.test(value.updatedAt))
     throw new Error('Invalid personal annotation.');
@@ -62,6 +65,7 @@ export function validatePersonalAnnotation(id: string, value: unknown): Personal
     rating: value.rating as number | null,
     notes: value.notes,
     tags: canonicalTags(value.tags),
+    ...(value.favourite === true ? { favourite: true } : {}),
     updatedAt: value.updatedAt,
   };
 }
