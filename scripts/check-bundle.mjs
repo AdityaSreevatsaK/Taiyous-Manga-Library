@@ -1,4 +1,4 @@
-import { readdirSync, statSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 const root = 'dist/assets';
@@ -16,4 +16,10 @@ for (const { extension, limit } of budgets) {
     console.error(`Production ${extension} bundle is missing or exceeds the documented budget`);
     process.exitCode = 1;
   }
+}
+
+const worker = readFileSync('dist/sw.js', 'utf8');
+if (!/\/\* Taiyou offline shell release: [a-f0-9]{24} \*\//.test(worker)) {
+  console.error('Service worker is not fingerprinted for this release; offline updates may remain stale');
+  process.exitCode = 1;
 }
