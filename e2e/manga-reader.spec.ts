@@ -1,5 +1,22 @@
 import { expect, test, type Page } from '@playwright/test';
 
+async function assertNoHorizontalOverflow(page: Page) {
+  const snapshot = await page.evaluate(() => {
+    const width = window.innerWidth;
+    const offenders = [...document.querySelectorAll<HTMLElement>('*')]
+      .filter(element => element.getBoundingClientRect().right > width + 1)
+      .slice(0, 12)
+      .map(element => ({
+        element: element.tagName.toLowerCase(),
+        className: element.className,
+        right: Math.round(element.getBoundingClientRect().right),
+        width: Math.round(element.getBoundingClientRect().width),
+      }));
+    return { width, scrollWidth: document.documentElement.scrollWidth, offenders };
+  });
+  expect(snapshot.scrollWidth, JSON.stringify(snapshot)).toBeLessThanOrEqual(snapshot.width);
+}
+
 async function openSampleReader(page: Page) {
   await page.goto('/');
   await page.locator('.book-card').filter({ hasText: 'The Lantern Archive' }).click();
@@ -17,14 +34,14 @@ test.describe('local manga catalogue and chapter reader', () => {
       await page.goto('/');
       await expect(page.getByRole('heading', { name: 'The sample collection' })).toBeVisible();
       await expect(page.locator('.book-card')).toHaveCount(4);
-      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      await assertNoHorizontalOverflow(page);
       await page.locator('.book-card').first().click();
       await expect(page.getByRole('heading', { name: 'Chapters & volumes' })).toBeVisible();
-      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      await assertNoHorizontalOverflow(page);
       await page.getByRole('link', { name: /Read from beginning/ }).click();
       // Alphabetical first series defaults to genuine vertical mode.
       await expect(page.locator('.vertical-page-image').first()).toBeVisible();
-      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      await assertNoHorizontalOverflow(page);
     });
   }
   test('searches/filter/sorts the generated catalogue and honours the empty source', async ({ page }) => {
@@ -75,7 +92,7 @@ test.describe('local manga catalogue and chapter reader', () => {
     await openSampleReader(page);
     await page.getByRole('button', { name: 'Focus view' }).click();
     await expect(page.getByRole('button', { name: 'Exit focus view' })).toBeVisible();
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await assertNoHorizontalOverflow(page);
     await page.getByRole('button', { name: 'Exit focus view' }).click();
     await expect(page.getByRole('button', { name: 'Focus view' })).toBeVisible();
   });
@@ -493,13 +510,13 @@ test.describe('offline failure handling and accessibility hardening', () => {
     for (const width of [320, 375, 390, 430, 768, 1024, 1280]) {
       await page.setViewportSize({ width, height: 760 });
       await page.goto('/manga/mng_lanternarchive');
-      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      await assertNoHorizontalOverflow(page);
       const heights = await page.locator('.site-nav-link, .offline-chapter-control button')
         .evaluateAll(elements => elements.map(el => Math.round(el.getBoundingClientRect().height)));
       expect(heights.every(height => height >= 44), 'touch target width ' + width + ': ' + heights).toBe(true);
       // Repeating viewport checks should use either the fresh start or the stored resume link.
       await page.getByRole('link', { name: /Read from beginning|Continue reading/ }).click();
-      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      await assertNoHorizontalOverflow(page);
       const readerHeights = await page.locator('.reader-options button, .page-navigation button, .reader-selectors select')
         .evaluateAll(elements => elements.map(el => Math.round(el.getBoundingClientRect().height)));
       expect(readerHeights.every(height => height >= 44), 'reader touch targets ' + width + ': ' + readerHeights).toBe(true);
