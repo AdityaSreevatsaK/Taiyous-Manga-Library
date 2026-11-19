@@ -21,7 +21,12 @@ import { applyAdvancedDiscovery, computeLocalReadingAnalytics, defaultAdvancedCr
 import { orderedChapters, restoreProgress, stepChapter, type ReaderLocation } from './domain/reader';
 import type { ChapterManifest, MangaEntry, MangaProgress, PublicationStatus } from './domain/types';
 import './styles.css';
+import './editorial.css';
 
+/** These ribbons describe publication status, never the reader's Finished shelf. */
+const publicationCaption:Record<PublicationStatus,string>={
+  completed:'Story Complete',ongoing:'Updating',hiatus:'On Hiatus',unknown:'Unknown',
+};
 type Screen = { kind: 'catalogue'; section: CatalogueSection } | { kind: 'details' | 'reader'; id: string } | { kind: 'not-found' };
 function currentBrowserRoute(): AppRoute {
   return typeof window === 'undefined' ? { kind: 'home' } :
@@ -661,12 +666,48 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
     </header>
     <main id="content" className="main-area">
       {screen.kind === 'catalogue' && <>
-        {screen.section === 'home' && <section className="hero">
-          <div><p className="eyebrow">A PRIVATE READING SPACE / VOL. 01</p>
-            <h1>Every story,<br /><em>a world to enter.</em></h1>
-            <p className="hero-copy">An independent manga library designed around beautiful pages, quiet discovery and your place in every chapter.</p></div>
-          <div className="hero-art" aria-hidden="true"><span className="hero-orbit orbit-one" /><span className="hero-orbit orbit-two" />
-            <span className="hero-moon" /><span className="hero-art-label">THE ART OF TURNING PAGES</span></div>
+        {screen.section === 'home' && <section className="hero editorial-hero" aria-label="Library introduction">
+          <div className="editorial-hero-intro">
+            <p className="eyebrow">{demo ? 'THE READING ROOM / DEMONSTRATION' : 'YOUR PRIVATE MANGA LIBRARY'}</p>
+            <h1>A place for <em>every story.</em></h1>
+            <p className="hero-copy">{demo
+              ? 'An illustrated glimpse of the manga reader. Your own shelves live in the private library.'
+              : cloud.status==='connected'
+                ? catalogue.length
+                  ? 'Your collection, reading journey and favourite discoveries, in one quiet space.'
+                  : 'Your private shelves are ready. The stories you add will have a home here.'
+                : 'Your personal manga library, ready for the stories you choose to keep.'}</p>
+            <div className="editorial-hero-actions">
+              <a className="primary editorial-primary-link"
+                href={routeHref({kind:'library'},import.meta.env.BASE_URL)}
+                onClick={event=>followLink(event,()=>goCatalogue('library'))}>Explore the collection <span aria-hidden="true">↗</span></a>
+              {demo && cloud.status==='connected' &&
+                <button type="button" className="secondary editorial-secondary-action"
+                  onClick={()=>changeDemo(false)}>Go to my private library</button>}
+            </div>
+          </div>
+          <div className={'editorial-hero-art' + (catalogue.length ? ' has-books' : ' is-empty')} aria-hidden="true">
+            {catalogue.length ? <div className="editorial-book-stack">
+              {catalogue.slice(0,3).map((item,index)=>
+                <div className={'editorial-display-book book-'+index} key={item.id}>
+                  <span className="editorial-book-glyph">✦</span>
+                  <span className="editorial-book-title">{item.title}</span>
+                  <span className="editorial-book-maker">{item.creators[0] || 'TAIYOU LIBRARY'}</span>
+                </div>)}
+            </div> : <div className="editorial-empty-plate">
+              <span className="editorial-plate-icon">✦</span>
+              <span>TAIYOU'S MANGA LIBRARY</span>
+              <strong>Your next chapter belongs here.</strong>
+              <small>PRIVATE · PERSONAL · YOURS</small>
+            </div>}
+            <span className="editorial-art-caption">{demo?'A GLIMPSE INTO THE READER':'THE PERSONAL ARCHIVE'}</span>
+          </div>
+        </section>}
+        {screen.section === 'home' && <section className="editorial-overview" aria-label="Your library at a glance">
+          <div><strong>{catalogue.length}</strong><span>{catalogue.length===1?'Series':'Series'} in the library</span></div>
+          <div><strong>{counts.reading}</strong><span>Currently reading</span></div>
+          <div><strong>{counts.finished}</strong><span>Personally finished</span></div>
+          <div><strong>{offlineChapterIds.size}</strong><span>Chapters saved offline</span></div>
         </section>}
         {screen.section === 'home' && continueReading.length > 0 && <section className="continue-section" aria-label="Continue reading">
           <div className="shelf-heading">
@@ -752,8 +793,8 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
                 onClick={event=>followLink(event,()=>goCatalogue('library'))}>Browse the library</a>
             </div>}
         </section> : <>
-        <div className="mode-bar" role="group" aria-label="Catalogue source">
-          <div><strong>{demo ? 'Explore the demonstration' : 'Your private library'}</strong>
+        <div className="mode-bar editorial-source-switcher" role="group" aria-label="Catalogue source">
+          <div><strong>{demo ? 'Browsing a sample collection' : 'Your private library'}</strong>
             <p>{demo ? fixtureStatement :
               cloud.status==='connected'
                 ? remoteEntries.length===0
@@ -764,7 +805,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
             {cloud.status==='connected' ?
               <button type="button" className="chip" onClick={()=>{void disconnectCloud();}}>Sign out of Hugging Face</button> :
               <a className="chip cloud-connect-link" href="/api/auth/login">Sign in with Hugging Face</a>}
-            <button type="button" aria-pressed={demo} className={demo ? 'chip active' : 'chip'} onClick={() => changeDemo(true)}>Sample series</button>
+            <button type="button" aria-pressed={demo} className={demo ? 'chip active' : 'chip'} onClick={() => changeDemo(true)}>Try the sample reader</button>
             <button type="button" aria-pressed={!demo} className={!demo ? 'chip active' : 'chip'} onClick={() => changeDemo(false)}>
               {cloud.status==='connected'?'My library ('+remoteEntries.length+')':'My library (empty)'}
             </button>
@@ -871,22 +912,34 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
             <a className="book-card" key={item.id} href={routeHref({kind:'details',mangaId:item.id},import.meta.env.BASE_URL)}
               onClick={event=>followLink(event,()=>navigateTo({kind:'details',mangaId:item.id}))}>
               <span className={'book-cover cover-'+(demoEntries.findIndex(d=>d.id===item.id)%3+1)}>
-                {item.publicationStatus !== 'unknown' && <span className="status-ribbon">{item.publicationStatus}</span>}
-                <span className="cover-number">{String(index+1).padStart(2,'0')} / T</span>
+                {item.publicationStatus !== 'unknown' &&
+                  <span className={'status-ribbon status-'+item.publicationStatus}
+                    aria-label={'Publication: '+publicationCaption[item.publicationStatus]}>
+                    {publicationCaption[item.publicationStatus]}</span>}
+                <span className="cover-number">TAIYOU / {String(index+1).padStart(2,'0')}</span>
                 <span className="cover-illustration" aria-hidden="true"><i /><b /></span>
-                <span className="cover-title">{item.title}</span><span className="cover-foot">{demo?'ORIGINAL DEMONSTRATION':'PRIVATE CATALOGUE'}</span>
+                <span className="cover-title">{item.title}</span>
+                <span className="cover-creator">{item.creators[0] || 'UNKNOWN CREATOR'}</span>
+                <span className="cover-foot">{demo?'READER DEMONSTRATION':'YOUR PRIVATE ARCHIVE'}</span>
               </span>
               <span className="book-details"><strong>{item.title}</strong>
                 {annotations[item.id]?.favourite && <span className="book-favourite">★ Favourite</span>}
-                <span>{item.chapters.length} chapters <span aria-hidden="true">·</span> {item.creators.join(', ')}</span>
+                <span className="book-author">{item.creators.join(', ') || 'Creator unknown'}</span>
+                <span className="book-tags" aria-label="Genres">{item.tags.slice(0,3).map(value=>
+                  <span key={value} className="book-tag">{value}</span>)}
+                  {item.tags.length>3&&<span className="book-tag book-tag-extra">+{item.tags.length-3}</span>}
+                </span>
+                <span className="book-chapter-count">{item.chapters.length} chapters</span>
                 {progress[item.id] && restoreProgress(item,manifests,progress[item.id]) &&
                   <span className="book-progress">In progress · Chapter {orderedChapters(item)
                     .findIndex(chapter=>chapter.id===progress[item.id]!.chapterId) + 1} of {item.chapters.length}</span>}
                 {collections.items.some(folder=>folder.mangaIds.includes(item.id)) &&
                   <span className="book-collection">In {collections.items.filter(folder=>
                     folder.mangaIds.includes(item.id)).length} personal collection(s)</span>}
-                <span className="book-micro">{annotations[item.id]?.rating ? '★ ' + annotations[item.id]!.rating + '/10 (mine)' :
-                  item.rating ? '★ ' + item.rating + (demo ? '/10 (sample)' : '/10 (source)') : ''} <span aria-hidden="true">↗</span></span>
+                <span className="book-micro"><span>{annotations[item.id]?.rating
+                  ? '★ '+annotations[item.id]!.rating+'/10 · Mine'
+                  : item.rating ? '★ '+item.rating+'/10 · Source' : 'Explore series'}</span>
+                  <span aria-hidden="true">↗</span></span>
               </span>
             </a>)}</div> :
             <div className="empty-state"><span className="empty-icon" aria-hidden="true">◇</span>
@@ -905,16 +958,20 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
           onClick={event=>followLink(event,()=>goCatalogue())}>← Back to the shelf</a>
         <section className="series-detail">
           <div className={'detail-cover cover-'+(demoEntries.findIndex(d=>d.id===entry.id)%3+1)} aria-hidden="true">
-            {entry.publicationStatus !== 'unknown' && <span className="status-ribbon">{entry.publicationStatus}</span>}
+            {entry.publicationStatus !== 'unknown' &&
+              <span className={'status-ribbon status-'+entry.publicationStatus}>
+                {publicationCaption[entry.publicationStatus]}</span>}
             <span className="cover-illustration"><i /><b /></span><span className="cover-title">{entry.title}</span>
           </div>
-          <div className="detail-content"><p className="eyebrow">SERIES / PRIVATE READING ROOM</p>
+          <div className="detail-content"><p className="eyebrow">THE STORY / {demo?'READER DEMONSTRATION':'PRIVATE LIBRARY'}</p>
             <h1>{entry.title}</h1><p className="detail-sub">{entry.creators.join(', ')} <span aria-hidden="true">·</span> {entry.publicationStatus}</p>
-            <p className="detail-description">{entry.synopsis}</p>
+            <div className="detail-synopsis"><span className="detail-section-overline">ABOUT THIS MANGA</span>
+              <p className="detail-description">{entry.synopsis || 'A description has not been added yet.'}</p>
+            </div>
             <div className="tag-row">{entry.tags.map(value=><button type="button" className="tag" key={value}
               onClick={()=>jumpToFilter('tag',value)} title={'Filter All Manga by ' + value}>{value}</button>)}</div>
             <div className="stat-strip"><span><strong>{entry.chapters.length}</strong> chapters</span>
-              <span><strong>{annotations[entry.id]?.rating ?? entry.rating ?? '–'}</strong> {annotations[entry.id]?.rating ? 'my' : 'sample'} rating / 10</span>
+              <span><strong>{annotations[entry.id]?.rating ?? entry.rating ?? '–'}</strong> {annotations[entry.id]?.rating ? 'my' : 'source'} rating / 10</span>
               <span><strong>Scroll</strong> continuous chapter view</span></div>
             <div className="personal-shelf-selector">
               <label>Personal reading shelf
