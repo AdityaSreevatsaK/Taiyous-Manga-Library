@@ -1035,3 +1035,36 @@ test('mock authenticated empty HF dataset replaces sample catalogue with a truth
   await expect(page.locator('.book-card')).toHaveCount(4);
   await expect(page.getByText('SAMPLE',{exact:true})).toBeVisible();
 });
+
+test('editorial cover grid stays readable, accessible and unbroken across device widths', async ({page}) => {
+  for (const width of [320,390,740,1024,1500]) {
+    await page.setViewportSize({width,height:900});
+    await page.goto('/');
+    await expect(page.locator('.editorial-hero')).toBeVisible();
+    await expect(page.locator('.editorial-overview')).toContainText('Series in the library');
+    await expect(page.locator('.book-card')).toHaveCount(4);
+    await assertNoHorizontalOverflow(page);
+    const cover=await page.locator('.book-card .book-cover').first().boundingBox();
+    expect(cover).toBeTruthy();
+    expect(cover!.height/cover!.width).toBeGreaterThan(1.45);
+    expect(cover!.height/cover!.width).toBeLessThan(1.6);
+  }
+  await expect(page.locator('.status-ribbon').filter({hasText:'Story Complete'})).toHaveCount(2);
+  await expect(page.locator('.status-ribbon').filter({hasText:'Updating'})).toHaveCount(1);
+  await expect(page.locator('.status-ribbon').filter({hasText:'On Hiatus'})).toHaveCount(1);
+  await page.getByRole('link',{name:/The Lantern Archive/}).first().click();
+  await expect(page.locator('.detail-synopsis')).toBeVisible();
+  await expect(page.getByRole('link',{name:/Read from beginning/})).toBeVisible();
+});
+test('editorial theme tokens cover all six approved app palettes', async ({page}) => {
+  await page.goto('/');
+  for(const theme of ['sepia','paper','charcoal','midnight','ocean','plum']){
+    await page.getByRole('combobox',{name:'App theme'}).selectOption(theme);
+    await expect(page.locator('.app-shell')).toHaveClass(new RegExp('theme-'+theme));
+    const tokens=await page.locator('.app-shell').evaluate(node=>{
+      const style=getComputedStyle(node);
+      return ['--editorial-ink','--editorial-surface','--editorial-line'].map(name=>style.getPropertyValue(name).trim());
+    });
+    expect(tokens.every(Boolean),theme+' editorial palette incomplete').toBe(true);
+  }
+});
