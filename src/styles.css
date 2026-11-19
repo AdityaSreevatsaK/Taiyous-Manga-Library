@@ -569,3 +569,8 @@ a.book-card:focus-visible,a.chapter-row:focus-visible,a.back:focus-visible,a.pri
 
 /* Favourites are personal on-device annotations, not public catalogue metadata. */
 .book-favourite{display:inline-flex;align-self:flex-start;align-items:center;color:var(--text,#dec69d);font-size:12px;font-weight:700;letter-spacing:.025em}
+
+/* Manual chapter completion is separate from the latest reading position. */
+.chapter-completion-summary{margin:4px 0 14px;font-size:13px;color:var(--muted,#a2aab1)}
+.chapter-completion-toggle{min-height:44px;white-space:nowrap}
+.chapter-completion-toggle[aria-pressed="true"]{font-weight:700;border-color:currentColor}
