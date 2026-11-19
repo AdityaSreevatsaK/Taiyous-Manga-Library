@@ -51,7 +51,7 @@ export function parseAppRoute(pathname: string, search = '', basePath = '/'): Ap
 export function routeHref(route: Exclude<AppRoute, { kind: 'not-found' }>, basePath = '/'): string {
   const base = prefixFor(basePath);
   if (route.kind === 'home') return base + '/';
-  if (isCatalogueSection(route.kind)) return base + '/' + route.kind;
+  if (route.kind !== 'details' && route.kind !== 'reader') return base + '/' + route.kind;
   if (route.kind === 'details') return base + '/manga/' + encodeURIComponent(route.mangaId);
   return base + '/manga/' + encodeURIComponent(route.mangaId) +
     '/chapters/' + encodeURIComponent(route.chapterId) + '?page=' + (route.pageIndex + 1);

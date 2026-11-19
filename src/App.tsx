@@ -5,7 +5,7 @@ import { verifyOfflineChapter } from './data/offlineChapters';
 import { OfflineChapterControl } from './components/OfflineChapterControl';
 import { LocalBackupControl } from './components/LocalBackupControl';
 import { VerticalReader } from './components/VerticalReader';
-import { CATALOGUE_SECTIONS, isCatalogueSection, parseAppRoute, routeHref, type AppRoute, type CatalogueSection } from './domain/routes';
+import { CATALOGUE_SECTIONS, parseAppRoute, routeHref, type AppRoute, type CatalogueSection } from './domain/routes';
 import { loadShelves, saveShelf, type PersonalShelf, type ShelfSelection } from './domain/personalShelves';
 import { defaultReaderPreferences, laterProgress, loadAllProgress, loadPreferences, loadProgress,
   nextProgressTimestamp, savePreferences, saveProgress, type ReaderPreferences } from './domain/localReaderStorage';
@@ -24,7 +24,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
   const initialRoute = useMemo(currentBrowserRoute, []);
   const [demo, setDemo] = useState(initialDemo);
   const [screen, setScreen] = useState<Screen>(() => {
-    if (isCatalogueSection(initialRoute.kind)) {
+    if (initialRoute.kind !== 'details' && initialRoute.kind !== 'reader' && initialRoute.kind !== 'not-found') {
       return { kind: 'catalogue', section: initialRoute.kind };
     }
     if (initialRoute.kind === 'not-found') return { kind: 'not-found' };
@@ -278,7 +278,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
   }
   function applyRoute(route: AppRoute) {
     setNotice('');
-    if (isCatalogueSection(route.kind)) {
+    if (route.kind !== 'details' && route.kind !== 'reader' && route.kind !== 'not-found') {
       exitImmersive();
       setLocation(null);
       setScreen({ kind: 'catalogue', section: route.kind });
@@ -385,7 +385,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
           <select aria-label="App theme" value={preferences.theme}
             onChange={event=>updatePreferences({...preferences,theme:event.target.value as ReaderPreferences['theme']})}>
             {(['sepia','paper','charcoal','midnight','ocean','plum'] as const).map(theme =>
-              <option key={theme} value={theme}>{theme[0].toUpperCase() + theme.slice(1)}</option>)}
+              <option key={theme} value={theme}>{theme.charAt(0).toUpperCase() + theme.slice(1)}</option>)}
           </select></label>
         <span className="demo-pill">SAMPLE</span>
         <span className="network-state">{online ? 'Device online' : 'Device offline'}</span>
@@ -597,7 +597,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
                   ...preferences, theme: event.target.value as ReaderPreferences['theme'],
                 })}>
                   {(['sepia','paper','charcoal','midnight','ocean','plum'] as const).map(theme =>
-                    <option key={theme} value={theme}>{theme[0].toUpperCase()+theme.slice(1)}</option>)}
+                    <option key={theme} value={theme}>{theme.charAt(0).toUpperCase()+theme.slice(1)}</option>)}
                 </select></label>
               <label>Choose chapter
                 <select value={location.chapterId} onChange={event=>openChapter(entry,event.target.value)}>
