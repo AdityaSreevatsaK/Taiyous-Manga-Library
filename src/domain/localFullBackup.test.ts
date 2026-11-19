@@ -122,7 +122,12 @@ describe('versioned personal backups',()=>{
       item.id==='collection_root'?{...item,name:'Edited Locally'}:item)};
     expect(saveCollections(changed,current.value.revision,target).status).toBe('ok');
     restoreFullBackup(plan,demoEntries,demoManifests,target,false,true);
-    expect(loadCollections(target)).toMatchObject({status:'ok',value:{items:[{name:'Edited Locally'}]}});
+    const unchanged=loadCollections(target);
+    expect(unchanged.status).toBe('ok');
+    if(unchanged.status==='ok') {
+      expect(unchanged.value.items).toHaveLength(2);
+      expect(unchanged.value.items[0]?.name).toBe('Edited Locally');
+    }
   });
   it('accepts v2 exports made before collections existed but rejects damaged trees',()=>{
     const store=memory();
