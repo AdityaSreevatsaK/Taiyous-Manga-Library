@@ -22,8 +22,18 @@ function scoped(url) {
 async function shellCaches() {
   return (await caches.keys()).filter(name => name.startsWith(SHELL_PREFIX)).sort().reverse();
 }
+const SHELL_READY_URL = new URL('__shell_ready__', APP_URL).href;
+/** Never serve assets or fallback HTML from an unverified in-progress release. */
+async function readyShellCaches() {
+  const complete = [];
+  for (const name of await shellCaches()) {
+    const cache = await caches.open(name);
+    if (await cache.match(SHELL_READY_URL)) complete.push(name);
+  }
+  return complete;
+}
 async function activeShell() {
-  const names = await shellCaches();
+  const names = await readyShellCaches();
   return names.length ? caches.open(names[0]) : null;
 }
 async function installShell() {
@@ -34,8 +44,14 @@ async function installShell() {
   const files = [...html.matchAll(/(?:src|href)=["']([^"']+\.(?:js|css))["']/g)]
     .map(match => scoped(match[1])).filter(Boolean);
   if (!files.length) throw new Error('No application assets found in the release document');
-  const stamp = String(Date.now()).padStart(13,'0');
-  const key = SHELL_PREFIX + stamp;
+  // Avoid a same-millisecond collision deleting a previously verified release.
+  let stamp = Date.now();
+  let key = SHELL_PREFIX + String(stamp).padStart(13,'0');
+  const existing = new Set(await caches.keys());
+  while (existing.has(key)) {
+    stamp++;
+    key = SHELL_PREFIX + String(stamp).padStart(13,'0');
+  }
   const cache = await caches.open(key);
   try {
     await cache.put(APP_URL, response);
@@ -70,7 +86,7 @@ async function installShell() {
     await cache.put(OFFLINE_DOCUMENT, new Response(offlineHtml, {
       headers: { 'content-type': 'text/html; charset=utf-8' },
     }));
-    await cache.put(new URL('__shell_ready__', APP_URL).href, new Response('ready'));
+    await cache.put(SHELL_READY_URL, new Response('ready'));
   } catch (error) {
     await caches.delete(key);
     throw error;
@@ -80,14 +96,10 @@ async function installShell() {
 self.addEventListener('install', event => { event.waitUntil(installShell()); });
 self.addEventListener('activate', event => {
   event.waitUntil((async () => {
-    // Preserve two verified application releases. Never touch downloaded chapters.
-    const names = await shellCaches();
-    const complete = [];
-    for (const name of names) {
-      const cache = await caches.open(name);
-      if (await cache.match(new URL('__shell_ready__', APP_URL).href)) complete.push(name);
-      else await caches.delete(name);
-    }
+    // Preserve two verified releases, never an incomplete stage. Never touch manga downloads.
+    const complete = await readyShellCaches();
+    const valid = new Set(complete);
+    for (const name of await shellCaches()) if (!valid.has(name)) await caches.delete(name);
     for (const name of complete.slice(2)) await caches.delete(name);
     await self.clients.claim();
   })());
@@ -112,7 +124,7 @@ self.addEventListener('fetch', event => {
   }
   if (SAFE_ASSET.test(url.pathname) || BRAND_SHELL_ASSETS.some(asset => scoped(asset) === url.href)) {
     event.respondWith((async () => {
-      for (const name of await shellCaches()) {
+      for (const name of await readyShellCaches()) {
         const cached = await (await caches.open(name)).match(request);
         if (cached) return cached;
       }
