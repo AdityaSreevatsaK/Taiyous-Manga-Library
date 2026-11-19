@@ -990,3 +990,21 @@ test('personal favourites are accessible, persisted and curated only on Home', a
   await page.goto('/');
   await expect(page.locator('.book-favourite')).toHaveCount(0);
 });
+
+test('manual chapter completion persists and never alters chapter reading navigation', async ({ page }) => {
+  await page.goto('/manga/mng_lanternarchive');
+  await expect(page.getByText('0 of 3 chapters explicitly marked completed on this device.')).toBeVisible();
+  const first=page.getByRole('button',{name:'Mark chapter 1 completed'});
+  await expect(first).toHaveAttribute('aria-pressed','false');
+  await first.click();
+  await expect(page.getByRole('button',{name:'Mark chapter 1 incomplete'})).toHaveAttribute('aria-pressed','true');
+  await expect(page.getByText('1 of 3 chapters explicitly marked completed on this device.')).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('button',{name:'Mark chapter 1 incomplete'})).toBeVisible();
+  await page.getByRole('button',{name:'Mark chapter 1 incomplete'}).click();
+  await expect(page.getByText('0 of 3 chapters explicitly marked completed on this device.')).toBeVisible();
+  await page.getByRole('link',{name:/Read from beginning/}).click();
+  await expect(page.getByRole('button',{name:/Next chapter/})).toBeEnabled();
+  await page.getByRole('link',{name:/Series details/}).click();
+  await expect(page.getByText('0 of 3 chapters explicitly marked completed on this device.')).toBeVisible();
+});

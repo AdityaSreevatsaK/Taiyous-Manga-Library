@@ -125,6 +125,9 @@ export function previewFullBackup(raw: unknown, entries: readonly MangaEntry[],
       try {record=validatePersonalAnnotation(candidate.mangaId,candidate);}
       catch {throw new Error('Personal backup contains invalid notes, rating or tags. Nothing was imported.');}
       if (!known.has(record.mangaId)) {unknownPersonal++;continue;}
+      const owningSeries=entries.find(item=>item.id===record.mangaId)!;
+      if(record.completedChapterIds?.some(id=>!owningSeries.chapters.some(chapter=>chapter.id===id)))
+        throw new Error('Personal backup contains chapter completion IDs outside their manga. Nothing was imported.');
       annotations.push(record);
       const existing=readAnnotation(record.mangaId,store);
       if (existing.status === 'ok' &&

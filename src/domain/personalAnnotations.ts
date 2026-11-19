@@ -12,14 +12,28 @@ export interface PersonalAnnotation {
   tags: string[];
   /** Device-local favourite flag. Absence in older records means not favourited. */
   favourite?: boolean;
+  /** Explicit chapter-completion markers, never inferred from scrolling progress. */
+  completedChapterIds?: string[];
   updatedAt: string;
 }
-export type AnnotationPatch = Partial<Pick<PersonalAnnotation, 'rating' | 'notes' | 'tags' | 'favourite'>>;
+export type AnnotationPatch = Partial<Pick<PersonalAnnotation, 'rating' | 'notes' | 'tags' | 'favourite' | 'completedChapterIds'>>;
 export type AnnotationResult =
   | { status: 'ok'; value: PersonalAnnotation | null }
   | { status: 'invalid' | 'unavailable' };
 export const annotationKey = (id: string) => PREFIX + id;
 const cleanKey = (tag: string) => tag.toLocaleLowerCase('en').normalize('NFC');
+const CHAPTER_ID = /^ch_[A-Za-z0-9_-]{8,64}$/;
+/** Stored chapter markers use immutable IDs and cannot contain duplicates. */
+export function canonicalCompletedChapterIds(value: unknown): string[] {
+  if (!Array.isArray(value) || value.length > 2000) throw new Error('Invalid chapter completion records.');
+  const seen = new Set<string>();
+  for (const id of value) {
+    if (typeof id !== 'string' || !CHAPTER_ID.test(id) || seen.has(id))
+      throw new Error('Invalid or duplicate chapter completion ID.');
+    seen.add(id);
+  }
+  return [...seen].sort();
+}
 
 export function normalisePersonalTag(input: string): string {
   const cleaned = input.trim().replace(/\s+/gu, ' ').normalize('NFC');
@@ -60,12 +74,15 @@ export function validatePersonalAnnotation(id: string, value: unknown): Personal
       typeof value.updatedAt !== 'string' || !Number.isFinite(Date.parse(value.updatedAt)) ||
       !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d/.test(value.updatedAt))
     throw new Error('Invalid personal annotation.');
+  const completed = value.completedChapterIds === undefined ? [] :
+    canonicalCompletedChapterIds(value.completedChapterIds);
   return {
     mangaId: id,
     rating: value.rating as number | null,
     notes: value.notes,
     tags: canonicalTags(value.tags),
     ...(value.favourite === true ? { favourite: true } : {}),
+    ...(completed.length ? { completedChapterIds: completed } : {}),
     updatedAt: value.updatedAt,
   };
 }
