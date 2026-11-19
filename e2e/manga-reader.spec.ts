@@ -762,7 +762,7 @@ test.describe('personal annotations never leave the browser',()=>{
     await expect(page.getByRole('textbox',{name:'Personal notes'})).toHaveValue('A brilliant, quiet story');
     await expect(page.getByText('10 / 10')).toBeVisible();
     await page.getByRole('button',{name:'Romance',exact:true}).click();
-    await expect(page).toHaveURL('/library');
+    await expect(page).toHaveURL(/\/library\?tag=Romance/);
     await expect(page.locator('.book-card')).toHaveCount(1);
     await expect(page.locator('.book-card')).toContainText('10/10 (mine)');
   });
@@ -821,4 +821,74 @@ test.describe('compatible private manga library backups',()=>{
     await expect(page.getByRole('button',{name:'Remove tag Adventure Favourite'})).toBeVisible();
     await expect(page.getByText('9 / 10')).toBeVisible();
   });
+});
+
+test.describe('nested personal manga collections',()=>{
+  test('creates, nests, filters and adds a manga without changing publication status',async({page})=>{
+    await page.goto('/library');
+    await page.getByText('Manage my collections (0)').click();
+    await page.getByRole('textbox',{name:'New collection name'}).fill('Favourites');
+    await page.getByRole('button',{name:'Create collection'}).click();
+    await expect(page.locator('.collections-manager')).toContainText('Favourites');
+    await page.getByRole('textbox',{name:'New collection name'}).fill('Romance');
+    await page.getByRole('combobox',{name:'Inside collection'}).selectOption({label:'Favourites'});
+    await page.getByRole('button',{name:'Create collection'}).click();
+    await expect(page.locator('.collections-manager')).toContainText('Favourites / Romance');
+    await page.goto('/manga/mng_lanternarchive');
+    const publicationBefore=await page.locator('.detail-sub').textContent();
+    await page.getByRole('combobox',{name:'Add to collection'}).selectOption({label:'Favourites / Romance'});
+    await expect(page.locator('.success-toast')).toContainText('Added manga to collection');
+    await expect(page.locator('.collection-member')).toContainText('Favourites / Romance');
+    await expect(page.locator('.detail-sub')).toHaveText(publicationBefore);
+    await page.locator('.collection-member .tag').click();
+    await expect(page).toHaveURL(/\/library\?collection=personal%3A/);
+    await expect(page.locator('.book-card')).toHaveCount(1);
+    await expect(page.locator('.book-card')).toContainText('The Lantern Archive');
+    await page.reload();
+    await expect(page.locator('.book-card')).toHaveCount(1);
+  });
+  test('requires confirmation before a collection tree is deleted and preserves manga',async({page})=>{
+    await page.goto('/library');
+    await page.getByText('Manage my collections (0)').click();
+    await page.getByRole('textbox',{name:'New collection name'}).fill('Parent');
+    await page.getByRole('button',{name:'Create collection'}).click();
+    await page.getByRole('textbox',{name:'New collection name'}).fill('Child');
+    await page.getByRole('combobox',{name:'Inside collection'}).selectOption({label:'Parent'});
+    await page.getByRole('button',{name:'Create collection'}).click();
+    await page.locator('.collection-list-item').filter({hasText:'Parent'}).first()
+      .getByRole('button',{name:'Delete'}).click();
+    await expect(page.getByRole('dialog',{name:'Delete this collection?'})).toContainText('1 nested collection(s)');
+    await page.getByRole('dialog').getByRole('button',{name:'Cancel'}).click();
+    await expect(page.locator('.collection-list-item')).toHaveCount(2);
+    await page.locator('.collection-list-item').filter({hasText:'Parent'}).first()
+      .getByRole('button',{name:'Delete'}).click();
+    await page.getByRole('dialog').getByRole('button',{name:'Delete collection'}).click();
+    await expect(page.locator('.collection-list-item')).toHaveCount(0);
+    await expect(page.locator('.book-card')).toHaveCount(4);
+    await page.reload();
+    await expect(page.getByText('Manage my collections (0)')).toBeVisible();
+  });
+  test('keeps collection, tag and theme menus functional at narrow widths',async({page})=>{
+    for(const width of [320,375,390,768,1280]) {
+      await page.setViewportSize({width,height:820});
+      await page.goto('/library');
+      await assertNoHorizontalOverflow(page);
+      const collections=page.locator('.header-menu').filter({has:page.locator('summary:text-is("Collections")')});
+      await collections.locator('summary').click();
+      await expect(collections.getByRole('button',{name:'All collections'})).toBeVisible();
+      await collections.locator('summary').click();
+    }
+  });
+});
+
+test('catalogue search and private collection filters remain bookmarkable on reload',async({page})=>{
+  await page.goto('/library?tag=Adventure&q=lantern&sort=chapters');
+  await expect(page.getByRole('combobox',{name:'Genre'})).toHaveValue('Adventure');
+  await expect(page.getByRole('searchbox',{name:'Search series or aliases'})).toHaveValue('lantern');
+  await expect(page.getByRole('combobox',{name:'Sort'})).toHaveValue('chapters');
+  await expect(page.locator('.book-card')).toHaveCount(1);
+  await page.reload();
+  await expect(page.locator('.book-card')).toHaveCount(1);
+  await page.getByRole('combobox',{name:'Genre'}).selectOption('');
+  await expect(page).not.toHaveURL(/tag=Adventure/);
 });
