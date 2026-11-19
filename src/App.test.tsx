@@ -13,6 +13,13 @@ describe('accessible catalogue baseline (server-rendered markup)', () => {
     expect(html).toContain('aria-label="Manga catalogue"');
     expect(html).toContain('href="#content"');
     expect((html.match(/class="book-card"/g) ?? []).length).toBe(4);
+    expect(html).toContain('A place for');
+    expect(html).toContain('editorial-overview');
+    expect(html).toContain('book-tags');
+    expect(html).toContain('Story Complete');
+    expect(html).toContain('Updating');
+    expect(html).toContain('On Hiatus');
+    expect(html).not.toContain('THE ART OF TURNING PAGES');
   });
   it('does not pretend to contain private media when the empty source is selected', () => {
     const html = renderToStaticMarkup(<App initialDemo={false} />);
