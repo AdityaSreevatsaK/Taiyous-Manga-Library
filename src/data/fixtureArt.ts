@@ -17,6 +17,8 @@ export function makeFixturePage(chapterId: string, pageIndex: number): string {
   canvas.width = 680; canvas.height = 920;
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Unable to create synthetic image');
+  const trialChapters = ['ch_trialawakening', 'ch_trialcrossroad', 'ch_trialskybridge', 'ch_trialstarlight', 'ch_trialnewdawn'];
+  const trialChapterNumber = trialChapters.indexOf(chapterId) + 1;
   const palette = colours[hash(chapterId) % colours.length]!;
   const [ink, paper, accent] = palette;
   ctx.fillStyle = paper; ctx.fillRect(0, 0, 680, 920);
@@ -47,8 +49,11 @@ export function makeFixturePage(chapterId: string, pageIndex: number): string {
   });
   ctx.fillStyle = ink;
   ctx.font = 'bold 17px sans-serif'; ctx.textAlign = 'center';
-  ctx.fillText('ORIGINAL / SYNTHETIC PAGE',340,30);
+  ctx.fillText(trialChapterNumber
+    ? 'SCROLL TRIAL / CHAPTER ' + String(trialChapterNumber).padStart(2, '0') + ' / 05'
+    : 'ORIGINAL / SYNTHETIC PAGE', 340, 30);
   ctx.font='14px sans-serif';
-  ctx.fillText('TAIYOU DEMO  ·  ' + String(pageIndex+1).padStart(2,'0'),340,897);
+  ctx.fillText((trialChapterNumber ? 'CH ' + trialChapterNumber + '  /  ' : 'TAIYOU DEMO  /  ') +
+    'PAGE ' + String(pageIndex+1).padStart(2,'0'),340,897);
   return canvas.toDataURL('image/png');
 }
