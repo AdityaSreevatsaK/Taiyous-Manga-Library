@@ -13,6 +13,15 @@ Verified live release after merge #29:
 
 The automated browser engines are not substitute evidence for actual Android Chrome/iOS Safari on hardware, low-memory 300–1,000 page image decode benchmarks, or browser storage eviction tests. Full private session/rights/access/integration tests cannot run until a backend exists.
 
+## Recent independent development CI (19 November)
+
+- Offline two-release rollback, [PR #32](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/pull/32): TypeScript, unit, release-transition tests, Chromium and Firefox/WebKit passed.
+- 1,000-page geometry bounded reading, [PR #33](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/pull/33): [quality and Chromium CI](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/actions/runs/44586265335) and [Firefox/WebKit](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/actions/runs/44586265753) passed.
+- Favourites and v2 backup, [PR #34](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/pull/34): [quality and Chromium CI](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/actions/runs/44587338561) and [Firefox/WebKit](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/actions/runs/44587338758) passed.
+- Explicit chapter markers and backup ownership, [PR #35](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/pull/35): [quality and Chromium CI](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/actions/runs/44588300489) and [Firefox/WebKit](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/actions/runs/44588300495) passed.
+
+These results establish repository/browser CI only. **Post-merge latest Cloudflare deployment** and physical Android/iOS hardware still need independent evidence. Use [real-device acceptance](REAL_DEVICE_ACCEPTANCE.md).
+
 ## Historical 18 November scaffold test evidence, retained
 
 The earlier text below describes draft PRs and unstarted CI which have **since been merged and superseded**. Do not treat its statements about `master` or available browsers as current.
