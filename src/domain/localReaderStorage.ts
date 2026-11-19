@@ -41,6 +41,11 @@ function parsePreferences(raw: unknown): ReaderPreferences {
     throw new Error('Invalid reader preferences');
   return { direction: p.direction as ReadingDirection | null, fit: p.fit as ImageFit, theme: p.theme as ReaderTheme };
 }
+/** Pure validation for manually imported reader settings; never writes storage. */
+export function validateReaderPreferences(input: unknown): ReaderPreferences {
+  return parsePreferences({ schemaVersion: 1, mediaKind: 'manga', preferences: input });
+}
+
 export function loadPreferences(store: Storage | null = browserStorage()): StorageResult<ReaderPreferences> {
   if (!store) return { status: 'unavailable' };
   try {
