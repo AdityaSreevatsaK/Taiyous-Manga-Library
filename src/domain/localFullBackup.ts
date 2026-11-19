@@ -2,6 +2,8 @@ import type { ChapterManifest, MangaEntry } from './types';
 import { loadAnnotations, readAnnotation, importAnnotation, validatePersonalAnnotation,
   type PersonalAnnotation } from './personalAnnotations';
 import { loadShelves, readShelf, saveShelf, type PersonalShelf } from './personalShelves';
+import { loadCollections, validateCollections, type CollectionState } from './personalCollections';
+import { importCollectionMerge, planCollectionMerge } from './collectionBackup';
 import { exportLocalReaderBackup, previewLocalReaderBackup, restoreLocalReaderBackup,
   type LocalReaderBackup, type BackupPreview, type BackupRestoreResult } from './localReaderBackup';
 
@@ -17,6 +19,8 @@ export interface FullBackupV2 {
   reader: LocalReaderBackup;
   shelves: ShelfBackupItem[];
   annotations: PersonalAnnotation[];
+  /** Optional extension, absent in older v2 backups. */
+  collections?: CollectionState;
 }
 export type AnyMangaBackup = FullBackupV2 | LocalReaderBackup;
 export interface FullBackupPreview {
@@ -28,6 +32,9 @@ export interface FullBackupPreview {
   annotationRestorable: number;
   conflicts: number;
   unknownPersonal: number;
+  collections: CollectionState | null;
+  collectionsRestorable: number;
+  collectionsConflicted: number;
 }
 export interface FullBackupRestoreResult {
   reader: BackupRestoreResult;
@@ -35,6 +42,8 @@ export interface FullBackupRestoreResult {
   annotationsRestored: number;
   metadataSkipped: number;
   metadataUnavailable: number;
+  collectionsRestored: number;
+  collectionsSkipped: number;
 }
 function object(input: unknown): input is Record<string, unknown> {
   return !!input && typeof input === 'object' && !Array.isArray(input);
@@ -46,16 +55,19 @@ export function exportFullBackup(entries: readonly MangaEntry[],
   const progress = exportLocalReaderBackup(entries,manifests,store,now);
   const shelf = loadShelves(entries,store);
   const notes = loadAnnotations(entries,store);
+  const collectionData = loadCollections(store);
   const document: FullBackupV2 = {
     schemaVersion:2,mediaKind:'manga',kind:KIND,exportedAt:now.toISOString(),
     reader:progress.document,
     shelves:Object.entries(shelf.shelves).map(([mangaId,value])=>({mangaId,shelf:value}))
       .sort((a,b)=>a.mangaId.localeCompare(b.mangaId)),
     annotations:Object.values(notes.annotations).sort((a,b)=>a.mangaId.localeCompare(b.mangaId)),
+    ...(collectionData.status==='ok' ? {collections:collectionData.value} : {}),
   };
   if (new TextEncoder().encode(JSON.stringify(document)).length > MAX_FULL_BACKUP_BYTES)
     throw new Error('Personal backup exceeds the 2 MB safety limit.');
-  return {document,excludedInvalid:progress.excludedInvalid+shelf.invalid+notes.invalid};
+  return {document,excludedInvalid:progress.excludedInvalid+shelf.invalid+notes.invalid+
+    (collectionData.status==='invalid'?1:0)};
 }
 export function previewFullBackup(raw: unknown, entries: readonly MangaEntry[],
   manifests: ReadonlyMap<string,ChapterManifest>,store:Storage|null): FullBackupPreview {
@@ -77,6 +89,19 @@ export function previewFullBackup(raw: unknown, entries: readonly MangaEntry[],
   let shelfRestorable = 0;
   let annotationRestorable = 0;
   let conflicts = 0;
+  let collections: CollectionState | null = null;
+  let collectionsRestorable = 0;
+  let collectionsConflicted = 0;
+  if(isV2 && Object.prototype.hasOwnProperty.call(raw,'collections')) {
+    try {collections=validateCollections(raw.collections);}
+    catch {throw Error('Personal backup contains an invalid collection tree. Nothing was imported.');}
+    const existing=loadCollections(store);
+    if(existing.status==='ok') {
+      const merged=planCollectionMerge(existing.value,collections);
+      collectionsRestorable=merged.added;
+      collectionsConflicted=merged.skipped;
+    } else collectionsConflicted=collections.items.length;
+  }
   if (isV2) {
     for (const candidate of raw.shelves as unknown[]) {
       if (!object(candidate) || typeof candidate.mangaId !== 'string' ||
@@ -111,6 +136,7 @@ export function previewFullBackup(raw: unknown, entries: readonly MangaEntry[],
   return {
     document: isV2 ? raw as unknown as FullBackupV2 : reader.document,
     reader,shelves,annotations,shelfRestorable,annotationRestorable,conflicts,unknownPersonal,
+    collections,collectionsRestorable,collectionsConflicted,
   };
 }
 /** Explicitly confirmed merge. Existing shelves are not replaced; only newer notes can be restored. */
@@ -121,6 +147,7 @@ export function restoreFullBackup(preview: FullBackupPreview,entries: readonly M
   const checked = previewFullBackup(preview.document,entries,manifests,store);
   const reader = restoreLocalReaderBackup(checked.reader,entries,manifests,store,restoreSettings);
   let shelvesRestored=0,annotationsRestored=0,metadataSkipped=0,metadataUnavailable=0;
+  let collectionsRestored=0,collectionsSkipped=0;
   if (restorePersonal) {
     for (const shelf of checked.shelves) {
       const current=readShelf(shelf.mangaId,store);
@@ -139,6 +166,14 @@ export function restoreFullBackup(preview: FullBackupPreview,entries: readonly M
       else if(result === 'unavailable') metadataUnavailable++;
       else metadataSkipped++;
     }
+    if(checked.collections) {
+      const result=importCollectionMerge(checked.collections,store);
+      collectionsRestored=result.added;
+      collectionsSkipped=result.skipped;
+      if(result.status==='invalid'||result.status==='stale')metadataSkipped++;
+      if(result.status==='unavailable')metadataUnavailable++;
+    }
   }
-  return {reader,shelvesRestored,annotationsRestored,metadataSkipped,metadataUnavailable};
+  return {reader,shelvesRestored,annotationsRestored,metadataSkipped,metadataUnavailable,
+    collectionsRestored,collectionsSkipped};
 }

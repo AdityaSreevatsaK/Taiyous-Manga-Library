@@ -892,3 +892,33 @@ test('catalogue search and private collection filters remain bookmarkable on rel
   await page.getByRole('combobox',{name:'Genre'}).selectOption('');
   await expect(page).not.toHaveURL(/tag=Adventure/);
 });
+
+test('a full personal backup restores a nested collection tree with confirmation',async({page})=>{
+  await page.goto('/library');
+  await page.getByText('Manage my collections (0)').click();
+  await page.getByRole('textbox',{name:'New collection name'}).fill('Parent');
+  await page.getByRole('button',{name:'Create collection'}).click();
+  await page.getByRole('textbox',{name:'New collection name'}).fill('Child');
+  await page.getByRole('combobox',{name:'Inside collection'}).selectOption({label:'Parent'});
+  await page.getByRole('button',{name:'Create collection'}).click();
+  const save=page.waitForEvent('download');
+  await page.getByText('Transfer reading progress between devices').click();
+  await page.getByRole('button',{name:'Download personal backup'}).click();
+  const zip=await save;
+  const bytes=await readFile((await zip.path())!);
+  const doc=JSON.parse(bytes.toString('utf8'));
+  expect(doc.collections.items).toHaveLength(2);
+  await page.evaluate(()=>localStorage.removeItem('taiyou-manga:personal-collections:v1'));
+  await page.reload();
+  await page.getByText('Transfer reading progress between devices').click();
+  await page.locator('.backup-panel input[type=file]').setInputFiles({
+    name:'collections.json',mimeType:'application/json',buffer:bytes,
+  });
+  await expect(page.locator('.backup-preview')).toContainText('2 new collections available to import');
+  await page.getByRole('checkbox',{name:/Also restore personal shelves/}).check();
+  await page.getByRole('button',{name:'Confirm restore'}).click();
+  await expect(page.locator('.backup-message')).toContainText('2 collections imported');
+  await expect(page.locator('.collections-manager')).toContainText('Parent / Child');
+  await page.reload();
+  await expect(page.getByText('Manage my collections (2)')).toBeVisible();
+});
