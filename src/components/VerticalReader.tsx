@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { resolveSyntheticPage, type PageSource } from '../data/pageSource';
+import { anchoredPageIndex, pagePrefetchWindow } from '../domain/pageViewport';
 import type { ChapterManifest } from '../domain/types';
 
 /**
@@ -41,9 +42,7 @@ export function VerticalReader({ manifest, fit = 'width', activeIndex, jumpToken
 
   useEffect(() => {
     let cancelled = false;
-    const start = Math.max(0, visibleIndex - 1);
-    const end = Math.min(manifest.pages.length - 1, visibleIndex + 1);
-    const wanted = Array.from({length: end - start + 1}, (_, n) => start + n);
+    const wanted = pagePrefetchWindow(visibleIndex,manifest.pages.length);
     const prior = images.current;
     const fetches = wanted.map(async index => {
       if (prior.has(index) && retry === 0) return { index, source: prior.get(index)!, error: false, fresh: false };
@@ -83,25 +82,22 @@ export function VerticalReader({ manifest, fit = 'width', activeIndex, jumpToken
     let frame = 0;
     const checkVisible = () => {
       frame = 0;
-      const slots = root.current?.querySelectorAll<HTMLElement>('[data-vertical-page]');
+      // All direct children are page slots. HTMLCollection avoids an O(n) selector
+      // scan, and binary search reads O(log n) element rectangles per scroll.
+      const slots = root.current?.children;
       if (!slots?.length) return;
       // An anchored point inside the viewport is more stable than intersection
       // ratios for unusually tall webtoon/long-strip images.
       const anchor = window.innerHeight * 0.38;
-      let candidate = slots.length - 1;
-      for (let index = 0; index < slots.length; index++) {
-        if (slots[index]!.getBoundingClientRect().bottom > anchor) {
-          candidate = index;
-          break;
-        }
-      }
+      const candidate = anchoredPageIndex(slots.length,anchor,index=>
+        (slots[index] as HTMLElement).getBoundingClientRect().bottom);
       if (candidate !== visible.current) {
         visible.current = candidate;
         setVisibleIndex(candidate);
         callbacks.current.onActivePage(candidate);
       }
       reportViewed(candidate);
-      const slot = slots[candidate]!;
+      const slot = slots[candidate] as HTMLElement;
       const bounds = slot.getBoundingClientRect();
       const ratio = Math.max(0, Math.min(1, (anchor - bounds.top) / Math.max(1, bounds.height)));
       const last = anchorStamp.current;
@@ -126,7 +122,7 @@ export function VerticalReader({ manifest, fit = 'width', activeIndex, jumpToken
   }, [manifest.chapterId]);
 
   useEffect(() => {
-    const slot = root.current?.querySelectorAll<HTMLElement>('[data-vertical-page]')[activeIndex];
+    const slot = root.current?.children.item(activeIndex) as HTMLElement | null;
     slot?.scrollIntoView({ block: 'start', behavior: 'instant' });
     if (slot && initialOffsetRatio > 0 && initialOffsetRatio <= 1)
       window.scrollBy({ top: slot.getBoundingClientRect().height * initialOffsetRatio, behavior: 'instant' });
