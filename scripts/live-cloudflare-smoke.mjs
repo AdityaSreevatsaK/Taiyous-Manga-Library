@@ -43,12 +43,26 @@ async function main() {
     }
   });
 
-  for (const route of ['/library', '/offline', '/manga/smoke-test']) {
+  for (const route of [
+    '/library', '/offline', '/manga/smoke-test',
+    '/manga/mng_fivechaptertrial',
+    '/manga/mng_fivechaptertrial/chapters/ch_trialawakening?page=1',
+    '/manga/mng_fivechaptertrial/chapters/ch_trialnewdawn?page=1',
+  ]) {
     await check('SPA direct route ' + route, async () => {
       const html = await (await get(route)).text();
       if (!html.includes('id="root"')) throw new Error('Not the SPA shell');
     });
   }
+
+  await check('Deployed reader contains five-chapter trial and chapter-only controls', async () => {
+    const javascript = served.filter(asset => asset.endsWith('.js'));
+    if (javascript.length === 0) throw new Error('No deployed JavaScript assets');
+    const all = (await Promise.all(javascript.map(async asset => (await get(asset)).text()))).join('');
+    if (!all.includes('Five Chapter Scroll Trial') || !all.includes('Next chapter')) {
+      throw new Error('The deployed JavaScript does not contain the chapter-first demo');
+    }
+  });
 
   await check('Offline service worker', async () => {
     const worker = await (await get('/sw.js')).text();
