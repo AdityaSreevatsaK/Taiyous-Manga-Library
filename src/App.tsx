@@ -874,7 +874,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
                 {item.publicationStatus !== 'unknown' && <span className="status-ribbon">{item.publicationStatus}</span>}
                 <span className="cover-number">{String(index+1).padStart(2,'0')} / T</span>
                 <span className="cover-illustration" aria-hidden="true"><i /><b /></span>
-                <span className="cover-title">{item.title}</span><span className="cover-foot">ORIGINAL DEMONSTRATION</span>
+                <span className="cover-title">{item.title}</span><span className="cover-foot">{demo?'ORIGINAL DEMONSTRATION':'PRIVATE CATALOGUE'}</span>
               </span>
               <span className="book-details"><strong>{item.title}</strong>
                 {annotations[item.id]?.favourite && <span className="book-favourite">★ Favourite</span>}
@@ -886,12 +886,12 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
                   <span className="book-collection">In {collections.items.filter(folder=>
                     folder.mangaIds.includes(item.id)).length} personal collection(s)</span>}
                 <span className="book-micro">{annotations[item.id]?.rating ? '★ ' + annotations[item.id]!.rating + '/10 (mine)' :
-                  item.rating ? '★ ' + item.rating + '/10 (sample)' : ''} <span aria-hidden="true">↗</span></span>
+                  item.rating ? '★ ' + item.rating + (demo ? '/10 (sample)' : '/10 (source)') : ''} <span aria-hidden="true">↗</span></span>
               </span>
             </a>)}</div> :
             <div className="empty-state"><span className="empty-icon" aria-hidden="true">◇</span>
               <h3>{demo ? (screen.section === 'home' || screen.section === 'library' ?
-                'Nothing matches these filters' : 'No manga in ' + labels[screen.section] + ' yet') : 'Your collection is not connected yet'}</h3>
+                'Nothing matches these filters' : 'No manga in ' + labels[screen.section] + ' yet') : cloud.status==='connected' ? 'Your private library is empty' : 'Your collection is not connected yet'}</h3>
               <p>{demo ? 'Change a personal shelf on a manga details page, or try different filters.' :
                 cloud.status==='connected'
                   ? 'Your private dataset is connected, but no manga are listed yet.'
@@ -928,6 +928,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
               <p>Stored only on this device. Your publication status is not changed.</p>
             </div>
             <div className="detail-actions">
+              {demo ? <>
               <a className="primary" href={routeHref({kind:'reader',mangaId:entry.id,
                 chapterId:progressForEntry?.chapterId ?? chapters[0]?.id ?? 'unavailable',
                 pageIndex:progressForEntry?.pageIndex ?? 0},import.meta.env.BASE_URL)}
@@ -936,6 +937,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
               {progressForEntry && <a className="secondary"
                 href={routeHref({kind:'reader',mangaId:entry.id,chapterId:chapters[0]?.id ?? 'unavailable',pageIndex:0},import.meta.env.BASE_URL)}
                 onClick={event=>followLink(event,()=>openChapter(entry,chapters[0]?.id))}>Start from chapter one</a>}
+              </> : <p className="fine-print">Private catalogue reading is not yet enabled. Chapter images remain protected until the verified media gateway is available.</p>}
               <button type="button" className="secondary" aria-pressed={!!annotations[entry.id]?.favourite}
                 onClick={()=>changeAnnotation(entry,{favourite:!annotations[entry.id]?.favourite},
                   annotations[entry.id]?.favourite?'Removed from favourites':'Added to favourites')}>
@@ -1029,13 +1031,17 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
           </p>
           {chapters.filter(chapter => chapter.label.toLocaleLowerCase().includes(chapterQuery.toLocaleLowerCase()))
             .map(chapter=>{ const index = chapters.findIndex(value=>value.id === chapter.id); return <div className="chapter-entry" key={chapter.id}>
-            <a className="chapter-row"
+            {demo ? <a className="chapter-row"
               href={routeHref({kind:'reader',mangaId:entry.id,chapterId:chapter.id,pageIndex:0},import.meta.env.BASE_URL)}
               onClick={event=>followLink(event,()=>openChapter(entry,chapter.id))}>
               <span className="chapter-number">{String(index+1).padStart(2,'0')}</span>
               <span className="chapter-title"><strong>{chapter.label}</strong>
                 <small>{chapter.volume ?? 'No volume'} · {chapter.pageCount ?? 'Unknown'} sample pages</small></span>
-              <span className="chapter-open">Read ↗</span></a>
+              <span className="chapter-open">Read ↗</span></a> :
+              <div className="chapter-row"><span className="chapter-number">{String(index+1).padStart(2,'0')}</span>
+                <span className="chapter-title"><strong>{chapter.label}</strong>
+                  <small>{chapter.volume ?? 'No volume'} · {chapter.pageCount ?? 'Unknown'} pages</small></span>
+                <span className="chapter-open">Media pending</span></div>}
             <button type="button" className="secondary chapter-completion-toggle"
               aria-label={annotations[entry.id]?.completedChapterIds?.includes(chapter.id) ?
                 'Mark chapter ' + (index + 1) + ' incomplete' :
