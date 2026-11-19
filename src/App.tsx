@@ -55,10 +55,8 @@ function readAdvancedQuery():AdvancedCriteria {
     minChapters:numeric('minChapters',0,10000),
     maxChapters:numeric('maxChapters',0,10000),
     minPersonalRating:numeric('minRating',1,10),
-    readingState:(['reading','trying','finished','to-read','unstarted'].includes(reading??'')?reading:'any')
-      as AdvancedCriteria['readingState'],
-    offlineState:(['downloaded','not-downloaded'].includes(offline??'')?offline:'any')
-      as AdvancedCriteria['offlineState'],
+    readingState: (['reading','trying','finished','to-read','unstarted'].includes(reading??'') ? reading : 'any') as AdvancedCriteria['readingState'],
+    offlineState: (['downloaded','not-downloaded'].includes(offline??'') ? offline : 'any') as AdvancedCriteria['offlineState'],
   };
 }
 export default function App({ initialDemo = true }: { initialDemo?: boolean } = {}) {
