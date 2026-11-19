@@ -33,6 +33,10 @@ export interface MangaProgress {
   /** Immutable page ID prevents restoring to the wrong image if order changes. */
   pageId: string;
   updatedAt: string;
+  /** Mode in which the page was last viewed. */
+  readingMode?: ReadingDirection;
+  /** Fractional anchor from 0 to 1 within a tall vertical image. */
+  verticalOffsetRatio?: number;
 }
 export type ImageMime = 'image/jpeg' | 'image/png' | 'image/webp' | 'image/avif';
 export interface MangaPage {

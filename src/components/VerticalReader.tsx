@@ -13,13 +13,16 @@ interface Props {
   jumpToken: number;
   onActivePage: (index: number) => void;
   onViewedPage: (index: number) => void;
+  onScrollAnchor?: (index: number, offsetRatio: number) => void;
+  initialOffsetRatio?: number;
 }
 
-export function VerticalReader({ manifest, activeIndex, jumpToken, onActivePage, onViewedPage }: Props) {
+export function VerticalReader({ manifest, activeIndex, jumpToken, onActivePage, onViewedPage, onScrollAnchor, initialOffsetRatio = 0 }: Props) {
   const root = useRef<HTMLDivElement>(null);
   const visible = useRef(activeIndex);
-  const callbacks = useRef({ onActivePage, onViewedPage });
-  callbacks.current = { onActivePage, onViewedPage };
+  const callbacks = useRef({ onActivePage, onViewedPage, onScrollAnchor });
+  callbacks.current = { onActivePage, onViewedPage, onScrollAnchor };
+  const anchorStamp = useRef({ index: -1, ratio: -1, at: 0 });
   const images = useRef(new Map<number, string>());
   const loaded = useRef(new Set<number>());
   const lastReported = useRef(-1);
@@ -76,6 +79,15 @@ export function VerticalReader({ manifest, activeIndex, jumpToken, onActivePage,
         callbacks.current.onActivePage(candidate);
       }
       reportViewed(candidate);
+      const slot = slots[candidate]!;
+      const bounds = slot.getBoundingClientRect();
+      const ratio = Math.max(0, Math.min(1, (anchor - bounds.top) / Math.max(1, bounds.height)));
+      const last = anchorStamp.current;
+      if (loaded.current.has(candidate) && (candidate !== last.index || Math.abs(ratio - last.ratio) >= 0.08)
+          && Date.now() - last.at >= 1250) {
+        anchorStamp.current = { index: candidate, ratio, at: Date.now() };
+        callbacks.current.onScrollAnchor?.(candidate, ratio);
+      }
     };
     const schedule = () => {
       if (!frame) frame = window.requestAnimationFrame(checkVisible);
@@ -92,9 +104,10 @@ export function VerticalReader({ manifest, activeIndex, jumpToken, onActivePage,
   }, [manifest.chapterId]);
 
   useEffect(() => {
-    root.current?.querySelectorAll<HTMLElement>('[data-vertical-page]')[activeIndex]?.scrollIntoView({
-      block: 'start', behavior: 'auto',
-    });
+    const slot = root.current?.querySelectorAll<HTMLElement>('[data-vertical-page]')[activeIndex];
+    slot?.scrollIntoView({ block: 'start', behavior: 'instant' });
+    if (slot && initialOffsetRatio > 0 && initialOffsetRatio <= 1)
+      window.scrollBy({ top: slot.getBoundingClientRect().height * initialOffsetRatio, behavior: 'instant' });
   // A scroll-tracked page update must NOT jump the viewport back to the top.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [manifest.chapterId, jumpToken]);

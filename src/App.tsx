@@ -4,6 +4,8 @@ import { demoEntries, demoManifests, fixtureStatement } from './data/fixtures';
 import { makeFixturePage } from './data/fixtureArt';
 import { VerticalReader } from './components/VerticalReader';
 import { parseAppRoute, routeHref, type AppRoute } from './domain/routes';
+import { defaultReaderPreferences, laterProgress, loadAllProgress, loadPreferences, loadProgress,
+  nextProgressTimestamp, savePreferences, saveProgress, type ReaderPreferences } from './domain/localReaderStorage';
 import { filterCatalogue, type SortMode } from './domain/filters';
 import { keyNavigation, nextPreloadIndex, orderedChapters, restoreProgress, stepReader, swipeNavigation, type ReaderLocation } from './domain/reader';
 import type { ChapterManifest, MangaEntry, MangaProgress, PublicationStatus, ReadingDirection } from './domain/types';
@@ -38,7 +40,12 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
   const [tag, setTag] = useState('');
   const [collection, setCollection] = useState('');
   const [sort, setSort] = useState<SortMode>('title');
+  const [preferences, setPreferences] = useState<ReaderPreferences>(() => {
+    const read = loadPreferences();
+    return read.status === 'ok' ? read.value : defaultReaderPreferences;
+  });
   const [direction, setDirection] = useState<ReadingDirection>(() =>
+    preferences.direction ??
     (initialRoute.kind === 'reader' || initialRoute.kind === 'details'
       ? (initialDemo ? demoEntries : realEntries).find(item => item.id === initialRoute.mangaId)?.direction
       : undefined) ?? 'rtl');
@@ -47,7 +54,12 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
   const [location, setLocation] = useState<ReaderLocation | null>(() =>
     initialRoute.kind === 'reader' ?
       { chapterId: initialRoute.chapterId, pageIndex: initialRoute.pageIndex } : null);
-  const [progress, setProgress] = useState<Record<string, MangaProgress>>({});
+  const [progress, setProgress] = useState<Record<string, MangaProgress>>(() =>
+    loadAllProgress(initialDemo ? demoEntries : realEntries, initialDemo ? demoManifests : new Map()).progress);
+  const [storageNotice, setStorageNotice] = useState(() => {
+    const snapshot = loadAllProgress(initialDemo ? demoEntries : realEntries, initialDemo ? demoManifests : new Map());
+    return snapshot.invalid > 0 ? 'Some saved reading records could not be verified. They were preserved for recovery.' : '';
+  });
   const [notice, setNotice] = useState('');
   const [image, setImage] = useState<{ key: string; src: string } | null>(null);
   const [imageError, setImageError] = useState<string | null>(null);
@@ -74,6 +86,24 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
     () => filterCatalogue(catalogue, query, status, tag, collection, sort),
     [catalogue, query, status, tag, collection, sort],
   );
+
+  useEffect(() => {
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === null || !event.key.startsWith('taiyou-manga:progress:v1:')) return;
+      const stored = loadAllProgress(catalogue, manifests);
+      setProgress(previous => {
+        const merged = { ...previous };
+        for (const [id, record] of Object.entries(stored.progress)) {
+          const newer = laterProgress(merged[id], record);
+          if (newer) merged[id] = newer;
+        }
+        return merged;
+      });
+      if (stored.invalid) setStorageNotice('Some saved reading records are invalid. Existing records have been preserved.');
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, [catalogue, manifests]);
 
   useEffect(() => {
     const onBackForward = () => applyRoute(currentBrowserRoute());
@@ -141,20 +171,42 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
     if (direction === 'vertical') setJumpToken(value => value + 1);
     setNotice('');
   }
-  function markPageViewed(item: MangaEntry, viewed: ReaderLocation) {
+  function markPageViewed(item: MangaEntry, viewed: ReaderLocation, verticalOffsetRatio?: number) {
     const viewedManifest = manifests.get(viewed.chapterId);
     const pageId = viewedManifest?.pages[viewed.pageIndex]?.id;
     if (!pageId || viewedManifest?.chapterId !== viewed.chapterId) return;
-    setProgress(previous => ({
-      ...previous,
-      [item.id]: {
-        mangaId: item.id,
-        chapterId: viewed.chapterId,
-        pageIndex: viewed.pageIndex,
-        pageId,
-        updatedAt: new Date().toISOString(),
-      },
-    }));
+    const saved = loadProgress(item, manifests);
+    const prior = laterProgress(progress[item.id], saved.status === 'ok' ? saved.value : undefined);
+    const record: MangaProgress = {
+      mangaId: item.id, chapterId: viewed.chapterId, pageIndex: viewed.pageIndex, pageId,
+      updatedAt: nextProgressTimestamp(prior), readingMode: direction,
+      ...(verticalOffsetRatio !== undefined ? { verticalOffsetRatio } :
+        prior?.chapterId === viewed.chapterId && prior?.pageId === pageId && direction === 'vertical'
+          ? { verticalOffsetRatio: prior.verticalOffsetRatio } : {}),
+    };
+    const stored = saveProgress(record, item, manifests);
+    if (stored.status === 'unavailable')
+      setStorageNotice('Browser storage is unavailable or full. Reading progress is only retained in this session.');
+    if (stored.status === 'invalid')
+      setStorageNotice('A saved reading record is invalid. It was preserved; this session will not overwrite it.');
+    if (stored.status === 'stale') {
+      const refreshed = loadProgress(item, manifests);
+      if (refreshed.status === 'ok') setProgress(previous => {
+        const newer = laterProgress(previous[item.id], refreshed.value);
+        return newer ? { ...previous, [item.id]: newer } : previous;
+      });
+      return;
+    }
+    setProgress(previous => {
+      const newer = laterProgress(previous[item.id], record);
+      return newer ? { ...previous, [item.id]: newer } : previous;
+    });
+  }
+  function updatePreferences(next: ReaderPreferences) {
+    setPreferences(next);
+    if (!savePreferences(next))
+      setStorageNotice('Reader settings could not be saved. Changes are only active in this session.');
+    else setStorageNotice('');
   }
   function openChapter(item: MangaEntry, chapterId?: string, resume = false) {
     const target = resume ? restoreProgress(item, manifests, progress[item.id]) :
@@ -164,7 +216,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
       return;
     }
     // Keep the user's active direction when changing chapters inside the reader.
-    if (screen.kind !== 'reader') setDirection(item.direction);
+    if (screen.kind !== 'reader') setDirection(preferences.direction ?? item.direction);
     navigateTo({ kind: 'reader', mangaId: item.id, chapterId: target.chapterId, pageIndex: target.pageIndex });
   }
   function move(delta: -1 | 1) {
@@ -221,7 +273,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
         !verified || route.pageIndex >= verified.pages.length) {
       exitImmersive(); setScreen({ kind: 'not-found' }); setLocation(null); return;
     }
-    if (screen.kind !== 'reader' || screen.id !== item.id) setDirection(item.direction);
+    if (screen.kind !== 'reader' || screen.id !== item.id) setDirection(preferences.direction ?? item.direction);
     setLocation({ chapterId: route.chapterId, pageIndex: route.pageIndex });
     setLoadedPageKey(null);
     setJumpToken(value => value + 1);
@@ -249,7 +301,8 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
   }
   const progressForEntry = entry ? restoreProgress(entry, manifests, progress[entry.id]) : null;
 
-  return <div className={immersive && screen.kind === 'reader' ? 'app-shell reading-immersive' : 'app-shell'}>
+  return <div className={'app-shell theme-' + preferences.theme +
+    (immersive && screen.kind === 'reader' ? ' reading-immersive' : '')}>
     <a className="skip" href="#content">Skip to content</a>
     <header className="site-header">
       <a className="wordmark" href={routeHref({kind:'home'},import.meta.env.BASE_URL)}
@@ -342,7 +395,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
               {progressForEntry && <a className="secondary"
                 href={routeHref({kind:'reader',mangaId:entry.id,chapterId:chapters[0]?.id ?? 'unavailable',pageIndex:0},import.meta.env.BASE_URL)}
                 onClick={event=>followLink(event,()=>openChapter(entry,chapters[0]?.id))}>Start from page one</a>}</div>
-            <p className="fine-print">Sample-only progress remains in memory for this browser tab. It is cleared on refresh.</p>
+            <p className="fine-print">Reading progress is stored locally on this device, when browser storage permits. Cross-device sync is not enabled.</p>
           </div>
         </section>
         <section className="chapter-section"><div className="shelf-heading"><div><p className="eyebrow">CONTENTS / READING ORDER</p><h2>Chapters &amp; volumes</h2></div></div>
@@ -374,11 +427,25 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
                   if (direction === option) return;
                   // Switching physical arrow direction must not invalidate an already loaded image.
                   if (direction === 'vertical' || option === 'vertical') {setLoadedPageKey(null);setImageError(null);}
-                  setDirection(option);setNotice('');
+                  setDirection(option);
+                  updatePreferences({ ...preferences, direction: option });
+                  setNotice('');
                 }}>
                 {option==='rtl'?'Right to left':option==='ltr'?'Left to right':'Vertical'}</button>)}
             </fieldset>
             <div className="reader-selectors">
+              <label>Image fit
+                <select value={preferences.fit} onChange={event=>updatePreferences({
+                  ...preferences, fit: event.target.value as ReaderPreferences['fit'],
+                })}>
+                  <option value="page">Fit page</option><option value="width">Fit width</option>
+                </select></label>
+              <label>Reader theme
+                <select value={preferences.theme} onChange={event=>updatePreferences({
+                  ...preferences, theme: event.target.value as ReaderPreferences['theme'],
+                })}>
+                  <option value="dark">Dark</option><option value="sepia">Sepia</option><option value="light">Light</option>
+                </select></label>
               <label>Choose chapter
                 <select value={location.chapterId} onChange={event=>openChapter(entry,event.target.value)}>
                   {chapters.map(chapter=><option key={chapter.id} value={chapter.id}>{chapter.label}</option>)}</select>
@@ -396,6 +463,10 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
         </div>
         {direction === 'vertical' && manifest ?
           <VerticalReader key={manifest.chapterId} manifest={manifest} activeIndex={location.pageIndex} jumpToken={jumpToken}
+            initialOffsetRatio={progress[entry.id]?.chapterId === location.chapterId &&
+              progress[entry.id]?.pageId === manifest.pages[location.pageIndex]?.id
+                ? progress[entry.id]?.verticalOffsetRatio ?? 0 : 0}
+            onScrollAnchor={(index,ratio)=>markPageViewed(entry,{chapterId:manifest.chapterId,pageIndex:index},ratio)}
             onActivePage={index => {
               const url = routeHref({kind:'reader',mangaId:entry.id,chapterId:manifest.chapterId,pageIndex:index},import.meta.env.BASE_URL);
               if (window.location.pathname + window.location.search !== url) window.history.replaceState(null, '', url);
@@ -414,7 +485,8 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
           const delta=swipeNavigation(direction,end.clientX-start.x,end.clientY-start.y);
           if(delta)move(delta);
         }} style={{touchAction:direction==='vertical'?'pan-x':'pan-y'}}>
-          {manifest && displayedImage && !imageError ? <img key={location.chapterId + ':' + location.pageIndex} className="reader-page" src={displayedImage}
+          {manifest && displayedImage && !imageError ? <img key={location.chapterId + ':' + location.pageIndex}
+            className={'reader-page reader-fit-' + preferences.fit} src={displayedImage}
             alt={'Synthetic illustration, '+(activeChapter?.label??'chapter')+', page '+(location.pageIndex+1)}
             onLoad={()=>{
               setLoadedPageKey(activePageKey);
@@ -446,6 +518,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
       {(screen.kind === 'details' || screen.kind === 'reader') && !entry && <div className="empty-state" role="alert"><h2>Series unavailable</h2>
         <p>This series is no longer in the selected catalogue.</p><button className="secondary" onClick={()=>goCatalogue()}>Return to the shelf</button></div>}
       {notice && screen.kind !== 'reader' && <p className="reader-notice" role="status">{notice}</p>}
+      {storageNotice && <p className="storage-notice" role="status">{storageNotice}</p>}
     </main>
     <footer className="site-footer"><span>TAIYOU / PERSONAL MANGA LIBRARY</span>
       <span>{demo ? 'Synthetic sample catalogue · No cloud sync' : 'No private catalogue connected'} · Independent of the hub</span></footer>

@@ -227,3 +227,77 @@ test.describe('browser history and deep links', () => {
     await expect(page).toHaveURL('/');
   });
 });
+
+test.describe('persistent browser reading state', () => {
+  test('page identity and location survive reload and new tab on one browser', async ({ page, context }) => {
+    await openSampleReader(page);
+    await page.getByRole('button', { name: /Next page/ }).click();
+    await expect(page.locator('.page-navigation')).toContainText('Page 2 of 5');
+    await page.reload();
+    await expect(page.locator('.page-navigation')).toContainText('Page 2 of 5');
+    await page.getByRole('link', { name: /Series details/ }).click();
+    await expect(page.getByRole('link', { name: /Continue reading/ })).toBeVisible();
+    const tab = await context.newPage();
+    await tab.goto('/manga/mng_lanternarchive');
+    await tab.getByRole('link', { name: /Continue reading/ }).click();
+    await expect(tab.locator('.page-navigation')).toContainText('Page 2 of 5');
+  });
+
+  test('reader settings survive reload without menu-open side effects', async ({ page }) => {
+    await openSampleReader(page);
+    await page.getByRole('combobox', { name: 'Reader theme' }).selectOption('sepia');
+    await page.getByRole('combobox', { name: 'Image fit' }).selectOption('width');
+    await page.getByRole('button', { name: 'Left to right' }).click();
+    await expect(page.locator('.app-shell')).toHaveClass(/theme-sepia/);
+    await page.reload();
+    await expect(page.getByRole('combobox', { name: 'Reader theme' })).toHaveValue('sepia');
+    await expect(page.getByRole('combobox', { name: 'Image fit' })).toHaveValue('width');
+    await expect(page.getByRole('button', { name: 'Left to right' })).toHaveAttribute('aria-pressed', 'true');
+    await page.getByRole('combobox', { name: 'Reader theme' }).focus();
+    await expect(page.getByRole('combobox', { name: 'Reader theme' })).toHaveValue('sepia');
+  });
+
+  test('a corrupt record does not erase another manga history or itself', async ({ page }) => {
+    await openSampleReader(page);
+    await page.getByRole('button', { name: /Next page/ }).click();
+    await page.goto('/manga/mng_silvergarden');
+    await page.getByRole('link', { name: /Read from beginning/ }).click();
+    await expect(page.locator('.reader-page')).toBeVisible();
+    await page.evaluate(() => localStorage.setItem('taiyou-manga:progress:v1:mng_lanternarchive', '{broken-json'));
+    await page.reload();
+    await expect(page.getByText(/saved reading records could not be verified/)).toBeVisible();
+    await page.goto('/manga/mng_lanternarchive');
+    await expect(page.getByRole('link', { name: /Read from beginning/ })).toBeVisible();
+    expect(await page.evaluate(() => localStorage.getItem('taiyou-manga:progress:v1:mng_lanternarchive')))
+      .toBe('{broken-json');
+    await page.goto('/manga/mng_silvergarden');
+    await expect(page.getByRole('link', { name: /Continue reading/ })).toBeVisible();
+  });
+
+  test('page progress remains available when device goes offline in an already loaded tab', async ({ page, context }) => {
+    await openSampleReader(page);
+    await context.setOffline(true);
+    await page.getByRole('button', { name: /Next page/ }).click();
+    await expect(page.locator('.page-navigation')).toContainText('Page 2 of 5');
+    const raw = await page.evaluate(() => localStorage.getItem('taiyou-manga:progress:v1:mng_lanternarchive'));
+    expect(raw).toContain('ch_lanternopening');
+    expect(raw).toContain('"pageIndex":1');
+    await context.setOffline(false);
+    await page.reload();
+    await expect(page.locator('.page-navigation')).toContainText('Page 2 of 5');
+  });
+
+  test('vertical progress stores a stable page identity after scrolling', async ({ page }) => {
+    await openSampleReader(page);
+    await page.getByRole('button', { name: 'Vertical' }).click();
+    await page.locator('.vertical-page').nth(3).evaluate(el => el.scrollIntoView({block:'start'}));
+    await expect(page.locator('.page-navigation')).toContainText('Page 4 of 5');
+    await expect.poll(async () => page.evaluate(() => {
+      const raw = localStorage.getItem('taiyou-manga:progress:v1:mng_lanternarchive');
+      return raw && JSON.parse(raw).progress.pageIndex;
+    })).toBe(3);
+    await page.reload();
+    await expect(page.locator('.page-navigation')).toContainText('Page 4 of 5');
+    await expect(page.locator('.vertical-page-image').first()).toBeVisible();
+  });
+});

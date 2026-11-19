@@ -1,3 +1,12 @@
+# Local progress milestone checkpoint, 18 November 2026
+
+- PR A #10: mobile continuous reader, green CI [44356089849](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/actions/runs/44356089849), 19 unit/17 browser tests.
+- PR B #11: stable browser routes, green CI [44357819382](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/actions/runs/44357819382), 23 unit/22 browser tests.
+- PR C branch `feature/local-reader-persistence-20261118`: versioned per-manga progress, preferences, stale-write checks, scroll-anchor recovery, corruption isolation and tests. This checkpoint is **implementation only until PR C CI passes**.
+- All PRs are stacked, draft, unmerged. Canonical `master` unchanged, Cloudflare production deployment unaffected. Genuine offline chapter downloads and private images have not been implemented.
+
+---
+
 # Navigation milestone checkpoint, 18 November 2026
 
 - PR A: [#10](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/pull/10). Verified: 19 Vitest tests, 17 Playwright Chromium tests, TypeScript and Vite build on [run 44356089849](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/actions/runs/44356089849). Remains unmerged so the owner's Cloudflare production branch is untouched.
