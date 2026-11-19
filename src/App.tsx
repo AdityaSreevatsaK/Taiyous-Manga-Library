@@ -515,6 +515,8 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
         <LocalBackupControl entries={catalogue} manifests={manifests}
           onRestored={()=>{
             setProgress(loadAllProgress(catalogue, manifests).progress);
+            setPersonalShelves(loadShelves(catalogue).shelves);
+            setAnnotations(loadAnnotations(catalogue).annotations);
             const saved = loadPreferences();
             if (saved.status === 'ok') setPreferences(saved.value);
           }} />
