@@ -264,11 +264,11 @@ test.describe('browser history and deep links', () => {
 
   test('home and library have distinct navigation URLs', async ({ page }) => {
     await page.goto('/');
-    await expect(page.getByRole('heading', { name: /Every story/ })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /A place for every story/ })).toBeVisible();
     await page.locator('.book-card').first().click();
     await page.getByRole('link', { name: 'Back to the shelf' }).click();
     await expect(page).toHaveURL('/library');
-    await expect(page.getByRole('heading', { name: /Every story/ })).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: /A place for every story/ })).toHaveCount(0);
     await page.getByRole('link', { name: 'Taiyou Manga home' }).click();
     await expect(page).toHaveURL('/');
   });
@@ -764,7 +764,7 @@ test.describe('personal annotations never leave the browser',()=>{
     await page.getByRole('button',{name:'Romance',exact:true}).click();
     await expect(page).toHaveURL(/\/library\?tag=Romance/);
     await expect(page.locator('.book-card')).toHaveCount(1);
-    await expect(page.locator('.book-card')).toContainText('10/10 (mine)');
+    await expect(page.locator('.book-card')).toContainText('10/10 · Mine');
   });
   test('personal tag removal uses application confirmation, never a browser confirm',async({page})=>{
     await page.goto('/manga/mng_lanternarchive');
