@@ -9,9 +9,10 @@ describe('accessible catalogue baseline (server-rendered markup)', () => {
     expect(html).toContain('The Lantern Archive');
     expect(html).toContain('The Silver Garden');
     expect(html).toContain('Clockwork Shore');
+    expect(html).toContain('Five Chapter Scroll Trial');
     expect(html).toContain('aria-label="Manga catalogue"');
     expect(html).toContain('href="#content"');
-    expect((html.match(/class="book-card"/g) ?? []).length).toBe(3);
+    expect((html.match(/class="book-card"/g) ?? []).length).toBe(4);
   });
   it('does not pretend to contain private media when the empty source is selected', () => {
     const html = renderToStaticMarkup(<App initialDemo={false} />);
