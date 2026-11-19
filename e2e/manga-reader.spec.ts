@@ -835,7 +835,7 @@ test.describe('nested personal manga collections',()=>{
     await page.getByRole('button',{name:'Create collection'}).click();
     await expect(page.locator('.collections-manager')).toContainText('Favourites / Romance');
     await page.goto('/manga/mng_lanternarchive');
-    const publicationBefore=await page.locator('.detail-sub').innerText();
+    const publicationBefore=await page.locator('.detail-sub').textContent();
     await page.getByRole('combobox',{name:'Add to collection'}).selectOption({label:'Favourites / Romance'});
     await expect(page.locator('.success-toast')).toContainText('Added manga to collection');
     await expect(page.locator('.collection-member')).toContainText('Favourites / Romance');
