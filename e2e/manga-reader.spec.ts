@@ -741,3 +741,43 @@ test('approved brand assets survive an offline cold launch', async ({page,contex
     (img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
   await context.setOffline(false);
 });
+
+test.describe('personal annotations never leave the browser',()=>{
+  test('rating intensity, notes and personal tags survive reload and provide filtering',async({page})=>{
+    await page.goto('/manga/mng_lanternarchive');
+    await page.getByRole('button',{name:'Rate 1 out of 10'}).click();
+    const one=Number(await page.getByRole('button',{name:'Rate 1 out of 10'}).evaluate(
+      element=>getComputedStyle(element).opacity));
+    await page.getByRole('button',{name:'Rate 10 out of 10'}).click();
+    const ten=Number(await page.getByRole('button',{name:'Rate 10 out of 10'}).evaluate(
+      element=>getComputedStyle(element).opacity));
+    expect(ten).toBeGreaterThan(one);
+    await expect(page.getByText('10 / 10')).toBeVisible();
+    await page.getByRole('textbox',{name:'Personal notes'}).fill('A brilliant, quiet story');
+    await page.getByRole('button',{name:'Save notes'}).click();
+    await page.getByRole('textbox',{name:'Add a personal tag'}).fill('  rOmAnCe  ');
+    await page.getByRole('button',{name:'Add tag'}).click();
+    await expect(page.getByRole('button',{name:'Remove tag Romance'})).toBeVisible();
+    await page.reload();
+    await expect(page.getByRole('textbox',{name:'Personal notes'})).toHaveValue('A brilliant, quiet story');
+    await expect(page.getByText('10 / 10')).toBeVisible();
+    await page.getByRole('button',{name:'Romance',exact:true}).click();
+    await expect(page).toHaveURL('/library');
+    await expect(page.locator('.book-card')).toHaveCount(1);
+    await expect(page.locator('.book-card')).toContainText('10/10 (mine)');
+  });
+  test('personal tag removal uses application confirmation, never a browser confirm',async({page})=>{
+    await page.goto('/manga/mng_lanternarchive');
+    await page.getByRole('textbox',{name:'Add a personal tag'}).fill('Keep This');
+    await page.getByRole('button',{name:'Add tag'}).click();
+    await page.getByRole('button',{name:'Remove tag Keep This'}).click();
+    await expect(page.getByRole('dialog',{name:'Remove personal tag?'})).toBeVisible();
+    await page.getByRole('button',{name:'Cancel'}).click();
+    await expect(page.getByRole('button',{name:'Remove tag Keep This'})).toBeVisible();
+    await page.getByRole('button',{name:'Remove tag Keep This'}).click();
+    await page.getByRole('dialog').getByRole('button',{name:'Remove tag'}).click();
+    await expect(page.getByRole('button',{name:'Remove tag Keep This'})).toHaveCount(0);
+    await page.reload();
+    await expect(page.getByRole('button',{name:'Remove tag Keep This'})).toHaveCount(0);
+  });
+});
