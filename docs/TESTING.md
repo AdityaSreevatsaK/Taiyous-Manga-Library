@@ -1,3 +1,24 @@
+# Manga Library verification: current gates, 19 November 2026
+
+Canonical CI: [`ci.yml`](../.github/workflows/ci.yml) with Node 22 `npm ci`, `npm run typecheck`, Vitest, service-worker release fingerprint tests, `npm run build`, bundle budgets and full **production-build Chromium** Playwright checks.
+
+Independent multi-engine CI: [`cross-browser.yml`](../.github/workflows/cross-browser.yml), with Firefox and WebKit production smoke tests for responsive nav, themes, continuous chapter reader, chapter-only buttons and local shelves.
+
+Verified live release after merge #29:
+- [Master quality CI](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/actions/runs/44562765869): passed
+- [Master Firefox/WebKit](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/actions/runs/44562766119): passed
+- [Cloudflare live smoke](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/actions/runs/44562765881): passed
+
+**Local commands:** `npm ci`; `npm run typecheck`; `npm test`; `npm run build`; `node scripts/check-bundle.mjs`; `E2E_PRODUCTION=1 npm run test:e2e`; `npx playwright test --config playwright.cross-browser.config.ts`.
+
+The automated browser engines are not substitute evidence for actual Android Chrome/iOS Safari on hardware, low-memory 300–1,000 page image decode benchmarks, or browser storage eviction tests. Full private session/rights/access/integration tests cannot run until a backend exists.
+
+## Historical 18 November scaffold test evidence, retained
+
+The earlier text below describes draft PRs and unstarted CI which have **since been merged and superseded**. Do not treat its statements about `master` or available browsers as current.
+
+---
+
 # Current verified test evidence, 18 November 2026
 
 All validated work remains in draft stacked feature branches; canonical production `master` unchanged.

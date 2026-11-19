@@ -1,3 +1,30 @@
+# Manga Library architecture, deployed synthetic milestone (19 November 2026)
+
+Cloudflare Pages serves the React/TypeScript application. The public JavaScript bundle contains four fiction-only sample series with five-chapter/36-image original generated trial. There is **no private manga gateway or login**.
+
+## Implemented components
+
+- `src/domain/types.ts`, `validation.ts`: stable manga/chapter/page identities, strict untrusted manifest parsing and rights provenance contract.
+- `src/domain/routes.ts`, `filters.ts`, `advancedDiscovery.ts`: immutable deep links, local discovery and evidence-based analytics.
+- `src/components/VerticalReader.tsx`: continuous full-chapter vertical scrolling, stable image aspect ratio, bounded visible/adjacent image decoding, chapter-only previous/next buttons.
+- `src/data/pageSource.ts`, `offlineChapters.ts`: fictional image rendering, explicitly downloaded checksum-verified device-local chapters, isolated offline media.
+- `src/domain/localReaderStorage.ts`, `personalShelves.ts`, `personalAnnotations.ts`, `personalCollections.ts`: versioned local progress, theme, shelves, notes, ratings, tags and nested collections.
+- `src/domain/localFullBackup.ts`, `collectionBackup.ts`: manual v2 JSON export and guarded imports of progress and personal metadata, compatible with old v1 and previous v2 documents. No media included.
+- `public/sw.js`: release-specific, verified offline shell with last known-good cache fallback. Public brand assets cached; no private content.
+- `.github/workflows/ci.yml`, `cross-browser.yml`, `live-cloudflare-smoke.yml`: CI, engine parity and deployed release checks.
+
+## Architecture boundaries
+
+The Novel Library and Shared Core are **not** runtime dependencies. The Manga Storage Controller and private Hugging Face dataset are separate future integrations. The application's current device-local storage is not a server authorisation or cross-device sync mechanism. Browser-local notes and caches may be read by anyone sharing the same browser profile.
+
+No tokens, private image URLs, user histories or real source media may enter public Git/Pages files. Future server Functions must perform session validation, per-object authorisation, CSRF on mutations, private-source rights review and revisioned writes before access to protected originals.
+
+## Historical 18 November scaffold design notes
+
+The content below is preserved for engineering history. It describes branch-only or unimplemented features and is **not** today's `master` architecture.
+
+---
+
 # Current reader architecture checkpoint (feature branches, 18 November 2026)
 
 Verified but not deployed:
