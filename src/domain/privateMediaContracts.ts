@@ -35,10 +35,10 @@ export interface AuthorisedPrivateMediaPort {
 }
 /** Intentionally disabled adapter until audited per-app OAuth and server-side authorisation ship. */
 export class UnconnectedPrivateMedia implements AuthorisedPrivateMediaPort {
-  async getCatalogue():Promise<MediaFailure> {return {status:'not-connected'};}
-  async getChapterManifest():Promise<MediaFailure> {return {status:'not-connected'};}
-  async getRights():Promise<MediaFailure> {return {status:'not-connected'};}
-  async getPage():Promise<MediaFailure> {return {status:'not-connected'};}
+  async getCatalogue(_signal?:AbortSignal):Promise<MediaFailure> {return {status:'not-connected'};}
+  async getChapterManifest(_mangaId:string,_chapterId:string,_signal?:AbortSignal):Promise<MediaFailure> {return {status:'not-connected'};}
+  async getRights(_mangaId:string,_signal?:AbortSignal):Promise<MediaFailure> {return {status:'not-connected'};}
+  async getPage(_identity:MediaPageIdentity,_signal?:AbortSignal):Promise<MediaFailure> {return {status:'not-connected'};}
 }
 /**
  * Validates the exact catalogue/chapter/page lineage before any future gateway
