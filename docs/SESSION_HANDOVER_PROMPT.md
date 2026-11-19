@@ -1,3 +1,12 @@
+# Navigation milestone checkpoint, 18 November 2026
+
+- PR A: [#10](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/pull/10). Verified: 19 Vitest tests, 17 Playwright Chromium tests, TypeScript and Vite build on [run 44356089849](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/actions/runs/44356089849). Remains unmerged so the owner's Cloudflare production branch is untouched.
+- PR B: `feature/browser-routes-deep-links-20261118`, stacked **on PR A**, owns Home/Library/series/reader URLs, native hyperlinks, Back/Forward, reload and 404 recovery. See `docs/ROUTING.md`. CI and deployment still require separate verification.
+- Future PRs: local persistence/preferences (C), genuine offline chapter storage (D), integrated hardening (E).
+- No private manga media, authentication or Hugging Face data has been connected.
+
+---
+
 # Current authoritative Manga Reader checkpoint, 18 November 2026
 
 - Public repository, canonical `master` commit: `6a6e3375611c94213d7f73757d9dc0abd872f463`.

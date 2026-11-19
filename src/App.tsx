@@ -1,28 +1,52 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { entries as realEntries } from './data/catalogue';
 import { demoEntries, demoManifests, fixtureStatement } from './data/fixtures';
 import { makeFixturePage } from './data/fixtureArt';
 import { VerticalReader } from './components/VerticalReader';
+import { parseAppRoute, routeHref, type AppRoute } from './domain/routes';
 import { filterCatalogue, type SortMode } from './domain/filters';
 import { keyNavigation, nextPreloadIndex, orderedChapters, restoreProgress, stepReader, swipeNavigation, type ReaderLocation } from './domain/reader';
 import type { ChapterManifest, MangaEntry, MangaProgress, PublicationStatus, ReadingDirection } from './domain/types';
 import './styles.css';
 
-type Screen = { kind: 'catalogue' } | { kind: 'details' | 'reader'; id: string };
+type Screen = { kind: 'catalogue'; section: 'home' | 'library' } | { kind: 'details' | 'reader'; id: string } | { kind: 'not-found' };
+function currentBrowserRoute(): AppRoute {
+  return typeof window === 'undefined' ? { kind: 'home' } :
+    parseAppRoute(window.location.pathname, window.location.search, import.meta.env.BASE_URL);
+}
 const directions: ReadingDirection[] = ['rtl', 'ltr', 'vertical'];
 
 export default function App({ initialDemo = true }: { initialDemo?: boolean } = {}) {
+  const initialRoute = useMemo(currentBrowserRoute, []);
   const [demo, setDemo] = useState(initialDemo);
-  const [screen, setScreen] = useState<Screen>({ kind: 'catalogue' });
+  const [screen, setScreen] = useState<Screen>(() => {
+    if (initialRoute.kind === 'home' || initialRoute.kind === 'library') {
+      return { kind: 'catalogue', section: initialRoute.kind };
+    }
+    if (initialRoute.kind === 'not-found') return { kind: 'not-found' };
+    const source = initialDemo ? demoEntries : realEntries;
+    const item = source.find(candidate => candidate.id === initialRoute.mangaId);
+    if (!item) return { kind: 'not-found' };
+    if (initialRoute.kind === 'details') return { kind: 'details', id: item.id };
+    const verified = initialDemo ? demoManifests.get(initialRoute.chapterId) : undefined;
+    return item.chapters.some(chapter => chapter.id === initialRoute.chapterId) &&
+      verified && initialRoute.pageIndex < verified.pages.length ?
+      { kind: 'reader', id: item.id } : { kind: 'not-found' };
+  });
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState<PublicationStatus | 'all'>('all');
   const [tag, setTag] = useState('');
   const [collection, setCollection] = useState('');
   const [sort, setSort] = useState<SortMode>('title');
-  const [direction, setDirection] = useState<ReadingDirection>('rtl');
+  const [direction, setDirection] = useState<ReadingDirection>(() =>
+    (initialRoute.kind === 'reader' || initialRoute.kind === 'details'
+      ? (initialDemo ? demoEntries : realEntries).find(item => item.id === initialRoute.mangaId)?.direction
+      : undefined) ?? 'rtl');
   const [immersive, setImmersive] = useState(false);
   const [jumpToken, setJumpToken] = useState(0);
-  const [location, setLocation] = useState<ReaderLocation | null>(null);
+  const [location, setLocation] = useState<ReaderLocation | null>(() =>
+    initialRoute.kind === 'reader' ?
+      { chapterId: initialRoute.chapterId, pageIndex: initialRoute.pageIndex } : null);
   const [progress, setProgress] = useState<Record<string, MangaProgress>>({});
   const [notice, setNotice] = useState('');
   const [image, setImage] = useState<{ key: string; src: string } | null>(null);
@@ -35,7 +59,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
   const readerRef = useRef<HTMLElement | null>(null);
   const catalogue = demo ? demoEntries : realEntries;
   const manifests: ReadonlyMap<string, ChapterManifest> = demo ? demoManifests : new Map<string, ChapterManifest>();
-  const entry = screen.kind === 'catalogue' ? undefined : catalogue.find(item => item.id === screen.id);
+  const entry = screen.kind === 'reader' || screen.kind === 'details' ? catalogue.find(item => item.id === screen.id) : undefined;
   const manifest = location ? manifests.get(location.chapterId) : undefined;
   const activePageKey = location ? location.chapterId + ':' + location.pageIndex : null;
   // Do not momentarily show the previous page under a new location while its effect runs.
@@ -51,6 +75,11 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
     [catalogue, query, status, tag, collection, sort],
   );
 
+  useEffect(() => {
+    const onBackForward = () => applyRoute(currentBrowserRoute());
+    window.addEventListener('popstate', onBackForward);
+    return () => window.removeEventListener('popstate', onBackForward);
+  }, [screen, demo]);
   useEffect(() => {
     const update = () => setOnline(navigator.onLine);
     window.addEventListener('online', update);
@@ -103,6 +132,11 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
     // Selecting a page is not proof it was successfully loaded or read.
     // Progress is committed only after the active image has loaded.
     setLocation(next);
+    if (screen.kind === 'reader') {
+      const url = routeHref({ kind: 'reader', mangaId: screen.id,
+        chapterId: next.chapterId, pageIndex: next.pageIndex }, import.meta.env.BASE_URL);
+      if (window.location.pathname + window.location.search !== url) window.history.pushState(null, '', url);
+    }
     setLoadedPageKey(null);
     if (direction === 'vertical') setJumpToken(value => value + 1);
     setNotice('');
@@ -131,8 +165,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
     }
     // Keep the user's active direction when changing chapters inside the reader.
     if (screen.kind !== 'reader') setDirection(item.direction);
-    updateLocation(target);
-    setScreen({ kind: 'reader', id: item.id });
+    navigateTo({ kind: 'reader', mangaId: item.id, chapterId: target.chapterId, pageIndex: target.pageIndex });
   }
   function move(delta: -1 | 1) {
     // A failed image must not be skipped or recorded as read via arrows/swipes.
@@ -160,13 +193,58 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
     }
     setImmersive(value => !value);
   }
-  function goCatalogue() {
-    exitImmersive();
-    setScreen({ kind: 'catalogue' }); setNotice('');
+  function applyRoute(route: AppRoute) {
+    setNotice('');
+    if (route.kind === 'home' || route.kind === 'library') {
+      exitImmersive();
+      setLocation(null);
+      setScreen({ kind: 'catalogue', section: route.kind });
+      return;
+    }
+    if (route.kind === 'not-found') {
+      exitImmersive();
+      setLocation(null);
+      setScreen({ kind: 'not-found' });
+      return;
+    }
+    const item = catalogue.find(value => value.id === route.mangaId);
+    if (!item) {
+      setScreen({ kind: 'not-found' }); setLocation(null); return;
+    }
+    if (route.kind === 'details') {
+      exitImmersive();
+      setScreen({ kind: 'details', id: item.id });
+      return;
+    }
+    const verified = manifests.get(route.chapterId);
+    if (!item.chapters.some(chapter => chapter.id === route.chapterId) ||
+        !verified || route.pageIndex >= verified.pages.length) {
+      exitImmersive(); setScreen({ kind: 'not-found' }); setLocation(null); return;
+    }
+    if (screen.kind !== 'reader' || screen.id !== item.id) setDirection(item.direction);
+    setLocation({ chapterId: route.chapterId, pageIndex: route.pageIndex });
+    setLoadedPageKey(null);
+    setJumpToken(value => value + 1);
+    setScreen({ kind: 'reader', id: item.id });
+  }
+  function navigateTo(route: Exclude<AppRoute, { kind: 'not-found' }>) {
+    const url = routeHref(route, import.meta.env.BASE_URL);
+    if (window.location.pathname + window.location.search !== url) window.history.pushState(null, '', url);
+    applyRoute(route);
+  }
+  function followLink(event: MouseEvent<HTMLAnchorElement>, action: () => void) {
+    // Modified clicks, new tabs and the native context menu remain browser-owned.
+    if (event.defaultPrevented || event.button !== 0 ||
+        event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    action();
+  }
+  function goCatalogue(section: 'home' | 'library' = 'library') {
+    navigateTo({ kind: section });
   }
   function changeDemo(value: boolean) {
     exitImmersive();
-    setDemo(value); setLocation(null); setNotice(''); setScreen({ kind: 'catalogue' });
+    setDemo(value); setLocation(null); setNotice(''); goCatalogue('home');
     cache.current.clear(); setQuery(''); setTag(''); setCollection(''); setStatus('all');
   }
   const progressForEntry = entry ? restoreProgress(entry, manifests, progress[entry.id]) : null;
@@ -174,21 +252,22 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
   return <div className={immersive && screen.kind === 'reader' ? 'app-shell reading-immersive' : 'app-shell'}>
     <a className="skip" href="#content">Skip to content</a>
     <header className="site-header">
-      <button className="wordmark" type="button" onClick={goCatalogue} aria-label="Taiyou Manga home">
+      <a className="wordmark" href={routeHref({kind:'home'},import.meta.env.BASE_URL)}
+        onClick={event=>followLink(event,()=>goCatalogue('home'))} aria-label="Taiyou Manga home">
         <span className="sun-mark" aria-hidden="true">✺</span><span>TAIYOU <small>LIBRARY / MANGA</small></span>
-      </button>
+      </a>
       <div className="header-right"><span className="demo-pill">LOCAL PROTOTYPE</span>
         <span className="network-state">{online ? 'Device online' : 'Device offline'}</span></div>
     </header>
     <main id="content" className="main-area">
       {screen.kind === 'catalogue' && <>
-        <section className="hero">
+        {screen.section === 'home' && <section className="hero">
           <div><p className="eyebrow">A PRIVATE READING SPACE / VOL. 01</p>
             <h1>Every story,<br /><em>a world to enter.</em></h1>
             <p className="hero-copy">An independent manga library designed around beautiful pages, quiet discovery and your place in every chapter.</p></div>
           <div className="hero-art" aria-hidden="true"><span className="hero-orbit orbit-one" /><span className="hero-orbit orbit-two" />
             <span className="hero-moon" /><span className="hero-art-label">THE ART OF TURNING PAGES</span></div>
-        </section>
+        </section>}
         <div className="mode-bar" role="group" aria-label="Catalogue source">
           <div><strong>{demo ? 'Explore the demonstration' : 'Your private library'}</strong>
             <p>{demo ? fixtureStatement : 'No private source has been configured. Your personal catalogue is not loaded.'}</p></div>
@@ -220,7 +299,8 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
               </select></label>
           </div>
           {filtered.length ? <div className="book-grid">{filtered.map((item, index) =>
-            <button className="book-card" type="button" key={item.id} onClick={()=>{setScreen({kind:'details',id:item.id});setNotice('');}}>
+            <a className="book-card" key={item.id} href={routeHref({kind:'details',mangaId:item.id},import.meta.env.BASE_URL)}
+              onClick={event=>followLink(event,()=>navigateTo({kind:'details',mangaId:item.id}))}>
               <span className={'book-cover cover-'+(demoEntries.findIndex(d=>d.id===item.id)%3+1)}>
                 <span className="cover-number">{String(index+1).padStart(2,'0')} / T</span>
                 <span className="cover-illustration" aria-hidden="true"><i /><b /></span>
@@ -230,7 +310,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
                 <span>{item.chapters.length} chapters <span aria-hidden="true">·</span> {item.publicationStatus}</span>
                 <span className="book-micro">{item.rating ? '★ ' + item.rating + '/10 (sample)' : 'Not rated'} <span aria-hidden="true">↗</span></span>
               </span>
-            </button>)}</div> :
+            </a>)}</div> :
             <div className="empty-state"><span className="empty-icon" aria-hidden="true">◇</span>
               <h3>{demo ? 'Nothing matches these filters' : 'Your collection is not connected yet'}</h3>
               <p>{demo ? 'Try a different search, genre, publication status or collection.' :
@@ -240,7 +320,8 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
         </section>
       </>}
       {screen.kind === 'details' && entry && <>
-        <button className="back" type="button" onClick={goCatalogue}>← Back to the shelf</button>
+        <a className="back" href={routeHref({kind:'library'},import.meta.env.BASE_URL)}
+          onClick={event=>followLink(event,()=>goCatalogue())}>← Back to the shelf</a>
         <section className="series-detail">
           <div className={'detail-cover cover-'+(demoEntries.findIndex(d=>d.id===entry.id)%3+1)} aria-hidden="true">
             <span className="cover-illustration"><i /><b /></span><span className="cover-title">{entry.title}</span>
@@ -252,25 +333,35 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
             <div className="stat-strip"><span><strong>{entry.chapters.length}</strong> chapters</span>
               <span><strong>{entry.rating ?? '–'}</strong> sample rating / 10</span>
               <span><strong>{entry.direction.toUpperCase()}</strong> default mode</span></div>
-            <div className="detail-actions"><button className="primary" onClick={()=>openChapter(entry,undefined,!!progressForEntry)}>
-                {progressForEntry ? 'Continue reading' : 'Read from beginning'} <span aria-hidden="true">↗</span></button>
-              {progressForEntry && <button className="secondary" onClick={()=>openChapter(entry,orderedChapters(entry)[0]?.id)}>Start from page one</button>}</div>
+            <div className="detail-actions">
+              <a className="primary" href={routeHref({kind:'reader',mangaId:entry.id,
+                chapterId:progressForEntry?.chapterId ?? chapters[0]?.id ?? 'unavailable',
+                pageIndex:progressForEntry?.pageIndex ?? 0},import.meta.env.BASE_URL)}
+                onClick={event=>followLink(event,()=>openChapter(entry,undefined,!!progressForEntry))}>
+                {progressForEntry ? 'Continue reading' : 'Read from beginning'} <span aria-hidden="true">↗</span></a>
+              {progressForEntry && <a className="secondary"
+                href={routeHref({kind:'reader',mangaId:entry.id,chapterId:chapters[0]?.id ?? 'unavailable',pageIndex:0},import.meta.env.BASE_URL)}
+                onClick={event=>followLink(event,()=>openChapter(entry,chapters[0]?.id))}>Start from page one</a>}</div>
             <p className="fine-print">Sample-only progress remains in memory for this browser tab. It is cleared on refresh.</p>
           </div>
         </section>
         <section className="chapter-section"><div className="shelf-heading"><div><p className="eyebrow">CONTENTS / READING ORDER</p><h2>Chapters &amp; volumes</h2></div></div>
-          {chapters.map((chapter,index)=><button type="button" className="chapter-row" key={chapter.id} onClick={()=>openChapter(entry,chapter.id)}>
+          {chapters.map((chapter,index)=><a className="chapter-row" key={chapter.id}
+            href={routeHref({kind:'reader',mangaId:entry.id,chapterId:chapter.id,pageIndex:0},import.meta.env.BASE_URL)}
+            onClick={event=>followLink(event,()=>openChapter(entry,chapter.id))}>
             <span className="chapter-number">{String(index+1).padStart(2,'0')}</span><span className="chapter-title"><strong>{chapter.label}</strong><small>{chapter.volume ?? 'No volume'} · {chapter.pageCount ?? 'Unknown'} sample pages</small></span>
-            <span className="chapter-open">Read ↗</span></button>)}
+            <span className="chapter-open">Read ↗</span></a>)}
         </section>
       </>}
       {screen.kind === 'reader' && entry && location && <section className="reader-shell" ref={readerRef} tabIndex={0}
         onKeyDown={event=>{if (event.target !== event.currentTarget || direction === 'vertical') return; const delta=keyNavigation(direction,event.key);if(delta){event.preventDefault();move(delta);}}}
         aria-label="Manga reader">
         <div className="reader-topline">
-          <button className="back" type="button" onClick={()=>{exitImmersive();setScreen({kind:'details',id:entry.id});setNotice('');}}>← Series details</button>
+          <a className="back" href={routeHref({kind:'details',mangaId:entry.id},import.meta.env.BASE_URL)}
+            onClick={event=>followLink(event,()=>navigateTo({kind:'details',mangaId:entry.id}))}>← Series details</a>
           <div className="reader-topline-actions">
-            <button className="back" type="button" onClick={goCatalogue}>Shelf ↗</button>
+            <a className="back" href={routeHref({kind:'library'},import.meta.env.BASE_URL)}
+              onClick={event=>followLink(event,()=>goCatalogue())}>Shelf ↗</a>
             <button className="secondary focus-toggle" type="button" aria-pressed={immersive}
               onClick={()=>{void toggleImmersive();}}>{immersive ? 'Exit focus view' : 'Focus view'}</button>
           </div>
@@ -305,8 +396,12 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
         </div>
         {direction === 'vertical' && manifest ?
           <VerticalReader key={manifest.chapterId} manifest={manifest} activeIndex={location.pageIndex} jumpToken={jumpToken}
-            onActivePage={index => setLocation(previous => previous?.chapterId === manifest.chapterId && previous.pageIndex === index
-              ? previous : { chapterId: manifest.chapterId, pageIndex: index })}
+            onActivePage={index => {
+              const url = routeHref({kind:'reader',mangaId:entry.id,chapterId:manifest.chapterId,pageIndex:index},import.meta.env.BASE_URL);
+              if (window.location.pathname + window.location.search !== url) window.history.replaceState(null, '', url);
+              setLocation(previous => previous?.chapterId === manifest.chapterId && previous.pageIndex === index
+                ? previous : { chapterId: manifest.chapterId, pageIndex: index });
+            }}
             onViewedPage={index => {
               setLoadedPageKey(manifest.chapterId + ':' + index);
               markPageViewed(entry, { chapterId: manifest.chapterId, pageIndex: index });
@@ -344,8 +439,12 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
         <p className="reader-hint">{direction === 'vertical' ? 'Scroll continuously through the chapter. Only nearby images are loaded.' : 'Use Previous / Next, swipe or focus the reader and use ← / → arrow keys.'}</p>
         <p className="fine-print">Offline: these pages are drawn locally. Private manga downloads and offline caching are not implemented.</p>
       </section>}
-      {screen.kind !== 'catalogue' && !entry && <div className="empty-state" role="alert"><h2>Series unavailable</h2>
-        <p>This series is no longer in the selected catalogue.</p><button className="secondary" onClick={goCatalogue}>Return to the shelf</button></div>}
+      {screen.kind === 'not-found' && <div className="empty-state" role="alert"><h2>Page unavailable</h2>
+        <p>This link does not point to an available manga, chapter or page.</p>
+        <a className="secondary" href={routeHref({kind:'library'},import.meta.env.BASE_URL)}
+          onClick={event=>followLink(event,()=>goCatalogue())}>Open the library</a></div>}
+      {(screen.kind === 'details' || screen.kind === 'reader') && !entry && <div className="empty-state" role="alert"><h2>Series unavailable</h2>
+        <p>This series is no longer in the selected catalogue.</p><button className="secondary" onClick={()=>goCatalogue()}>Return to the shelf</button></div>}
       {notice && screen.kind !== 'reader' && <p className="reader-notice" role="status">{notice}</p>}
     </main>
     <footer className="site-footer"><span>TAIYOU / PERSONAL MANGA LIBRARY</span>

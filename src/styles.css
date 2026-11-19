@@ -178,3 +178,10 @@ button:disabled{opacity:.52;cursor:not-allowed}
 @media(prefers-reduced-motion:reduce){
   .reader-shell,.vertical-reader,.vertical-page{scroll-behavior:auto}
 }
+
+/* Real anchors preserve browser history, middle-click, Ctrl/Cmd-click and new tabs. */
+.wordmark,.book-card,.chapter-row,.back,.primary,.secondary{text-decoration:none}
+.book-card{display:block}
+a.primary,a.secondary{display:inline-flex;align-items:center;justify-content:center;gap:7px}
+a.back:hover,.wordmark:hover{color:#f6ddae}
+a.book-card:focus-visible,a.chapter-row:focus-visible,a.back:focus-visible,a.primary:focus-visible,a.secondary:focus-visible,a.wordmark:focus-visible{outline:3px solid #efd09a;outline-offset:3px}
