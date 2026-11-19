@@ -64,3 +64,6 @@ Treat collection IDs as immutable; preserve the tree on invalid data, reject cyc
 
 ## Advanced discovery and analytics
 Never fabricate reading durations, streaks or completed chapters from a single latest-position record. Statistics must derive from validated local progress, personal ratings and actual offline chapter inventory only. Preserve bookmarkable /library filter query strings and Back/Forward behaviour. Advanced search is local-only, never an external metadata or personal-data request.
+
+## Private media security gate (ADR 007)
+The typed authorisation/data port is explicitly disabled and is not backend implementation. Never switch it to real network access without independent per-origin OAuth, server-side object-level authorisation, verified rights, secret isolation, path/MIME/size validation, CSRF protection on mutations, revisioned writes and a disposable-data integration test. Do not embed HF dataset tokens or private image URLs anywhere in frontend assets.
