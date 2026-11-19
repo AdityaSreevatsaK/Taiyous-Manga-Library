@@ -1,3 +1,14 @@
+# Offline milestone checkpoint, 18 November 2026
+
+- PR #10 mobile reader, verified 19 unit/17 browser tests.
+- PR #11 real routes, verified 23 unit/22 browser tests.
+- PR #12 local progress/preferences, verified 29 unit/27 browser tests on [workflow 44359535976](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/actions/runs/44359535976).
+- **PR D pending validation** on `feature/offline-shell-synthetic-chapters-20261118`. Added service-worker app shell, CacheStorage chapter downloads, SHA-256 page integrity checks, cancellation and delete, Offline tab, and production-build Playwright cold offline tests.
+- All PRs are stacked and unmerged; production `master` remains at `6a6e337`.
+- No private manga, Hugging Face media, authentication or cloud synchronisation connected.
+
+---
+
 # Local progress milestone checkpoint, 18 November 2026
 
 - PR A #10: mobile continuous reader, green CI [44356089849](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/actions/runs/44356089849), 19 unit/17 browser tests.

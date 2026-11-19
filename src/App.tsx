@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { entries as realEntries } from './data/catalogue';
 import { demoEntries, demoManifests, fixtureStatement } from './data/fixtures';
-import { makeFixturePage } from './data/fixtureArt';
+import { resolveSyntheticPage, type PageSource } from './data/pageSource';
+import { verifyOfflineChapter } from './data/offlineChapters';
+import { OfflineChapterControl } from './components/OfflineChapterControl';
 import { VerticalReader } from './components/VerticalReader';
 import { parseAppRoute, routeHref, type AppRoute } from './domain/routes';
 import { defaultReaderPreferences, laterProgress, loadAllProgress, loadPreferences, loadProgress,
@@ -11,7 +13,7 @@ import { keyNavigation, nextPreloadIndex, orderedChapters, restoreProgress, step
 import type { ChapterManifest, MangaEntry, MangaProgress, PublicationStatus, ReadingDirection } from './domain/types';
 import './styles.css';
 
-type Screen = { kind: 'catalogue'; section: 'home' | 'library' } | { kind: 'details' | 'reader'; id: string } | { kind: 'not-found' };
+type Screen = { kind: 'catalogue'; section: 'home' | 'library' | 'offline' } | { kind: 'details' | 'reader'; id: string } | { kind: 'not-found' };
 function currentBrowserRoute(): AppRoute {
   return typeof window === 'undefined' ? { kind: 'home' } :
     parseAppRoute(window.location.pathname, window.location.search, import.meta.env.BASE_URL);
@@ -22,7 +24,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
   const initialRoute = useMemo(currentBrowserRoute, []);
   const [demo, setDemo] = useState(initialDemo);
   const [screen, setScreen] = useState<Screen>(() => {
-    if (initialRoute.kind === 'home' || initialRoute.kind === 'library') {
+    if (initialRoute.kind === 'home' || initialRoute.kind === 'library' || initialRoute.kind === 'offline') {
       return { kind: 'catalogue', section: initialRoute.kind };
     }
     if (initialRoute.kind === 'not-found') return { kind: 'not-found' };
@@ -66,7 +68,13 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
   const [loadedPageKey, setLoadedPageKey] = useState<string | null>(null);
   const [imageRetry, setImageRetry] = useState(0);
   const [online, setOnline] = useState(() => typeof navigator === 'undefined' ? true : navigator.onLine);
-  const cache = useRef(new Map<string, string>());
+  const [inventoryRevision, setInventoryRevision] = useState(0);
+  const [offlineChapterIds, setOfflineChapterIds] = useState<ReadonlySet<string>>(() => new Set());
+  const cache = useRef(new Map<string, PageSource>());
+  function clearPageCache() {
+    for (const source of cache.current.values()) source.release();
+    cache.current.clear();
+  }
   const touch = useRef<{ x: number; y: number } | null>(null);
   const readerRef = useRef<HTMLElement | null>(null);
   const catalogue = demo ? demoEntries : realEntries;
@@ -86,6 +94,27 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
     () => filterCatalogue(catalogue, query, status, tag, collection, sort),
     [catalogue, query, status, tag, collection, sort],
   );
+  const offlineSeries = catalogue.filter(item => item.chapters.some(chapter => offlineChapterIds.has(chapter.id)));
+
+  useEffect(() => {
+    if (!import.meta.env.PROD || !('serviceWorker' in navigator)) return;
+    void navigator.serviceWorker.register(import.meta.env.BASE_URL + 'sw.js', {
+      scope: import.meta.env.BASE_URL,
+    }).catch(() => setStorageNotice('The offline app shell could not be installed on this browser.'));
+  }, []);
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const ids: string[] = [];
+      for (const item of catalogue) for (const chapter of item.chapters) {
+        const verified = manifests.get(chapter.id);
+        if (verified && (await verifyOfflineChapter(verified)).status === 'complete') ids.push(chapter.id);
+      }
+      if (!cancelled) setOfflineChapterIds(new Set(ids));
+    })();
+    return () => { cancelled = true; };
+  // Only reload offline metadata when the selected source or inventory changes.
+  }, [demo, inventoryRevision]);
 
   useEffect(() => {
     const onStorage = (event: StorageEvent) => {
@@ -125,38 +154,52 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
     return () => document.removeEventListener('fullscreenchange', syncFullscreen);
   }, []);
   useEffect(() => {
-    // VerticalReader owns its small image window; do not recreate a page on every scroll.
+    // Only one image is displayed in horizontal mode. Cached copies are verified
+    // before reading; failed integrity never results in silent page skipping.
     if (direction === 'vertical' && screen.kind === 'reader') return;
     if (screen.kind !== 'reader' || !entry || !location || !manifest || !demo) {
-      setImage(null);
-      setLoadedPageKey(null);
+      setImage(null); setLoadedPageKey(null);
       return;
     }
-    // Requiring a fresh onLoad avoids reusing readiness from a prior retry.
+    let cancelled = false;
     setLoadedPageKey(null);
     setImageError(null);
-    try {
-      const key = location.chapterId + ':' + location.pageIndex;
-      const neighbour = nextPreloadIndex(location.pageIndex, manifest.pages.length);
-      const nextKey = neighbour === null ? null : location.chapterId + ':' + neighbour;
-      const keep = new Set([key, ...(nextKey ? [nextKey] : [])]);
-      for (const cached of cache.current.keys()) if (!keep.has(cached)) cache.current.delete(cached);
-      for (const wanted of keep) {
-        if (!cache.current.has(wanted)) {
-          const position = wanted === key ? location.pageIndex : neighbour!;
-          cache.current.set(wanted, makeFixturePage(location.chapterId, position));
+    const key = location.chapterId + ':' + location.pageIndex;
+    const neighbour = nextPreloadIndex(location.pageIndex, manifest.pages.length);
+    const nextKey = neighbour === null ? null : location.chapterId + ':' + neighbour;
+    const keep = new Set([key, ...(nextKey ? [nextKey] : [])]);
+    for (const cached of cache.current.keys()) if (!keep.has(cached)) {
+      cache.current.get(cached)?.release();
+      cache.current.delete(cached);
+    }
+    void (async () => {
+      try {
+        if (!cache.current.has(key)) {
+          const source = await resolveSyntheticPage(manifest, location.pageIndex);
+          if (cancelled) { source.release(); return; }
+          cache.current.set(key, source);
+        }
+        if (cancelled) return;
+        setImage({ key, src: cache.current.get(key)!.src });
+        if (nextKey && neighbour !== null && !cache.current.has(nextKey)) {
+          try {
+            const near = await resolveSyntheticPage(manifest, neighbour);
+            if (cancelled) near.release();
+            else {
+              cache.current.set(nextKey, near);
+              const preload = new Image();
+              preload.src = near.src;
+            }
+          } catch { /* Neighbour failure does not skip or fail the active page. */ }
+        }
+      } catch {
+        if (!cancelled) {
+          setImage(null);
+          setImageError('This page or its offline copy is unavailable or corrupt. Retry or remove the offline chapter.');
         }
       }
-      const src = cache.current.get(key);
-      setImage(src ? { key, src } : null);
-      if (nextKey) {
-        const preloaded = new Image();
-        preloaded.src = cache.current.get(nextKey) ?? '';
-      }
-    } catch {
-      setImage(null);
-      setImageError('The generated page could not be displayed. Retry this page.');
-    }
+    })();
+    return () => { cancelled = true; };
   }, [screen.kind, entry, location, manifest, demo, imageRetry, direction === 'vertical']);
   function updateLocation(next: ReaderLocation) {
     // Selecting a page is not proof it was successfully loaded or read.
@@ -247,7 +290,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
   }
   function applyRoute(route: AppRoute) {
     setNotice('');
-    if (route.kind === 'home' || route.kind === 'library') {
+    if (route.kind === 'home' || route.kind === 'library' || route.kind === 'offline') {
       exitImmersive();
       setLocation(null);
       setScreen({ kind: 'catalogue', section: route.kind });
@@ -291,13 +334,13 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
     event.preventDefault();
     action();
   }
-  function goCatalogue(section: 'home' | 'library' = 'library') {
+  function goCatalogue(section: 'home' | 'library' | 'offline' = 'library') {
     navigateTo({ kind: section });
   }
   function changeDemo(value: boolean) {
     exitImmersive();
     setDemo(value); setLocation(null); setNotice(''); goCatalogue('home');
-    cache.current.clear(); setQuery(''); setTag(''); setCollection(''); setStatus('all');
+    clearPageCache(); setQuery(''); setTag(''); setCollection(''); setStatus('all');
   }
   const progressForEntry = entry ? restoreProgress(entry, manifests, progress[entry.id]) : null;
 
@@ -309,7 +352,16 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
         onClick={event=>followLink(event,()=>goCatalogue('home'))} aria-label="Taiyou Manga home">
         <span className="sun-mark" aria-hidden="true">✺</span><span>TAIYOU <small>LIBRARY / MANGA</small></span>
       </a>
-      <div className="header-right"><span className="demo-pill">LOCAL PROTOTYPE</span>
+      <nav className="site-nav" aria-label="Main navigation">
+        {(['home','library','offline'] as const).map(section =>
+          <a key={section} className="site-nav-link"
+            aria-current={screen.kind === 'catalogue' && screen.section === section ? 'page' : undefined}
+            href={routeHref({kind:section},import.meta.env.BASE_URL)}
+            onClick={event=>followLink(event,()=>goCatalogue(section))}>
+            {section === 'home' ? 'Home' : section === 'library' ? 'Library' : 'Offline (' + offlineChapterIds.size + ')'}
+          </a>)}
+      </nav>
+      <div className="header-right"><span className="demo-pill">SAMPLE</span>
         <span className="network-state">{online ? 'Device online' : 'Device offline'}</span></div>
     </header>
     <main id="content" className="main-area">
@@ -321,6 +373,24 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
           <div className="hero-art" aria-hidden="true"><span className="hero-orbit orbit-one" /><span className="hero-orbit orbit-two" />
             <span className="hero-moon" /><span className="hero-art-label">THE ART OF TURNING PAGES</span></div>
         </section>}
+        {screen.section === 'offline' ? <section className="offline-shelf" aria-label="Offline manga chapters">
+          <p className="eyebrow">READY WHEN DISCONNECTED</p>
+          <h1>Offline chapters</h1>
+          <p>Only chapters you explicitly saved appear here. Removing a copy never clears reading progress.</p>
+          <p aria-live="polite">{offlineChapterIds.size} verified {offlineChapterIds.size === 1 ? 'chapter' : 'chapters'} available on this device.</p>
+          {offlineSeries.length ?
+            <div className="offline-list">{offlineSeries.flatMap(item => item.chapters.filter(ch => offlineChapterIds.has(ch.id))
+              .map(chapter => <a className="offline-series-link" key={chapter.id}
+                href={routeHref({kind:'reader',mangaId:item.id,chapterId:chapter.id,pageIndex:0},import.meta.env.BASE_URL)}
+                onClick={event=>followLink(event,()=>openChapter(item,chapter.id))}>
+                <strong>{item.title}</strong><span>{chapter.label}</span><span>Read chapter ↗</span>
+              </a>))}</div> :
+            <div className="empty-state"><h2>No downloaded chapters yet</h2>
+              <p>Open a sample series and choose Download chapter. No entire series is downloaded automatically.</p>
+              <a className="secondary" href={routeHref({kind:'library'},import.meta.env.BASE_URL)}
+                onClick={event=>followLink(event,()=>goCatalogue('library'))}>Browse the library</a>
+            </div>}
+        </section> : <>
         <div className="mode-bar" role="group" aria-label="Catalogue source">
           <div><strong>{demo ? 'Explore the demonstration' : 'Your private library'}</strong>
             <p>{demo ? fixtureStatement : 'No private source has been configured. Your personal catalogue is not loaded.'}</p></div>
@@ -370,7 +440,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
                 'This is an honest empty state. No sign-in, private catalogue or storage integration is enabled.'}</p>
               {demo && <button className="secondary" type="button" onClick={()=>{setQuery('');setTag('');setStatus('all');setCollection('');}}>Clear filters</button>}
             </div>}
-        </section>
+        </section></>}
       </>}
       {screen.kind === 'details' && entry && <>
         <a className="back" href={routeHref({kind:'library'},import.meta.env.BASE_URL)}
@@ -399,11 +469,17 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
           </div>
         </section>
         <section className="chapter-section"><div className="shelf-heading"><div><p className="eyebrow">CONTENTS / READING ORDER</p><h2>Chapters &amp; volumes</h2></div></div>
-          {chapters.map((chapter,index)=><a className="chapter-row" key={chapter.id}
-            href={routeHref({kind:'reader',mangaId:entry.id,chapterId:chapter.id,pageIndex:0},import.meta.env.BASE_URL)}
-            onClick={event=>followLink(event,()=>openChapter(entry,chapter.id))}>
-            <span className="chapter-number">{String(index+1).padStart(2,'0')}</span><span className="chapter-title"><strong>{chapter.label}</strong><small>{chapter.volume ?? 'No volume'} · {chapter.pageCount ?? 'Unknown'} sample pages</small></span>
-            <span className="chapter-open">Read ↗</span></a>)}
+          {chapters.map((chapter,index)=><div className="chapter-entry" key={chapter.id}>
+            <a className="chapter-row"
+              href={routeHref({kind:'reader',mangaId:entry.id,chapterId:chapter.id,pageIndex:0},import.meta.env.BASE_URL)}
+              onClick={event=>followLink(event,()=>openChapter(entry,chapter.id))}>
+              <span className="chapter-number">{String(index+1).padStart(2,'0')}</span>
+              <span className="chapter-title"><strong>{chapter.label}</strong>
+                <small>{chapter.volume ?? 'No volume'} · {chapter.pageCount ?? 'Unknown'} sample pages</small></span>
+              <span className="chapter-open">Read ↗</span></a>
+            {manifests.get(chapter.id) && <OfflineChapterControl manifest={manifests.get(chapter.id)!}
+              onChange={()=>{clearPageCache();setInventoryRevision(value=>value+1);}} />}
+          </div>)}
         </section>
       </>}
       {screen.kind === 'reader' && entry && location && <section className="reader-shell" ref={readerRef} tabIndex={0}
@@ -498,7 +574,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
               <p>Generating this original illustration locally.</p></div> :
             <div className="page-error" role="alert"><h2>Page unavailable</h2>
               <p>{imageError ?? 'No verified page image exists for this chapter.'}</p>
-              <button className="secondary" type="button" onClick={()=>{cache.current.clear();setImageRetry(value=>value+1);}}>Retry page</button>
+              <button className="secondary" type="button" onClick={()=>{clearPageCache();setImageRetry(value=>value+1);}}>Retry page</button>
             </div>}
           <div className="page-stamp">{location.pageIndex+1} / {manifest?.pages.length ?? '?'}</div>
         </div>}
@@ -509,7 +585,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
         </div>
         {notice && <p className="reader-notice" role="status">{notice}</p>}
         <p className="reader-hint">{direction === 'vertical' ? 'Scroll continuously through the chapter. Only nearby images are loaded.' : 'Use Previous / Next, swipe or focus the reader and use ← / → arrow keys.'}</p>
-        <p className="fine-print">Offline: these pages are drawn locally. Private manga downloads and offline caching are not implemented.</p>
+        <p className="fine-print">Synthetic chapter copies can be saved from series details for genuine offline access. No real private media is connected.</p>
       </section>}
       {screen.kind === 'not-found' && <div className="empty-state" role="alert"><h2>Page unavailable</h2>
         <p>This link does not point to an available manga, chapter or page.</p>

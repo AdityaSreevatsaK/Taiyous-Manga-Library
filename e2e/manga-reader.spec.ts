@@ -140,12 +140,12 @@ test.describe('local manga catalogue and chapter reader', () => {
     await page.goto('/');
     await page.locator('.book-card').filter({ hasText: 'The Lantern Archive' }).click();
     await page.getByRole('link', { name: /Read from beginning/ }).click();
-    await expect(page.getByRole('alert')).toContainText('generated page could not be displayed');
+    await expect(page.getByRole('alert')).toContainText('offline copy is unavailable or corrupt');
     await expect(page.locator('.page-navigation')).toContainText('Page 1 of 5');
     await expect(page.getByRole('button', { name: /Next page/ })).toBeDisabled();
     await expect(page.getByRole('button', { name: /Previous page/ })).toBeDisabled();
     await page.getByRole('button', { name: 'Retry page' }).click();
-    await expect(page.getByRole('alert')).toContainText('generated page could not be displayed');
+    await expect(page.getByRole('alert')).toContainText('offline copy is unavailable or corrupt');
     await expect(page.locator('.page-navigation')).toContainText('Page 1 of 5');
     await page.getByRole('link', { name: /Series details/ }).click();
     // A page that could not load must never be falsely recorded as read.
@@ -299,5 +299,106 @@ test.describe('persistent browser reading state', () => {
     await page.reload();
     await expect(page.locator('.page-navigation')).toContainText('Page 4 of 5');
     await expect(page.locator('.vertical-page-image').first()).toBeVisible();
+  });
+});
+
+test.describe('explicit offline chapter storage and application shell', () => {
+  test('downloads only the chosen synthetic chapter, serves verified offline blobs and removes it independently', async ({ page }) => {
+    await page.goto('/manga/mng_lanternarchive');
+    await expect(page.getByRole('button', { name: 'Download chapter' })).toHaveCount(3);
+    await page.getByRole('button', { name: 'Download chapter' }).first().click();
+    await expect(page.getByText('Chapter saved locally and verified.')).toBeVisible();
+    await expect(page.getByText('Available offline')).toHaveCount(1);
+    await expect(page.getByRole('link', { name: 'Offline (1)' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Download chapter' })).toHaveCount(2);
+    await page.getByRole('link', { name: 'Offline (1)' }).click();
+    await expect(page).toHaveURL('/offline');
+    await expect(page.locator('.offline-series-link')).toHaveCount(1);
+    await page.locator('.offline-series-link').first().click();
+    await expect.poll(async () => page.locator('.reader-page').getAttribute('src')).toMatch(/^blob:/);
+    await page.getByRole('button', { name: /Next page/ }).click();
+    await expect(page.locator('.page-navigation')).toContainText('Page 2 of 5');
+    await page.getByRole('link', { name: /Series details/ }).click();
+    await page.getByRole('button', { name: 'Remove offline copy' }).first().click();
+    await expect(page.getByText(/Offline copy removed/)).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Offline (0)' })).toBeVisible();
+    await expect(page.getByRole('link', { name: /Continue reading/ })).toBeVisible();
+  });
+
+  test('a corrupt cached chapter is flagged and cannot silently skip pages', async ({ page }) => {
+    await page.goto('/manga/mng_lanternarchive');
+    await page.getByRole('button', { name: 'Download chapter' }).first().click();
+    await expect(page.getByText('Available offline')).toHaveCount(1);
+    await page.evaluate(async () => {
+      const cache = await caches.open('taiyou-manga-synthetic-chapters-v1');
+      const keys = await cache.keys();
+      if (!keys.length) throw new Error('Expected downloaded chapter pages');
+      await cache.delete(keys[0]!);
+    });
+    await page.reload();
+    await expect(page.getByText('Offline copy needs repair')).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Offline (0)' })).toBeVisible();
+    await page.getByRole('link', { name: /Read from beginning/ }).click();
+    await expect(page.getByRole('alert')).toContainText('offline copy');
+    await expect(page.getByRole('button', { name: /Next page/ })).toBeDisabled();
+    await page.getByRole('link', { name: /Series details/ }).click();
+    await page.getByRole('button', { name: 'Remove offline copy' }).first().click();
+    await expect(page.getByText(/Offline copy removed/)).toBeVisible();
+  });
+
+  test('cold offline start opens an explicitly downloaded chapter from production shell cache', async ({ page, context }) => {
+    await page.goto('/manga/mng_lanternarchive');
+    await page.getByRole('button', { name: 'Download chapter' }).first().click();
+    await expect(page.getByText('Available offline')).toHaveCount(1);
+    await expect.poll(async () => page.evaluate(async () =>
+      (await caches.keys()).some(key => key.startsWith('taiyou-manga-shell-v1-')))).toBe(true);
+    await page.evaluate(async () => { await navigator.serviceWorker.ready; });
+    await page.reload(); // control the current client before the simulated cold restart
+    await expect.poll(async () => page.evaluate(() => navigator.serviceWorker.controller !== null)).toBe(true);
+    const cacheInspection = await page.evaluate(async () => {
+      const names = (await caches.keys()).filter(name => name.startsWith('taiyou-manga-shell-v1-')).sort().reverse();
+      const store = await caches.open(names[0]!);
+      const script = [...document.querySelectorAll<HTMLScriptElement>('script[src]')].map(el => el.src);
+      const stylesheet = [...document.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]')].map(el => el.href);
+      const files = [...script,...stylesheet];
+      return { keys: (await store.keys()).map(key=>key.url), required:files,
+        missing: (await Promise.all(files.map(async url => await store.match(url) ? null : url))).filter(Boolean) };
+    });
+    expect(cacheInspection.missing, JSON.stringify(cacheInspection)).toEqual([]);
+    expect(cacheInspection.required.length).toBeGreaterThanOrEqual(2);
+    await context.setOffline(true);
+    await page.goto('/offline');
+    const offlineControl = await page.evaluate(() => navigator.serviceWorker.controller?.scriptURL ?? 'not-controlled');
+    expect(offlineControl).toContain('/sw.js');
+    await expect(page.getByRole('heading', { name: 'Offline chapters' })).toBeVisible();
+    await expect(page.locator('.offline-series-link')).toHaveCount(1);
+    await page.locator('.offline-series-link').click();
+    await expect.poll(async () => page.locator('.reader-page').getAttribute('src')).toMatch(/^blob:/);
+    await page.getByRole('button', { name: /Next page/ }).click();
+    await expect(page.locator('.page-navigation')).toContainText('Page 2 of 5');
+    await page.reload();
+    await expect(page.locator('.page-navigation')).toContainText('Page 2 of 5');
+    await expect.poll(async () => page.locator('.reader-page').getAttribute('src')).toMatch(/^blob:/);
+    await context.setOffline(false);
+  });
+
+  test('a vertical chapter uses downloaded images without loading every image', async ({ page }) => {
+    await page.goto('/manga/mng_clockworkshore');
+    await page.getByRole('button', { name: 'Download chapter' }).click();
+    await expect(page.getByText('Available offline')).toBeVisible();
+    await page.getByRole('link', { name: /Read from beginning/ }).click();
+    await expect(page.locator('.vertical-page')).toHaveCount(5);
+    await expect.poll(async () => page.locator('.vertical-page-image').first().getAttribute('src')).toMatch(/^blob:/);
+    expect(await page.locator('.vertical-page-image').count()).toBeLessThanOrEqual(3);
+  });
+
+  test('nothing downloads automatically when opening a series', async ({ page }) => {
+    await page.goto('/manga/mng_lanternarchive');
+    await expect(page.getByRole('button', { name: 'Download chapter' })).toHaveCount(3);
+    const downloads = await page.evaluate(async () => {
+      const cache = await caches.open('taiyou-manga-synthetic-chapters-v1');
+      return (await cache.keys()).length;
+    });
+    expect(downloads).toBe(0);
   });
 });

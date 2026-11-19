@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { makeFixturePage } from '../data/fixtureArt';
+import { resolveSyntheticPage, type PageSource } from '../data/pageSource';
 import type { ChapterManifest } from '../domain/types';
 
 /**
@@ -23,7 +23,7 @@ export function VerticalReader({ manifest, activeIndex, jumpToken, onActivePage,
   const callbacks = useRef({ onActivePage, onViewedPage, onScrollAnchor });
   callbacks.current = { onActivePage, onViewedPage, onScrollAnchor };
   const anchorStamp = useRef({ index: -1, ratio: -1, at: 0 });
-  const images = useRef(new Map<number, string>());
+  const images = useRef(new Map<number, PageSource>());
   const loaded = useRef(new Set<number>());
   const lastReported = useRef(-1);
   const [visibleIndex, setVisibleIndex] = useState(activeIndex);
@@ -39,23 +39,44 @@ export function VerticalReader({ manifest, activeIndex, jumpToken, onActivePage,
   }
 
   useEffect(() => {
-    // The cache remains bounded even when scrolling through a very long chapter.
-    const next = new Map<number, string>();
-    const failed: Record<number, boolean> = {};
-    for (let index = Math.max(0, visibleIndex - 1);
-      index <= Math.min(manifest.pages.length - 1, visibleIndex + 1); index++) {
+    let cancelled = false;
+    const start = Math.max(0, visibleIndex - 1);
+    const end = Math.min(manifest.pages.length - 1, visibleIndex + 1);
+    const wanted = Array.from({length: end - start + 1}, (_, n) => start + n);
+    const prior = images.current;
+    const fetches = wanted.map(async index => {
+      if (prior.has(index) && retry === 0) return { index, source: prior.get(index)!, error: false, fresh: false };
       try {
-        next.set(index, images.current.get(index) ?? makeFixturePage(manifest.chapterId, index));
+        const source = await resolveSyntheticPage(manifest, index);
+        return { index, source, error: false, fresh: true };
       } catch {
-        failed[index] = true;
-        loaded.current.delete(index);
+        return { index, source: null, error: true, fresh: false };
       }
-    }
-    images.current = next;
-    for (const index of Array.from(loaded.current)) if (!next.has(index)) loaded.current.delete(index);
-    setSources(Object.fromEntries(next));
-    setErrors(failed);
+    });
+    void Promise.all(fetches).then(results => {
+      if (cancelled) {
+        for (const result of results) if (result.fresh) result.source?.release();
+        return;
+      }
+      const next = new Map<number, PageSource>();
+      const failed: Record<number, boolean> = {};
+      for (const result of results) {
+        if (result.source) next.set(result.index, result.source);
+        if (result.error) { failed[result.index] = true; loaded.current.delete(result.index); }
+      }
+      for (const [index, source] of prior) if (!next.has(index) || next.get(index) !== source) source.release();
+      images.current = next;
+      for (const index of Array.from(loaded.current)) if (!next.has(index)) loaded.current.delete(index);
+      setSources(Object.fromEntries([...next].map(([index, source]) => [index, source.src])));
+      setErrors(failed);
+    });
+    return () => { cancelled = true; };
   }, [manifest, visibleIndex, retry]);
+
+  useEffect(() => () => {
+    for (const source of images.current.values()) source.release();
+    images.current.clear();
+  }, []);
 
   useEffect(() => {
     let frame = 0;
@@ -121,6 +142,7 @@ export function VerticalReader({ manifest, activeIndex, jumpToken, onActivePage,
           <div className="vertical-page-error" role="alert">
             <p>Page {index + 1} could not be loaded.</p>
             <button className="secondary" type="button" onClick={() => {
+              images.current.get(index)?.release();
               images.current.delete(index);
               loaded.current.delete(index);
               lastReported.current = -1;
