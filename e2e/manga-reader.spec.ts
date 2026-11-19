@@ -972,3 +972,21 @@ test.describe('advanced discovery and grounded personal analytics',()=>{
     }
   });
 });
+
+test('personal favourites are accessible, persisted and curated only on Home', async ({ page }) => {
+  await page.goto('/manga/mng_lanternarchive');
+  const add=page.getByRole('button',{name:/Add to favourites/});
+  await expect(add).toHaveAttribute('aria-pressed','false');
+  await add.click();
+  await expect(page.getByRole('button',{name:/Remove from favourites/})).toHaveAttribute('aria-pressed','true');
+  await page.goto('/');
+  await expect(page.locator('.book-card').first()).toContainText('The Lantern Archive');
+  await expect(page.locator('.book-card').first()).toContainText('Favourite');
+  await page.reload();
+  await expect(page.locator('.book-card').first()).toContainText('The Lantern Archive');
+  await page.goto('/manga/mng_lanternarchive');
+  await page.getByRole('button',{name:/Remove from favourites/}).click();
+  await expect(page.getByRole('button',{name:/Add to favourites/})).toHaveAttribute('aria-pressed','false');
+  await page.goto('/');
+  await expect(page.locator('.book-favourite')).toHaveCount(0);
+});
