@@ -1,0 +1,78 @@
+import { readFileSync } from 'node:fs';
+
+const origin = 'https://taiyous-manga-library.pages.dev';
+const localHtml = readFileSync('dist/index.html', 'utf8');
+const matchAssets = (html) => [...new Set([...html.matchAll(/(?:src|href)=["'](\/assets\/[^"']+)["']/g)].map((match) => match[1]))].sort();
+const expected = matchAssets(localHtml);
+const failures = [];
+
+if (expected.length === 0) throw new Error('Local production build has no asset references');
+
+async function get(path) {
+  const response = await fetch(origin + path, {
+    signal: AbortSignal.timeout(20_000),
+    headers: { 'Cache-Control': 'no-cache' },
+  });
+  if (!response.ok) throw new Error(`${path}: HTTP ${response.status}`);
+  return response;
+}
+
+async function check(label, callback) {
+  try {
+    await callback();
+    console.log('PASS', label);
+  } catch (error) {
+    failures.push(label);
+    console.error('FAIL', label, '-', error.message);
+  }
+}
+
+async function main() {
+  let served = [];
+  await check('Homepage and React shell', async () => {
+    const home = await (await get('/')).text();
+    if (!home.includes('id="root"')) throw new Error('Homepage is not the React application shell');
+    served = matchAssets(home);
+    console.log('Live asset names:', served.join(', '));
+  });
+
+  await check('Latest master build deployed', async () => {
+    const missing = expected.filter((asset) => !served.includes(asset));
+    if (missing.length) {
+      throw new Error(`Expected: ${expected.join(', ')}; actually served: ${served.join(', ')}`);
+    }
+  });
+
+  for (const route of ['/library', '/offline', '/manga/smoke-test']) {
+    await check('SPA direct route ' + route, async () => {
+      const html = await (await get(route)).text();
+      if (!html.includes('id="root"')) throw new Error('Not the SPA shell');
+    });
+  }
+
+  await check('Offline service worker', async () => {
+    const worker = await (await get('/sw.js')).text();
+    if (!worker.includes('addEventListener') || worker.trimStart().startsWith('<')) {
+      throw new Error('Missing service worker or HTML fallback');
+    }
+  });
+
+  for (const asset of served) {
+    await check('Deployed asset ' + asset, async () => {
+      const response = await get(asset);
+      if ((await response.arrayBuffer()).byteLength === 0) throw new Error('Empty asset');
+    });
+  }
+
+  if (failures.length) {
+    console.error('LIVE SMOKE FAILED:', failures.join('; '));
+    process.exitCode = 1;
+  } else {
+    console.log('LIVE CLOUDFLARE SMOKE PASSED');
+  }
+}
+
+main().catch((error) => {
+  console.error('LIVE CLOUDFLARE SMOKE FATAL:', error.message);
+  process.exitCode = 1;
+});

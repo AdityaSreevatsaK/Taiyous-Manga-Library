@@ -1,0 +1,28 @@
+name: Live Cloudflare smoke
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/live-cloudflare-smoke.yml'
+      - 'scripts/live-cloudflare-smoke.mjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live-smoke:
+    name: Verify deployed Cloudflare app
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Build current commit
+        run: npm run build
+      - name: Compare deployed application with current commit
+        run: node scripts/live-cloudflare-smoke.mjs
