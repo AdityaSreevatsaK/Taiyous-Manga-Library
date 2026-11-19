@@ -325,3 +325,27 @@ a.book-card:focus-visible,a.chapter-row:focus-visible,a.back:focus-visible,a.pri
 .theme-sepia .book-progress,.theme-light .book-progress{color:var(--ink)}
 @media(max-width:740px){.continue-section{padding:25px 0}.continue-list{grid-template-columns:1fr}.continue-card{min-height:105px}}
 @media(prefers-reduced-motion:reduce){.continue-card{transition:none}.continue-card:hover{transform:none}}
+
+/* Manual reader backup and import: compact by default, large touch targets, visible confirmation. */
+.backup-panel{margin:25px 0 0;padding:16px 20px;border:1px solid #45565e;border-radius:11px;background:#1a2a32}
+.backup-panel summary{cursor:pointer;font-size:13px;font-weight:700;color:#e5c99a;min-height:30px;align-content:center}
+.backup-panel summary:focus-visible{outline:3px solid #efd09a;outline-offset:3px}
+.backup-panel>p,.backup-preview p{font-size:12px;line-height:1.6;color:#b9c9c8;margin:12px 0}
+.backup-actions,.backup-confirm{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;margin:15px 0}
+.backup-file-label{display:flex;flex-direction:column;gap:7px;flex:1 1 230px;min-width:0;font-size:12px;color:#bccbce}
+.backup-file-label input{height:auto;min-height:46px;background:#253640;padding:8px;color:#f0e8d8;font-size:12px}
+.backup-preview{padding:17px;border:1px solid #9a886a;border-radius:9px;background:#26343a}
+.backup-preview>strong{font-size:15px}
+.backup-checkbox{display:flex;gap:10px;align-items:center;font-size:12px;line-height:1.5}
+.backup-checkbox input{min-height:20px;height:20px;width:20px;flex:0 0 20px;accent-color:#e4c791}
+.backup-message{border-top:1px solid #46565d;padding:12px 0 0;color:#ead2a5;font-size:12px;line-height:1.5}
+.backup-panel .backup-caution{font-size:11px;margin-bottom:0}
+.theme-sepia .backup-panel,.theme-light .backup-panel,
+.theme-sepia .backup-preview,.theme-light .backup-preview{background:var(--panel);border-color:var(--line)}
+.theme-sepia .backup-panel summary,.theme-light .backup-panel summary,
+.theme-sepia .backup-message,.theme-light .backup-message{color:var(--ink)}
+.theme-sepia .backup-panel p,.theme-light .backup-panel p,
+.theme-sepia .backup-checkbox,.theme-light .backup-checkbox,
+.theme-sepia .backup-file-label,.theme-light .backup-file-label{color:var(--muted)}
+.theme-sepia .backup-file-label input,.theme-light .backup-file-label input{background:var(--panel);color:var(--ink)}
+@media(max-width:740px){.backup-panel{padding:15px}.backup-actions>button,.backup-confirm>button{min-height:44px;flex:1 1 140px}}
