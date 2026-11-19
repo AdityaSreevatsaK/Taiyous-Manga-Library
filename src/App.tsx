@@ -15,6 +15,8 @@ import { addPersonalTag, loadAnnotations, saveAnnotation, type AnnotationPatch,
 import { defaultReaderPreferences, laterProgress, loadAllProgress, loadPreferences, loadProgress,
   nextProgressTimestamp, savePreferences, saveProgress, type ReaderPreferences } from './domain/localReaderStorage';
 import { filterCatalogue, type SortMode } from './domain/filters';
+import { applyAdvancedDiscovery, computeLocalReadingAnalytics, defaultAdvancedCriteria,
+  type AdvancedCriteria } from './domain/advancedDiscovery';
 import { orderedChapters, restoreProgress, stepChapter, type ReaderLocation } from './domain/reader';
 import type { ChapterManifest, MangaEntry, MangaProgress, PublicationStatus } from './domain/types';
 import './styles.css';
@@ -38,6 +40,25 @@ function readCatalogueQuery() {
   };
 }
 
+/** Advanced filters are query-string values, never stored user annotations. */
+function readAdvancedQuery():AdvancedCriteria {
+  const params=typeof window==='undefined'?new URLSearchParams():new URLSearchParams(window.location.search);
+  const numeric=(key:string,lowest:number,highest:number)=>{
+    const raw=params.get(key);
+    if(raw===null||!/^\d{1,5}$/.test(raw))return null;
+    const value=Number(raw);return value>=lowest&&value<=highest?value:null;
+  };
+  const reading=params.get('reading');
+  const offline=params.get('offline');
+  return {
+    creator:(params.get('creator')??'').slice(0,100),
+    minChapters:numeric('minChapters',0,10000),
+    maxChapters:numeric('maxChapters',0,10000),
+    minPersonalRating:numeric('minRating',1,10),
+    readingState: (['reading','trying','finished','to-read','unstarted'].includes(reading??'') ? reading : 'any') as AdvancedCriteria['readingState'],
+    offlineState: (['downloaded','not-downloaded'].includes(offline??'') ? offline : 'any') as AdvancedCriteria['offlineState'],
+  };
+}
 export default function App({ initialDemo = true }: { initialDemo?: boolean } = {}) {
   const initialRoute = useMemo(currentBrowserRoute, []);
   const initialFilters = useMemo(readCatalogueQuery, []);
@@ -61,6 +82,13 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
   const [tag, setTag] = useState(initialRoute.kind==='library'?initialFilters.tag:'');
   const [collection, setCollection] = useState(initialRoute.kind==='library'?initialFilters.collection:'');
   const [sort, setSort] = useState<SortMode>(initialRoute.kind==='library'?initialFilters.sort:'title');
+  const [advanced, setAdvanced] = useState<AdvancedCriteria>(() =>
+    initialRoute.kind==='library'?readAdvancedQuery():defaultAdvancedCriteria());
+  const [advancedOpen, setAdvancedOpen] = useState(() => {
+    const current=readAdvancedQuery();
+    return Object.entries(current).some(([key,value])=>value!==null&&value!==''&&value!=='any'&&
+      key!=='unused');
+  });
   const [chapterQuery, setChapterQuery] = useState('');
   const [compactNav, setCompactNav] = useState(() => typeof window !== 'undefined' &&
     window.matchMedia?.('(max-width: 740px)').matches || false);
@@ -142,8 +170,14 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
         (!personalId || collections.items.some(folder=>
           folder.id===personalId && folder.mangaIds.includes(item.id))));
   }, [catalogue, query, status, tag, collection, sort, annotations, collections]);
+  const contextForDiscovery={progress,shelves:personalShelves,annotations,offlineChapterIds};
+  const advancedResults=useMemo(() => applyAdvancedDiscovery(filtered,advanced,{
+    progress,shelves:personalShelves,annotations,offlineChapterIds,
+  }),[filtered,advanced,progress,personalShelves,annotations,offlineChapterIds]);
+  const analytics=computeLocalReadingAnalytics(catalogue,contextForDiscovery);
   const offlineSeries = catalogue.filter(item => item.chapters.some(chapter => offlineChapterIds.has(chapter.id)));
-  const displayed = screen.kind === 'catalogue' ? filtered.filter(item => onShelf(item, screen.section)) : filtered;
+  const displayed = screen.kind === 'catalogue' ?
+    (screen.section==='library'?advancedResults:filtered).filter(item => onShelf(item, screen.section)) : filtered;
   const continueReading = catalogue
     .map(item => ({ item, saved: progress[item.id], resume: restoreProgress(item, manifests, progress[item.id]) }))
     .filter((value): value is { item: MangaEntry; saved: MangaProgress; resume: ReaderLocation } =>
@@ -244,6 +278,10 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
       const filters=readCatalogueQuery();
       setQuery(filters.query);setTag(filters.tag);setCollection(filters.collection);
       setStatus(filters.status);setSort(filters.sort);
+      const nextAdvanced=readAdvancedQuery();
+      setAdvanced(nextAdvanced);
+      setAdvancedOpen(Object.values(nextAdvanced).some(value=>
+        value!==null&&value!==''&&value!=='any'));
       applyRoute(currentBrowserRoute());
     };
     window.addEventListener('popstate', onBackForward);
@@ -257,11 +295,17 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
     if(collection)params.set('collection',collection);
     if(status!=='all')params.set('status',status);
     if(sort!=='title')params.set('sort',sort);
+    if(advanced.creator)params.set('creator',advanced.creator);
+    if(advanced.minChapters!==null)params.set('minChapters',String(advanced.minChapters));
+    if(advanced.maxChapters!==null)params.set('maxChapters',String(advanced.maxChapters));
+    if(advanced.minPersonalRating!==null)params.set('minRating',String(advanced.minPersonalRating));
+    if(advanced.readingState!=='any')params.set('reading',advanced.readingState);
+    if(advanced.offlineState!=='any')params.set('offline',advanced.offlineState);
     const suffix=params.toString();
     const url=routeHref({kind:'library'},import.meta.env.BASE_URL)+(suffix?'?'+suffix:'');
     if(window.location.pathname+window.location.search!==url)
       window.history.replaceState(null,'',url);
-  }, [screen,query,tag,collection,status,sort]);
+  }, [screen,query,tag,collection,status,sort,advanced]);
   useEffect(() => {
     const update = () => setOnline(navigator.onLine);
     window.addEventListener('online', update);
@@ -413,6 +457,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
     setPersonalShelves(loadShelves(value ? demoEntries : realEntries).shelves);
     setAnnotations(loadAnnotations(value ? demoEntries : realEntries).annotations);
     setQuery(''); setTag(''); setCollection(''); setStatus('all');
+    setAdvanced(defaultAdvancedCriteria());setAdvancedOpen(false);
   }
   function changeShelf(item: MangaEntry, shelf: ShelfSelection) {
     const outcome = saveShelf(item.id, shelf);
@@ -530,6 +575,8 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
       </nav>
       <div className="header-right">
         <div className="header-explore">
+          <button type="button" className="header-advanced" aria-expanded={advancedOpen&&selectedSection==='library'}
+            onClick={()=>{setAdvancedOpen(value=>!value);goCatalogue('library');}}>Advanced Search</button>
           <details className="header-menu"><summary>Tags</summary>
             <div className="header-menu-content">
               <button type="button" onClick={event=>{setTag('');goCatalogue('library');event.currentTarget.closest('details')?.removeAttribute('open');}}>All tags</button>
@@ -590,12 +637,47 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
         {screen.section === 'analytics' ? <section className="analytics-shelf" aria-label="Personal reading analytics">
           <p className="eyebrow">YOUR READING SNAPSHOT / THIS DEVICE</p>
           <h1>Analytics</h1>
-          <p>Counts reflect locally saved progress and personal shelves, not estimated reading time. No tracking service is connected.</p>
+          <p>Only your saved device-local reading positions, personal shelves and ratings. No invented reading duration,
+            historical streaks or external tracking.</p>
           <div className="analytics-grid">
-            <div><strong>{Object.keys(progress).length}</strong><span>Series with saved progress</span></div>
-            <div><strong>{counts.finished}</strong><span>Personally finished</span></div>
-            <div><strong>{offlineChapterIds.size}</strong><span>Offline chapters</span></div>
-            <div><strong>{counts['to-read']}</strong><span>On your To Be Read shelf</span></div>
+            <div><strong>{analytics.started}</strong><span>Series with saved reading progress</span></div>
+            <div><strong>{analytics.reading}</strong><span>Currently reading</span></div>
+            <div><strong>{analytics.finished}</strong><span>Personally finished</span></div>
+            <div><strong>{analytics.toRead}</strong><span>To Be Read</span></div>
+            <div><strong>{analytics.trying}</strong><span>Trying Out</span></div>
+            <div><strong>{analytics.downloadedChapters}</strong><span>Offline chapters in {analytics.offlineSeries} series</span></div>
+            <div><strong>{analytics.avgRating??'–'}</strong><span>Average personal rating / 10 ({analytics.rated} rated)</span></div>
+            <div><strong>{analytics.total}</strong><span>Catalogue series</span></div>
+          </div>
+          <div className="analytics-detail-grid">
+            <section className="analytics-recent">
+              <h2>Recently saved positions</h2>
+              {analytics.recent.length ? <ul>{analytics.recent.slice(0,8).map(item=>
+                <li key={item.mangaId}>
+                  <a href={routeHref({kind:'details',mangaId:item.mangaId},import.meta.env.BASE_URL)}
+                    onClick={event=>followLink(event,()=>navigateTo({kind:'details',mangaId:item.mangaId}))}>
+                    <strong>{item.title}</strong></a>
+                  <span>{item.chapter} · Page {item.page}</span>
+                  <time dateTime={item.savedAt}>{new Date(item.savedAt).toLocaleDateString('en-GB')}</time>
+                </li>)}</ul> :
+                <p>No saved reading positions on this device yet.</p>}
+            </section>
+            <section className="analytics-genres">
+              <h2>Genres in currently reading</h2>
+              {analytics.genres.length ? <ul>{analytics.genres.slice(0,8).map(item=>
+                <li key={item.name}><span>{item.name}</span><strong>{item.count}</strong></li>)}</ul> :
+                <p>Start reading a series to see its genres.</p>}
+            </section>
+            <section className="analytics-ratings">
+              <h2>My ratings distribution</h2>
+              {analytics.rated ? <div className="ratings-histogram">
+                {analytics.ratingsDistribution.map(item=><div key={item.score}
+                  className="rating-column" aria-label={item.score+' out of 10: '+item.count+' manga'}>
+                  <span>{item.count||''}</span><div className="rating-bar" style={{height:(item.count/analytics.rated*100)+'%'}} />
+                  <small>{item.score}</small>
+                </div>)}
+              </div> : <p>Rate manga on its details page to see your distribution.</p>}
+            </section>
           </div>
           <button className="secondary" type="button" onClick={()=>goCatalogue('reading')}>View currently reading</button>
         </section> : screen.section === 'offline' ? <section className="offline-shelf" aria-label="Offline manga chapters">
@@ -665,8 +747,62 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
                 <option value="title">Title A to Z</option><option value="rating">Rating</option><option value="chapters">Chapter count</option>
               </select></label>
           </div>
-          {screen.section==='library' && <CollectionManager state={collections}
-            onCommit={commitCollections} onFilter={filterPersonalCollection}/>}
+          {screen.section==='library' && <>
+            {advancedOpen && <section className="advanced-search" aria-label="Advanced manga search">
+              <div className="shelf-heading"><h3>Advanced Search</h3>
+                <button className="secondary" type="button" onClick={()=>setAdvancedOpen(false)}>Close</button></div>
+              <div className="advanced-fields">
+                <label>Creator
+                  <input type="search" value={advanced.creator} maxLength={100} placeholder="Search creator"
+                    onChange={event=>setAdvanced(previous=>({...previous,creator:event.target.value}))}/>
+                </label>
+                <label>Minimum chapters
+                  <input type="number" min={0} max={10000} value={advanced.minChapters??''}
+                    onChange={event=>setAdvanced(previous=>({...previous,minChapters:event.target.value===''?
+                      null:Number(event.target.value)}))}/>
+                </label>
+                <label>Maximum chapters
+                  <input type="number" min={0} max={10000} value={advanced.maxChapters??''}
+                    onChange={event=>setAdvanced(previous=>({...previous,maxChapters:event.target.value===''?
+                      null:Number(event.target.value)}))}/>
+                </label>
+                <label>Minimum personal rating
+                  <select value={advanced.minPersonalRating??''}
+                    onChange={event=>setAdvanced(previous=>({...previous,minPersonalRating:event.target.value===''?
+                      null:Number(event.target.value)}))}>
+                    <option value="">Any personal rating</option>
+                    {Array.from({length:10},(_,i)=>i+1).map(value=><option key={value} value={value}>{value} / 10 or higher</option>)}
+                  </select>
+                </label>
+                <label>My reading state
+                  <select value={advanced.readingState}
+                    onChange={event=>setAdvanced(previous=>({...previous,readingState:event.target.value as AdvancedCriteria['readingState']}))}>
+                    <option value="any">Any reading state</option>
+                    <option value="reading">Currently Reading</option><option value="trying">Trying Out</option>
+                    <option value="finished">Finished</option><option value="to-read">To Be Read</option>
+                    <option value="unstarted">No saved progress</option>
+                  </select>
+                </label>
+                <label>Offline availability
+                  <select value={advanced.offlineState}
+                    onChange={event=>setAdvanced(previous=>({...previous,offlineState:event.target.value as AdvancedCriteria['offlineState']}))}>
+                    <option value="any">Any availability</option><option value="downloaded">Has offline chapters</option>
+                    <option value="not-downloaded">No offline chapters</option>
+                  </select>
+                </label>
+              </div>
+              {advanced.minChapters!==null&&advanced.maxChapters!==null&&
+                advanced.minChapters>advanced.maxChapters &&
+                <p role="alert" className="advanced-warning">Minimum chapters must not exceed maximum chapters.</p>}
+              <div className="advanced-actions">
+                <p>{displayed.length} series match your current filters</p>
+                <button className="secondary" type="button"
+                  onClick={()=>setAdvanced(defaultAdvancedCriteria())}>Reset advanced filters</button>
+              </div>
+            </section>}
+            <CollectionManager state={collections}
+              onCommit={commitCollections} onFilter={filterPersonalCollection}/>
+          </>}
           {displayed.length ? <div className="book-grid">{displayed.map((item, index) =>
             <a className="book-card" key={item.id} href={routeHref({kind:'details',mangaId:item.id},import.meta.env.BASE_URL)}
               onClick={event=>followLink(event,()=>navigateTo({kind:'details',mangaId:item.id}))}>
