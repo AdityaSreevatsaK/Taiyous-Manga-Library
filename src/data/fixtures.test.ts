@@ -3,7 +3,10 @@ import { demoEntries, demoManifests } from './fixtures';
 import { parseCatalogue, parseChapterManifest } from '../domain/validation';
 describe('original in-memory fixture contracts', () => {
   it('defines only fictional entries with unique stable IDs and coherent page counts', () => {
-    expect(parseCatalogue(demoEntries)).toHaveLength(3);
+    expect(parseCatalogue(demoEntries)).toHaveLength(4);
+    const trial = demoEntries.find(entry => entry.id === 'mng_fivechaptertrial');
+    expect(trial?.chapters.map(chapter => chapter.pageCount)).toEqual([7, 6, 9, 8, 6]);
+    expect(trial?.chapters).toHaveLength(5);
     const chapters = demoEntries.flatMap(entry => entry.chapters);
     expect(chapters.length).toBeGreaterThanOrEqual(5);
     for (const chapter of chapters) {
