@@ -1,0 +1,50 @@
+name: Cross-browser Manga Reader Smoke
+
+on:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'public/**'
+      - 'e2e/**'
+      - 'playwright.cross-browser.config.ts'
+      - 'package*.json'
+      - '.github/workflows/cross-browser.yml'
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: manga-cross-browser-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  parity:
+    name: Firefox and WebKit reader parity
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Install pinned Firefox and WebKit browser engines
+        run: npx playwright install --with-deps firefox webkit
+      - name: Build production application
+        run: npm run build
+      - name: Check Firefox and WebKit navigation and reader parity
+        run: npx playwright test --config playwright.cross-browser.config.ts
+      - name: Upload failures and traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: manga-cross-browser-failures
+          path: |
+            playwright-report/
+            test-results/cross-browser/
+          if-no-files-found: ignore
+          retention-days: 7
