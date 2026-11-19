@@ -1,10 +1,12 @@
 # Taiyou's Manga Library
 
-> **Public, fictional-data demonstration.** Production `master` remains at `6a6e337` until the owner approves deployment. Cloudflare Pages is the intended host; live deployment has not been independently verified.
+> **Public-source synthetic manga reader.** The five reader milestones were merged into `master` on 19 November 2026. The latest merged application is at commit `faf7b515`; the deployment must be checked independently because Cloudflare Pages was disconnected from GitHub. The application intentionally uses fictional demonstration content rather than personal manga images.
 >
-> **Verified feature PRs (stacked, unmerged):** [#10 mobile reader](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/pull/10), [#11 browser navigation](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/pull/11), [#12 local progress](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/pull/12), [#13 synthetic offline reading](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/pull/13). PR #13 passed 29 unit and 32 production-browser tests. Final hardening [#14](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/pull/14) also passed 34 unit and 37 production-browser tests, TypeScript, build and bundle budgets. All five PRs remain draft/unmerged.
+> **Verified on GitHub Actions:** TypeScript typecheck, 34 unit tests, production build, production bundle budgets and 37 Playwright browser tests passed on the release commit. [Review the CI run](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/actions/runs/44503328931).
 >
-> **Never upload real manga images or credentials to public Git.** Private Hugging Face storage, authentication and cross-device progress are not connected.
+> **Live deployment:** [taiyous-manga-library.pages.dev](https://taiyous-manga-library.pages.dev/). A remote smoke check on 19 November found the previous production build still live, with the new offline service worker missing. See [deployment verification PR #15](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/pull/15).
+>
+> **Privacy:** No real manga media, private Hugging Face datasets or authentication credentials have been added. Cloudflare access, private asset delivery and cross-device sync are not yet implemented.
 
 ## Mission
 Read and organise legitimately acquired manga with chapter/page-level progress and optional offline access. The user experience should remain readable, fast, polished and accessible on phones, tablets and desktop. The existing novel library is the visual inspiration, not an implementation dependency.
@@ -22,20 +24,15 @@ Read and organise legitimately acquired manga with chapter/page-level progress a
 4. Run `npm run typecheck`, `npm test`, and `npm run build`.
 5. Review [AGENTS.md](AGENTS.md) and [the session handover](docs/SESSION_HANDOVER_PROMPT.md) before feature development.
 
-## Current scaffold
-```text
-src/
-  domain/types.ts         Domain-specific interfaces
-  domain/search.ts        Pure local title/alias search
-  domain/search.test.ts   Synthetic, offline tests
-  data/catalogue.ts      Deliberately empty catalogue
-  App.tsx                 Honest starter page and catalogue view
-  styles.css              Responsive design foundations
-.github/workflows/ci.yml  Typecheck / tests / build; no deployment
-docs/                     Architecture, contracts, threat model, operations and agent handover
-```
+## Implemented on `master`
 
-Panel and page ordering, right-to-left versus left-to-right reading, vertical scrolling, chapter/volume structure, image dimensions, page preload limits and full-screen touch navigation.
+- Responsive horizontal and continuously scrolling vertical manga reader, touch and keyboard navigation, fullscreen/focus mode and reading preferences.
+- Browser deep links and Back/Forward navigation for catalogue, series and chapters.
+- Versioned local progress and reading settings, with safe handling of stale or corrupt records.
+- Opt-in offline downloads for fictional chapters, offline library navigation, service worker and cache-integrity tests.
+- Accessibility, error recovery, responsive and production-browser checks.
+
+The current catalogue contains deliberately fictional fixtures. No real manga or private backend is connected.
 
 ## Non-negotiable boundaries
 - The owner has authorised public repository source visibility. Verify the actual GitHub setting before asserting that the change is live. No personal media or private credentials may be added to Git.
@@ -59,38 +56,24 @@ Panel and page ordering, right-to-left versus left-to-right reading, vertical sc
 11. [GitHub metadata/settings](docs/REPOSITORY_SETTINGS.md)
 12. [Copyable agent handover](docs/SESSION_HANDOVER_PROMPT.md)
 
-## Status statement
-Scaffold committed, domain adapters **not connected**, no external providers and no active production URL. Work remaining is documented rather than silently treated as done. 
+## Development and deployment
 
-
-## Fixture reader development (18 November 2026)
-
-The `feature/local-manga-catalogue-reader` branch adds a fully fictional demonstration separate from an **empty** private collection. It uses CSS cover studies and locally generated abstract PNG page illustrations, not real manga assets. The demo's rating, tags and collections are synthetic and safe to include in public source code. The reader has in-session page resume, keyboard/touch navigation, one-page-ahead preloading, an offline indicator, honest no-data/error states and no external media URL requests. Vertical mode currently steps one page at a time rather than providing continuous scroll.
-
-This is **not** proof of production readiness. See [development/verification report](docs/DEVELOPMENT_REPORT_2026-11-18.md), [source-rights/private adapter proposal](docs/adr/006-manga-rights-and-private-asset-adapter.md) and [potential Shared Core components](docs/SHARED_CORE_RFC_001.md). The code has **not** had an online npm install, reliable typecheck, Vitest, Vite build or responsive browser run in this environment.
-
-### Quick test once npm and GitHub Actions execution are restored
+Node.js 22+:
 
 ```bash
-npm install --no-audit --no-fund
+npm ci
 npm run typecheck
 npm test
 npm run build
-npm run dev
+E2E_PRODUCTION=1 npm run test:e2e
 ```
 
-After the online install, inspect and commit a *genuine* `package-lock.json`, then replace the CI install step with `npm ci`. Do not commit an empty/offline-generated lockfile.
+The production source branch is `master`, with Cloudflare Pages Git integration expected to deploy `npm ci && npm run build` from `dist`. A successful GitHub CI run confirms repository code quality, **not** that Cloudflare has published the same commit. See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
-### Repository visibility and content privacy
+## Current limitations
 
-On 18 November 2026 the owner explicitly approved making the **source repository public**. GitHub confirmed the repository is **public** on 18 November 2026. This changes code visibility only, never the privacy of future personal media or data. A public source repository is compatible with a private personal catalogue **only** when future server-side access control, asset authorisation and storage are implemented separately. No auth, private data, private media or deployment is present in this fixture branch.
+Private Hugging Face storage integration, user authentication, authorised media delivery and cross-device progress persistence remain separate future work. No private manga content belongs in Git or an unauthorised public static site.
 
-### Reuse and licensing
+## Licensing
 
-Repository visibility and code licensing are different decisions. No standalone software licence has been selected in this repository; public source visibility alone does not establish an open-source redistribution licence. Select an explicit licence before presenting this project as open-source software. Private manga and personal data must remain separately authorised regardless of any future code licence.
-
-## Live synthetic demonstration
-
-The `master` branch has a gated GitHub Pages workflow: only after `npm ci`, typechecking, **19 Vitest unit tests**, a Vite production build and **12 Playwright browser tests** succeed will it publish the synthetic demo. It cannot deploy private manga, as none is connected. A real public preview URL must be confirmed from the first successful Pages deployment; do not invent one before it exists.
-
-For a future Cloudflare Pages site, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). The Git integration build uses `npm ci && npm run build`, output `dist`, production branch `master`. Cloudflare deployment requires an owner-controlled connection in the Cloudflare dashboard. No credentials are needed or accepted in browser source.
+A public repository does not grant a manga redistribution licence. No standalone software licence has been selected; treat the repository as source-visible rather than licensed open-source code until one is chosen.
