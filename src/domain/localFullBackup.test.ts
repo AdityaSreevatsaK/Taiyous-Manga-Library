@@ -3,6 +3,7 @@ import { demoEntries, demoManifests } from '../data/fixtures';
 import { loadProgress, saveProgress } from './localReaderStorage';
 import { readAnnotation, saveAnnotation, annotationKey } from './personalAnnotations';
 import { readShelf, saveShelf, shelfKey } from './personalShelves';
+import { createCollection,loadCollections,saveCollections,setCollectionMembership } from './personalCollections';
 import { exportFullBackup, previewFullBackup, restoreFullBackup } from './localFullBackup';
 import { exportLocalReaderBackup } from './localReaderBackup';
 import type { MangaProgress } from './types';
@@ -94,6 +95,43 @@ describe('versioned personal backups',()=>{
     expect(()=>preview({...doc,annotations:[doc.annotations[0],doc.annotations[0]]})).toThrow('duplicate');
     expect(()=>preview({...doc,shelves:[{mangaId:first.id,shelf:'unknown'}]})).toThrow('invalid or duplicate');
     expect(store.length).toBe(0);
+  });
+  it('round-trips nested collections without replacing existing personal organisation',()=>{
+    const source=memory(),target=memory();
+    let tree=createCollection({schemaVersion:1,mediaKind:'manga',revision:0,items:[]},
+      'collection_root','Favourites');
+    tree=createCollection(tree,'collection_child','Romance','collection_root');
+    tree=setCollectionMembership(tree,'collection_child',first.id,true);
+    expect(saveCollections(tree,0,source).status).toBe('ok');
+    const exportDoc=exportFullBackup(demoEntries,demoManifests,source).document;
+    expect(exportDoc.collections?.items).toHaveLength(2);
+    const plan=previewFullBackup(exportDoc,demoEntries,demoManifests,target);
+    expect(plan.collectionsRestorable).toBe(2);
+    const imported=restoreFullBackup(plan,demoEntries,demoManifests,target,false,true);
+    expect(imported.collectionsRestored).toBe(2);
+    expect(loadCollections(target)).toMatchObject({status:'ok',value:{items:[
+      {id:'collection_root'}, {id:'collection_child',parentId:'collection_root',mangaIds:[first.id]},
+    ]}});
+    const again=restoreFullBackup(plan,demoEntries,demoManifests,target,false,true);
+    expect(again.collectionsRestored).toBe(0);
+    expect(again.collectionsSkipped).toBe(2);
+    // Preserve local renamed groups rather than rewinding them to a backup.
+    const current=loadCollections(target);
+    if(current.status!=='ok')throw Error('Expected collections');
+    const changed={...current.value,items:current.value.items.map(item=>
+      item.id==='collection_root'?{...item,name:'Edited Locally'}:item)};
+    expect(saveCollections(changed,current.value.revision,target).status).toBe('ok');
+    restoreFullBackup(plan,demoEntries,demoManifests,target,false,true);
+    expect(loadCollections(target)).toMatchObject({status:'ok',value:{items:[{name:'Edited Locally'}]}});
+  });
+  it('accepts v2 exports made before collections existed but rejects damaged trees',()=>{
+    const store=memory();
+    const exported=exportFullBackup(demoEntries,demoManifests,store).document;
+    const {collections:_omit,...oldV2}=exported;
+    expect(previewFullBackup(oldV2,demoEntries,demoManifests,store).collections).toBeNull();
+    expect(()=>previewFullBackup({...oldV2,collections:{schemaVersion:1,mediaKind:'manga',
+      revision:0,items:[{id:'abc',name:'Broken',parentId:'missing',mangaIds:[]}]}}
+      ,demoEntries,demoManifests,store)).toThrow('invalid collection tree');
   });
   it('handles blocked browser storage safely and never deletes existing records',()=>{
     const source=memory(),target=memory();

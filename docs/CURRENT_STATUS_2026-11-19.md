@@ -13,10 +13,10 @@ The canonical production branch is `master`; this document records the verified 
 - Six themes with Sepia default and legacy Dark/Light preference migration.
 - Two approved transparent logo variants and matching favicons/PWA artwork from the Novel Library's optimised approved assets.
 - Top-left status ribbons, searchable chapters, bounded synopsis and a bottom chapter selector.
-- Personal shelves are per-series, versioned, local only and are NOT YET included in the manual reader JSON backup. Back up browser storage separately before clearing it.
+- Personal shelves, ratings, notes, tags and nested collections use versioned local storage and the v2 personal JSON backup; legacy v1 reader backups remain importable. Offline manga images are never included.
 
 ## Boundaries and remaining work
-- Personal ratings/notes, nested collections, personal tags, full advanced search, browser-based usage time analytics and secure private data are still planned.
+- Personal ratings/notes, nested collections and personal tags are implemented locally. Full advanced search, longitudinal usage analytics and secure private data integration remain planned.
 - Branch protection and Cloudflare gating require account-level settings not currently accessible to the GitHub App.
 - Firefox/WebKit, iOS/Android devices and very long chapter benchmarking remain to be verified.
 - No fake private connection, no private media and no destructive migration.
