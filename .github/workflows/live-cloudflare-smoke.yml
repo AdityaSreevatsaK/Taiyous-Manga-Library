@@ -1,14 +1,16 @@
 name: Live Cloudflare smoke
 
 on:
-  pull_request:
-    paths:
-      - '.github/workflows/live-cloudflare-smoke.yml'
-      - 'scripts/live-cloudflare-smoke.mjs'
+  push:
+    branches: [master]
   workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: live-cloudflare-production
+  cancel-in-progress: true
 
 jobs:
   live-smoke:
@@ -22,7 +24,19 @@ jobs:
           node-version: '22'
       - name: Install locked dependencies
         run: npm ci --no-audit --no-fund
-      - name: Build current commit
+      - name: Build current master commit
         run: npm run build
-      - name: Compare deployed application with current commit
-        run: node scripts/live-cloudflare-smoke.mjs
+      - name: Wait for Cloudflare and check deployed app
+        shell: bash
+        run: |
+          # Cloudflare's Git integration builds asynchronously after a master push.
+          # Never call a stale deployment healthy merely because the homepage loads.
+          for attempt in $(seq 1 18); do
+            echo "Checking Cloudflare production build: attempt $attempt of 18"
+            if node scripts/live-cloudflare-smoke.mjs; then
+              exit 0
+            fi
+            if [ "$attempt" -lt 18 ]; then sleep 12; fi
+          done
+          echo "Cloudflare did not serve this master build within the verification window."
+          exit 1
