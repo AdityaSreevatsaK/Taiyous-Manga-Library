@@ -7,6 +7,8 @@ import { LocalBackupControl } from './components/LocalBackupControl';
 import { VerticalReader } from './components/VerticalReader';
 import { CATALOGUE_SECTIONS, parseAppRoute, routeHref, type AppRoute, type CatalogueSection } from './domain/routes';
 import { loadShelves, saveShelf, type PersonalShelf, type ShelfSelection } from './domain/personalShelves';
+import { addPersonalTag, loadAnnotations, saveAnnotation, type AnnotationPatch,
+  type PersonalAnnotation } from './domain/personalAnnotations';
 import { defaultReaderPreferences, laterProgress, loadAllProgress, loadPreferences, loadProgress,
   nextProgressTimestamp, savePreferences, saveProgress, type ReaderPreferences } from './domain/localReaderStorage';
 import { filterCatalogue, type SortMode } from './domain/filters';
@@ -47,6 +49,11 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
     window.matchMedia?.('(max-width: 740px)').matches || false);
   const [personalShelves, setPersonalShelves] = useState<Record<string, PersonalShelf>>(() =>
     loadShelves(initialDemo ? demoEntries : realEntries).shelves);
+  const [annotations, setAnnotations] = useState<Record<string, PersonalAnnotation>>(() =>
+    loadAnnotations(initialDemo ? demoEntries : realEntries).annotations);
+  const [noteDraft, setNoteDraft] = useState('');
+  const [tagDraft, setTagDraft] = useState('');
+  const [confirmRemoveTag, setConfirmRemoveTag] = useState<string | null>(null);
   const [preferences, setPreferences] = useState<ReaderPreferences>(() => {
     const read = loadPreferences();
     return read.status === 'ok' ? read.value : defaultReaderPreferences;
@@ -74,7 +81,8 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
   const manifest = location ? manifests.get(location.chapterId) : undefined;
   const chapters = entry ? orderedChapters(entry) : [];
   const activeChapter = chapters.find(chapter => chapter.id === location?.chapterId);
-  const allTags = [...new Set(catalogue.flatMap(item => item.tags))].sort();
+  const allTags = [...new Set(catalogue.flatMap(item =>
+    [...item.tags, ...(annotations[item.id]?.tags ?? [])]))].sort((a,b)=>a.localeCompare(b));
   const allCollections = [...new Set(catalogue.flatMap(item => item.collections ?? []))].sort();
   const labels: Record<CatalogueSection, string> = {
     home: 'Home', reading: 'Currently Reading', trying: 'Trying Out',
@@ -99,9 +107,10 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
     ['reading','trying','offline'].includes(section)) : CATALOGUE_SECTIONS;
   const moreNav = compactNav ? CATALOGUE_SECTIONS.filter(section => !currentNav.includes(section)) : [];
 
-  const filtered = useMemo(
-    () => filterCatalogue(catalogue, query, status, tag, collection, sort),
-    [catalogue, query, status, tag, collection, sort],
+  const filtered = useMemo(() => filterCatalogue(catalogue, query, status, '', collection, sort)
+    .filter(item => !tag || [...item.tags,...(annotations[item.id]?.tags ?? [])]
+      .some(value => value.toLocaleLowerCase('en') === tag.toLocaleLowerCase('en'))),
+    [catalogue, query, status, tag, collection, sort, annotations],
   );
   const offlineSeries = catalogue.filter(item => item.chapters.some(chapter => offlineChapterIds.has(chapter.id)));
   const displayed = screen.kind === 'catalogue' ? filtered.filter(item => onShelf(item, screen.section)) : filtered;
@@ -147,6 +156,22 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
   // Only reload offline metadata when the selected source or inventory changes.
   }, [demo, inventoryRevision]);
 
+  useEffect(() => {
+    setNoteDraft(entry ? annotations[entry.id]?.notes ?? '' : '');
+    setTagDraft('');
+    setConfirmRemoveTag(null);
+  // Changing a rating must not erase unsaved notes; only change drafts when the manga changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entry?.id]);
+  useEffect(() => {
+    const onStorageAnnotations = (event: StorageEvent) => {
+      if (event.key === null || event.key.startsWith('taiyou-manga:personal-annotation:v1:')) {
+        setAnnotations(loadAnnotations(catalogue).annotations);
+      }
+    };
+    window.addEventListener('storage', onStorageAnnotations);
+    return () => window.removeEventListener('storage', onStorageAnnotations);
+  }, [catalogue]);
   useEffect(() => {
     const onStorageShelf = (event: StorageEvent) => {
       if (event.key === null || event.key.startsWith('taiyou-manga:personal-shelf:v1:'))
@@ -327,6 +352,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
     exitImmersive();
     setDemo(value); setLocation(null); setNotice(''); goCatalogue('home');
     setPersonalShelves(loadShelves(value ? demoEntries : realEntries).shelves);
+    setAnnotations(loadAnnotations(value ? demoEntries : realEntries).annotations);
     setQuery(''); setTag(''); setCollection(''); setStatus('all');
   }
   function changeShelf(item: MangaEntry, shelf: ShelfSelection) {
@@ -341,6 +367,35 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
     } else setStorageNotice(outcome === 'invalid' ?
       'The saved shelf record is invalid and was preserved. Please export your data before recovery.' :
       'Browser storage is unavailable. Your shelf selection was not saved.');
+  }
+  function changeAnnotation(item: MangaEntry, patch: AnnotationPatch, message: string): boolean {
+    const saved = saveAnnotation(item.id, patch);
+    if (saved.status === 'ok') {
+      setAnnotations(previous => ({...previous, [item.id]:saved.value}));
+      setShelfNotice(message);
+      return true;
+    }
+    setStorageNotice(saved.status === 'invalid' ?
+      'The personal annotation is invalid or corrupt. Its original data was preserved.' :
+      'Browser storage is unavailable or full. The annotation was not saved.');
+    return false;
+  }
+  function addTag(item: MangaEntry) {
+    try {
+      const existing = annotations[item.id]?.tags ?? [];
+      const tags = addPersonalTag(existing, tagDraft);
+      if (tags.length === existing.length) {
+        setShelfNotice('This tag is already attached.');
+        return;
+      }
+      if (changeAnnotation(item, {tags}, 'Personal tag added')) setTagDraft('');
+    } catch (error) {
+      setStorageNotice(error instanceof Error ? error.message : 'Cannot add this tag.');
+    }
+  }
+  function removePersonalTag(item: MangaEntry, value: string) {
+    const tags = (annotations[item.id]?.tags ?? []).filter(tag => tag !== value);
+    if (changeAnnotation(item, {tags}, 'Personal tag removed')) setConfirmRemoveTag(null);
   }
   function jumpToFilter(kind: 'tag' | 'collection', value: string) {
     setTag(kind === 'tag' ? value : '');
@@ -500,7 +555,8 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
                 {progress[item.id] && restoreProgress(item,manifests,progress[item.id]) &&
                   <span className="book-progress">In progress · Chapter {orderedChapters(item)
                     .findIndex(chapter=>chapter.id===progress[item.id]!.chapterId) + 1} of {item.chapters.length}</span>}
-                <span className="book-micro">{item.rating ? '★ ' + item.rating + '/10 (sample)' : ''} <span aria-hidden="true">↗</span></span>
+                <span className="book-micro">{annotations[item.id]?.rating ? '★ ' + annotations[item.id]!.rating + '/10 (mine)' :
+                  item.rating ? '★ ' + item.rating + '/10 (sample)' : ''} <span aria-hidden="true">↗</span></span>
               </span>
             </a>)}</div> :
             <div className="empty-state"><span className="empty-icon" aria-hidden="true">◇</span>
@@ -526,7 +582,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
             <div className="tag-row">{entry.tags.map(value=><button type="button" className="tag" key={value}
               onClick={()=>jumpToFilter('tag',value)} title={'Filter All Manga by ' + value}>{value}</button>)}</div>
             <div className="stat-strip"><span><strong>{entry.chapters.length}</strong> chapters</span>
-              <span><strong>{entry.rating ?? '–'}</strong> sample rating / 10</span>
+              <span><strong>{annotations[entry.id]?.rating ?? entry.rating ?? '–'}</strong> {annotations[entry.id]?.rating ? 'my' : 'sample'} rating / 10</span>
               <span><strong>Scroll</strong> continuous chapter view</span></div>
             <div className="personal-shelf-selector">
               <label>Personal reading shelf
@@ -548,7 +604,58 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
               {progressForEntry && <a className="secondary"
                 href={routeHref({kind:'reader',mangaId:entry.id,chapterId:chapters[0]?.id ?? 'unavailable',pageIndex:0},import.meta.env.BASE_URL)}
                 onClick={event=>followLink(event,()=>openChapter(entry,chapters[0]?.id))}>Start from chapter one</a>}</div>
-            <p className="fine-print">Reading progress is stored locally on this device, when browser storage permits. Cross-device sync is not enabled.</p>
+            <p className="fine-print">Reading progress and personal notes stay on this device. Cross-device synchronisation is not enabled.</p>
+          </div>
+        </section>
+        <section className="personal-annotations" aria-label="Personal manga annotations">
+          <h2>My notes and tags</h2>
+          <p>These are private to this browser. They are not part of the public demonstration catalogue.</p>
+          <div className="personal-rating">
+            <strong>Personal rating</strong>
+            <div className="rating-stars" role="group" aria-label="Personal rating">
+              {Array.from({length:10},(_,index)=>index+1).map(value=>
+                <button key={value} type="button" aria-label={'Rate ' + value + ' out of 10'}
+                  aria-pressed={annotations[entry.id]?.rating === value}
+                  style={{opacity: annotations[entry.id]?.rating && value <= annotations[entry.id]!.rating!
+                    ? Math.min(1,0.38 + annotations[entry.id]!.rating! * 0.062) : 0.26}}
+                  onClick={()=>changeAnnotation(entry,{rating:value},'Rating saved')}>★</button>)}
+              <span aria-live="polite">{annotations[entry.id]?.rating ? annotations[entry.id]!.rating + ' / 10' : 'No personal rating'}</span>
+            </div>
+            {annotations[entry.id]?.rating && <button className="secondary" type="button"
+              onClick={()=>changeAnnotation(entry,{rating:null},'Personal rating cleared')}>Clear rating</button>}
+          </div>
+          <div className="personal-tag-editor">
+            <strong>Personal tags</strong>
+            <div className="tag-row">
+              {(annotations[entry.id]?.tags ?? []).map(value=><span className="personal-tag" key={value}>
+                <button className="tag" type="button" onClick={()=>jumpToFilter('tag',value)}>{value}</button>
+                <button className="tag-remove" type="button" aria-label={'Remove tag ' + value}
+                  onClick={()=>setConfirmRemoveTag(value)}>×</button>
+              </span>)}
+            </div>
+            <div className="tag-entry">
+              <label>Add a personal tag
+                <input type="text" value={tagDraft} maxLength={48} list="personal-tag-suggestions"
+                  onChange={event=>setTagDraft(event.target.value)}
+                  onKeyDown={event=>{if(event.key === 'Enter'){event.preventDefault();addTag(entry);}}}
+                  placeholder="e.g. Romance" /></label>
+              <datalist id="personal-tag-suggestions">{allTags.map(value=><option key={value} value={value}/>)}</datalist>
+              <button type="button" className="secondary" disabled={!tagDraft.trim()} onClick={()=>addTag(entry)}>Add tag</button>
+            </div>
+          </div>
+          <div className="personal-notes-editor">
+            <label>Personal notes
+              <textarea value={noteDraft} maxLength={5000} rows={4}
+                onChange={event=>setNoteDraft(event.target.value)} placeholder="Your thoughts about this manga..." />
+            </label>
+            <div className="notes-actions">
+              <button className="primary" type="button"
+                disabled={noteDraft === (annotations[entry.id]?.notes ?? '')}
+                onClick={()=>changeAnnotation(entry,{notes:noteDraft},'Notes saved')}>Save notes</button>
+              <button className="secondary" type="button"
+                disabled={noteDraft === (annotations[entry.id]?.notes ?? '')}
+                onClick={()=>setNoteDraft(annotations[entry.id]?.notes ?? '')}>Discard edits</button>
+            </div>
           </div>
         </section>
         <section className="chapter-section"><div className="shelf-heading"><div><p className="eyebrow">CONTENTS / READING ORDER</p><h2>Chapters &amp; volumes</h2></div></div>
@@ -655,6 +762,17 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
       {(screen.kind === 'details' || screen.kind === 'reader') && !entry && <div className="empty-state" role="alert"><h2>Series unavailable</h2>
         <p>This series is no longer in the selected catalogue.</p><button className="secondary" onClick={()=>goCatalogue()}>Return to the shelf</button></div>}
       {notice && screen.kind !== 'reader' && <p className="reader-notice" role="status">{notice}</p>}
+      {confirmRemoveTag && entry && screen.kind === 'details' && <div className="dialog-scrim"
+        onKeyDown={event=>{if(event.key==='Escape')setConfirmRemoveTag(null);}}>
+        <div className="app-dialog" role="dialog" aria-modal="true" aria-labelledby="confirm-tag-title">
+          <h2 id="confirm-tag-title">Remove personal tag?</h2>
+          <p>Remove “{confirmRemoveTag}” from this manga on this device?</p>
+          <div className="dialog-actions">
+            <button autoFocus className="secondary" type="button" onClick={()=>setConfirmRemoveTag(null)}>Cancel</button>
+            <button className="primary" type="button" onClick={()=>removePersonalTag(entry,confirmRemoveTag)}>Remove tag</button>
+          </div>
+        </div>
+      </div>}
       {storageNotice && <p className="storage-notice" role="status">{storageNotice}</p>}
       {shelfNotice && <div className="success-toast" role="status">
         <span>{shelfNotice}</span><button type="button" aria-label="Dismiss notification" onClick={()=>setShelfNotice('')}>×</button>

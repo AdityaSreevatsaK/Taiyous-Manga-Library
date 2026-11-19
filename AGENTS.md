@@ -55,3 +55,6 @@ The owner authorised public **source code** on 18 November 2026. This is not app
 - Personal reading shelf values and publication statuses are independent; shelf state is device-local pending secure cloud sync.
 - Use diagonal text ribbons on covers. No "Unrated" labels, browser-native confirms or fake connectivity.
 - Merge and deploy once CI passes unless the owner explicitly asks to stop. Preserve real user progress, downloaded images and rollback compatibility.
+
+## Personal metadata acceptance
+Keep personal rating, notes, tags and shelves strictly in device-local versioned stores until reviewed server-side authorisation. Do not expose them in public static fixtures, telemetry, assets or URLs. Reader and publication statuses must stay independent. All destructive personal data operations require an application confirmation, not a browser alert. Treat invalid existing storage as immutable recovery evidence.
