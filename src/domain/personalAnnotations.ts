@@ -50,7 +50,7 @@ function isObject(input: unknown): input is Record<string, unknown> {
 }
 export function validatePersonalAnnotation(id: string, value: unknown): PersonalAnnotation {
   if (!ID.test(id) || !isObject(value) || value.mangaId !== id ||
-      !(value.rating === null || (Number.isInteger(value.rating) && Number(value.rating) >= 1 && Number(value.rating) <= 10)) ||
+      !(value.rating === null || (typeof value.rating === 'number' && Number.isInteger(value.rating) && value.rating >= 1 && value.rating <= 10)) ||
       typeof value.notes !== 'string' || value.notes.length > MAX_NOTES ||
       /[\u0000-\u0008\u000b\u000c\u000e-\u001f]/u.test(value.notes) ||
       !Array.isArray(value.tags) ||
