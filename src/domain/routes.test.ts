@@ -2,6 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { parseAppRoute, routeHref } from './routes';
 
 describe('stable browser routes', () => {
+  it('routes all eight library sections without breaking old library bookmarks', () => {
+    for (const section of ['reading','trying','offline','finished','to-read','library','analytics'] as const) {
+      expect(parseAppRoute('/'+section)).toEqual({kind:section});
+      expect(routeHref({kind:section})).toBe('/'+section);
+    }
+    expect(parseAppRoute('/unknown-section')).toEqual({kind:'not-found'});
+  });
   it('distinguishes home, library, details, and chapter page', () => {
     expect(parseAppRoute('/', '')).toEqual({ kind: 'home' });
     expect(parseAppRoute('/library')).toEqual({ kind: 'library' });
