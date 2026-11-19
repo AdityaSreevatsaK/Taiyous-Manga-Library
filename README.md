@@ -1,12 +1,10 @@
 # Taiyou's Manga Library
 
-> **Public-source synthetic manga reader.** The five reader milestones were merged into `master` on 19 November 2026. The latest merged application is at commit `faf7b515`; the deployment must be checked independently because Cloudflare Pages was disconnected from GitHub. The application intentionally uses fictional demonstration content rather than personal manga images.
+> **Live synthetic manga reader:** [taiyous-manga-library.pages.dev](https://taiyous-manga-library.pages.dev/). The public build contains only fictional demonstration artwork, including a five-chapter trial. No personal manga files, Hugging Face tokens or private catalogues are included.
 >
-> **Verified on GitHub Actions:** TypeScript typecheck, 34 unit tests, production build, production bundle budgets and 37 Playwright browser tests passed on the release commit. [Review the CI run](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/actions/runs/44503328931).
+> **Release checks:** GitHub Actions runs TypeScript, unit, production-build and Chromium browser tests. After each `master` push, a separate live workflow verifies Cloudflare has deployed the exact build, its deep links and offline service worker. Passing CI does not replace real-device testing.
 >
-> **Live deployment:** [taiyous-manga-library.pages.dev](https://taiyous-manga-library.pages.dev/). A remote smoke check on 19 November found the previous production build still live, with the new offline service worker missing. See [deployment verification PR #15](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/pull/15).
->
-> **Privacy:** No real manga media, private Hugging Face datasets or authentication credentials have been added. Cloudflare access, private asset delivery and cross-device sync are not yet implemented.
+> **Privacy:** No authentication, private asset delivery or automatic cross-device sync is implemented. Manual backup and restore of local reading positions is available without uploading user data.
 
 ## Mission
 Read and organise legitimately acquired manga with chapter/page-level progress and optional offline access. The user experience should remain readable, fast, polished and accessible on phones, tablets and desktop. The existing novel library is the visual inspiration, not an implementation dependency.
@@ -28,16 +26,16 @@ Read and organise legitimately acquired manga with chapter/page-level progress a
 
 - Continuous full-chapter vertical scrolling with Previous/Next navigating **chapters only**, mobile layouts, focus mode and reading preferences.
 - Browser deep links and Back/Forward navigation for catalogue, series and chapters.
-- Versioned local progress and reading settings, with safe handling of stale or corrupt records.
+- Versioned local progress, Continue Reading shelf and manual JSON backup/restore. Malformed data is preserved and newer progress is not overwritten.
 - Opt-in offline downloads for fictional chapters, offline library navigation, service worker and cache-integrity tests.
-- Accessibility, error recovery, responsive and production-browser checks.
+- Accessibility, error recovery, responsive and production-browser checks, plus automated live Cloudflare smoke verification.
 
 The current catalogue includes **Five Chapter Scroll Trial**, containing 36 original illustration pages over five chapters, with no real manga or private backend connected. See the [chapter reader acceptance checklist](docs/CHAPTER_READER_ACCEPTANCE.md) to test scrolling, chapter navigation, offline copies and progress on mobile.
 
 ## Non-negotiable boundaries
 - The owner has authorised public repository source visibility. Verify the actual GitHub setting before asserting that the change is live. No personal media or private credentials may be added to Git.
 - No real private media or credentials in Git, browser bundles, test fixtures or GitHub Actions logs.
-- No unapproved automatic production deployment. New code is developed on short-lived branches and reviewed through pull requests.
+- No unapproved production deployment. Owner-approved merges to `master` may automatically deploy through Cloudflare; use short-lived branches, CI and reviewed pull requests.
 - No cross-app single sign-on promises. The deployed Novel Library's Hugging Face OAuth cookie cannot simply authenticate unrelated app origins.
 - No copied entire Novel Library, no Git submodules, no premature shared database.
 - No unlicensed manga downloads, paywall bypass, scraping of protected sites, reader requests to arbitrary URLs, or remote image proxying without SSRF protection.
@@ -72,7 +70,7 @@ The production source branch is `master`, with Cloudflare Pages Git integration 
 
 ## Current limitations
 
-Private Hugging Face storage integration, user authentication, authorised media delivery and cross-device progress persistence remain separate future work. No private manga content belongs in Git or an unauthorised public static site.
+Private Hugging Face storage integration, user authentication, authorised media delivery and **automatic** cross-device progress sync remain separate future work. Manual progress transfer is available through the library's local backup panel. No private manga content belongs in Git or an unauthorised public static site.
 
 ## Licensing
 
