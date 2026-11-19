@@ -5,7 +5,8 @@ import { verifyOfflineChapter } from './data/offlineChapters';
 import { OfflineChapterControl } from './components/OfflineChapterControl';
 import { LocalBackupControl } from './components/LocalBackupControl';
 import { VerticalReader } from './components/VerticalReader';
-import { parseAppRoute, routeHref, type AppRoute } from './domain/routes';
+import { CATALOGUE_SECTIONS, isCatalogueSection, parseAppRoute, routeHref, type AppRoute, type CatalogueSection } from './domain/routes';
+import { loadShelves, saveShelf, type PersonalShelf, type ShelfSelection } from './domain/personalShelves';
 import { defaultReaderPreferences, laterProgress, loadAllProgress, loadPreferences, loadProgress,
   nextProgressTimestamp, savePreferences, saveProgress, type ReaderPreferences } from './domain/localReaderStorage';
 import { filterCatalogue, type SortMode } from './domain/filters';
@@ -13,7 +14,7 @@ import { orderedChapters, restoreProgress, stepChapter, type ReaderLocation } fr
 import type { ChapterManifest, MangaEntry, MangaProgress, PublicationStatus } from './domain/types';
 import './styles.css';
 
-type Screen = { kind: 'catalogue'; section: 'home' | 'library' | 'offline' } | { kind: 'details' | 'reader'; id: string } | { kind: 'not-found' };
+type Screen = { kind: 'catalogue'; section: CatalogueSection } | { kind: 'details' | 'reader'; id: string } | { kind: 'not-found' };
 function currentBrowserRoute(): AppRoute {
   return typeof window === 'undefined' ? { kind: 'home' } :
     parseAppRoute(window.location.pathname, window.location.search, import.meta.env.BASE_URL);
@@ -23,7 +24,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
   const initialRoute = useMemo(currentBrowserRoute, []);
   const [demo, setDemo] = useState(initialDemo);
   const [screen, setScreen] = useState<Screen>(() => {
-    if (initialRoute.kind === 'home' || initialRoute.kind === 'library' || initialRoute.kind === 'offline') {
+    if (isCatalogueSection(initialRoute.kind)) {
       return { kind: 'catalogue', section: initialRoute.kind };
     }
     if (initialRoute.kind === 'not-found') return { kind: 'not-found' };
@@ -41,6 +42,11 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
   const [tag, setTag] = useState('');
   const [collection, setCollection] = useState('');
   const [sort, setSort] = useState<SortMode>('title');
+  const [chapterQuery, setChapterQuery] = useState('');
+  const [compactNav, setCompactNav] = useState(() => typeof window !== 'undefined' &&
+    window.matchMedia?.('(max-width: 740px)').matches || false);
+  const [personalShelves, setPersonalShelves] = useState<Record<string, PersonalShelf>>(() =>
+    loadShelves(initialDemo ? demoEntries : realEntries).shelves);
   const [preferences, setPreferences] = useState<ReaderPreferences>(() => {
     const read = loadPreferences();
     return read.status === 'ok' ? read.value : defaultReaderPreferences;
@@ -52,6 +58,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
       { chapterId: initialRoute.chapterId, pageIndex: initialRoute.pageIndex } : null);
   const [progress, setProgress] = useState<Record<string, MangaProgress>>(() =>
     loadAllProgress(initialDemo ? demoEntries : realEntries, initialDemo ? demoManifests : new Map()).progress);
+  const [shelfNotice, setShelfNotice] = useState('');
   const [storageNotice, setStorageNotice] = useState(() => {
     const snapshot = loadAllProgress(initialDemo ? demoEntries : realEntries, initialDemo ? demoManifests : new Map());
     return snapshot.invalid > 0 ? 'Some saved reading records could not be verified. They were preserved for recovery.' : '';
@@ -69,11 +76,35 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
   const activeChapter = chapters.find(chapter => chapter.id === location?.chapterId);
   const allTags = [...new Set(catalogue.flatMap(item => item.tags))].sort();
   const allCollections = [...new Set(catalogue.flatMap(item => item.collections ?? []))].sort();
+  const labels: Record<CatalogueSection, string> = {
+    home: 'Home', reading: 'Currently Reading', trying: 'Trying Out',
+    offline: 'Available Offline', finished: 'Finished', 'to-read': 'To Be Read',
+    library: 'All Manga', analytics: 'Analytics',
+  };
+  const onShelf = (item: MangaEntry, section: CatalogueSection) => {
+    if (section === 'reading') return !!progress[item.id] && personalShelves[item.id] !== 'finished' &&
+      personalShelves[item.id] !== 'trying' && personalShelves[item.id] !== 'to-read';
+    if (section === 'trying') return personalShelves[item.id] === 'trying';
+    if (section === 'finished') return personalShelves[item.id] === 'finished';
+    if (section === 'to-read') return personalShelves[item.id] === 'to-read';
+    if (section === 'offline') return item.chapters.some(chapter => offlineChapterIds.has(chapter.id));
+    return true;
+  };
+  const counts: Record<CatalogueSection, number> = Object.fromEntries(CATALOGUE_SECTIONS.map(section =>
+    [section, section === 'offline' ? offlineChapterIds.size :
+      section === 'analytics' || section === 'home' ? 0 : catalogue.filter(item => onShelf(item, section)).length],
+  )) as Record<CatalogueSection, number>;
+  const selectedSection = screen.kind === 'catalogue' ? screen.section : null;
+  const currentNav = compactNav ? CATALOGUE_SECTIONS.filter(section =>
+    ['reading','trying','offline'].includes(section)) : CATALOGUE_SECTIONS;
+  const moreNav = compactNav ? CATALOGUE_SECTIONS.filter(section => !currentNav.includes(section)) : [];
+
   const filtered = useMemo(
     () => filterCatalogue(catalogue, query, status, tag, collection, sort),
     [catalogue, query, status, tag, collection, sort],
   );
   const offlineSeries = catalogue.filter(item => item.chapters.some(chapter => offlineChapterIds.has(chapter.id)));
+  const displayed = screen.kind === 'catalogue' ? filtered.filter(item => onShelf(item, screen.section)) : filtered;
   const continueReading = catalogue
     .map(item => ({ item, saved: progress[item.id], resume: restoreProgress(item, manifests, progress[item.id]) }))
     .filter((value): value is { item: MangaEntry; saved: MangaProgress; resume: ReaderLocation } =>
@@ -81,6 +112,20 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
     .sort((a, b) => Date.parse(b.saved.updatedAt) - Date.parse(a.saved.updatedAt))
     .slice(0, 4);
 
+  useEffect(() => {
+    const media = window.matchMedia?.('(max-width: 740px)');
+    if (!media) return;
+    const update = () => setCompactNav(media.matches);
+    update(); media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
+  useEffect(() => {
+    const dark = ['charcoal', 'midnight', 'plum'].includes(preferences.theme);
+    const icon = document.querySelector<HTMLLinkElement>('#taiyou-favicon');
+    if (icon) icon.href = import.meta.env.BASE_URL + 'branding/favicon-' + (dark ? 'dark' : 'light') + '.png';
+    const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+    if (meta) meta.content = dark ? '#171b25' : preferences.theme === 'ocean' ? '#e3f1fa' : '#ede1cd';
+  }, [preferences.theme]);
   useEffect(() => {
     if (!import.meta.env.PROD || !('serviceWorker' in navigator)) return;
     void navigator.serviceWorker.register(import.meta.env.BASE_URL + 'sw.js', {
@@ -102,6 +147,14 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
   // Only reload offline metadata when the selected source or inventory changes.
   }, [demo, inventoryRevision]);
 
+  useEffect(() => {
+    const onStorageShelf = (event: StorageEvent) => {
+      if (event.key === null || event.key.startsWith('taiyou-manga:personal-shelf:v1:'))
+        setPersonalShelves(loadShelves(catalogue).shelves);
+    };
+    window.addEventListener('storage', onStorageShelf);
+    return () => window.removeEventListener('storage', onStorageShelf);
+  }, [catalogue]);
   useEffect(() => {
     const onStorage = (event: StorageEvent) => {
       if (event.key === null || !event.key.startsWith('taiyou-manga:progress:v1:')) return;
@@ -225,7 +278,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
   }
   function applyRoute(route: AppRoute) {
     setNotice('');
-    if (route.kind === 'home' || route.kind === 'library' || route.kind === 'offline') {
+    if (isCatalogueSection(route.kind)) {
       exitImmersive();
       setLocation(null);
       setScreen({ kind: 'catalogue', section: route.kind });
@@ -267,13 +320,32 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
     event.preventDefault();
     action();
   }
-  function goCatalogue(section: 'home' | 'library' | 'offline' = 'library') {
+  function goCatalogue(section: CatalogueSection = 'library') {
     navigateTo({ kind: section });
   }
   function changeDemo(value: boolean) {
     exitImmersive();
     setDemo(value); setLocation(null); setNotice(''); goCatalogue('home');
+    setPersonalShelves(loadShelves(value ? demoEntries : realEntries).shelves);
     setQuery(''); setTag(''); setCollection(''); setStatus('all');
+  }
+  function changeShelf(item: MangaEntry, shelf: ShelfSelection) {
+    const outcome = saveShelf(item.id, shelf);
+    if (outcome === 'ok') {
+      setPersonalShelves(previous => {
+        const next = { ...previous };
+        if (shelf === null) delete next[item.id]; else next[item.id] = shelf;
+        return next;
+      });
+      setShelfNotice(shelf ? 'Saved to ' + labels[shelf === 'trying' ? 'trying' : shelf === 'finished' ? 'finished' : 'to-read'] : 'Removed from personal shelf');
+    } else setStorageNotice(outcome === 'invalid' ?
+      'The saved shelf record is invalid and was preserved. Please export your data before recovery.' :
+      'Browser storage is unavailable. Your shelf selection was not saved.');
+  }
+  function jumpToFilter(kind: 'tag' | 'collection', value: string) {
+    setTag(kind === 'tag' ? value : '');
+    setCollection(kind === 'collection' ? value : '');
+    goCatalogue('library');
   }
   const progressForEntry = entry ? restoreProgress(entry, manifests, progress[entry.id]) : null;
 
@@ -282,20 +354,42 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
     <a className="skip" href="#content">Skip to content</a>
     <header className="site-header">
       <a className="wordmark" href={routeHref({kind:'home'},import.meta.env.BASE_URL)}
-        onClick={event=>followLink(event,()=>goCatalogue('home'))} aria-label="Taiyou Manga home">
-        <span className="sun-mark" aria-hidden="true">✺</span><span>TAIYOU <small>LIBRARY / MANGA</small></span>
+        onClick={event=>followLink(event,()=>goCatalogue('home'))}
+        aria-current={compactNav && selectedSection === 'home' ? 'page' : undefined}
+        aria-label="Taiyou Manga home">
+        <img className="brand-sun" src={import.meta.env.BASE_URL + 'branding/sun-' +
+          (['charcoal','midnight','plum'].includes(preferences.theme) ? 'dark' : 'light') + '.webp'}
+          width="54" height="54" alt="" /><span>TAIYOU <small>LIBRARY / MANGA</small></span>
       </a>
       <nav className="site-nav" aria-label="Main navigation">
-        {(['home','library','offline'] as const).map(section =>
+        {currentNav.map(section =>
           <a key={section} className="site-nav-link"
-            aria-current={screen.kind === 'catalogue' && screen.section === section ? 'page' : undefined}
+            aria-current={selectedSection === section ? 'page' : undefined}
             href={routeHref({kind:section},import.meta.env.BASE_URL)}
             onClick={event=>followLink(event,()=>goCatalogue(section))}>
-            {section === 'home' ? 'Home' : section === 'library' ? 'Library' : 'Offline (' + offlineChapterIds.size + ')'}
+            {labels[section]} {['reading','trying','offline','finished','to-read'].includes(section) &&
+              <span className="nav-count">({counts[section]})</span>}
           </a>)}
+        {compactNav && <details className="nav-more"><summary>More</summary>
+          <div className="nav-more-menu">{moreNav.map(section =>
+            <a key={section} className="site-nav-link"
+              aria-current={selectedSection === section ? 'page' : undefined}
+              href={routeHref({kind:section},import.meta.env.BASE_URL)}
+              onClick={event=>followLink(event,()=>goCatalogue(section))}>
+              {labels[section]}
+            </a>)}</div>
+          </details>}
       </nav>
-      <div className="header-right"><span className="demo-pill">SAMPLE</span>
-        <span className="network-state">{online ? 'Device online' : 'Device offline'}</span></div>
+      <div className="header-right">
+        <label className="app-theme-label">App theme
+          <select aria-label="App theme" value={preferences.theme}
+            onChange={event=>updatePreferences({...preferences,theme:event.target.value as ReaderPreferences['theme']})}>
+            {(['sepia','paper','charcoal','midnight','ocean','plum'] as const).map(theme =>
+              <option key={theme} value={theme}>{theme[0].toUpperCase() + theme.slice(1)}</option>)}
+          </select></label>
+        <span className="demo-pill">SAMPLE</span>
+        <span className="network-state">{online ? 'Device online' : 'Device offline'}</span>
+      </div>
     </header>
     <main id="content" className="main-area">
       {screen.kind === 'catalogue' && <>
@@ -326,7 +420,18 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
             })}
           </div>
         </section>}
-        {screen.section === 'offline' ? <section className="offline-shelf" aria-label="Offline manga chapters">
+        {screen.section === 'analytics' ? <section className="analytics-shelf" aria-label="Personal reading analytics">
+          <p className="eyebrow">YOUR READING SNAPSHOT / THIS DEVICE</p>
+          <h1>Analytics</h1>
+          <p>Counts reflect locally saved progress and personal shelves, not estimated reading time. No tracking service is connected.</p>
+          <div className="analytics-grid">
+            <div><strong>{Object.keys(progress).length}</strong><span>Series with saved progress</span></div>
+            <div><strong>{counts.finished}</strong><span>Personally finished</span></div>
+            <div><strong>{offlineChapterIds.size}</strong><span>Offline chapters</span></div>
+            <div><strong>{counts['to-read']}</strong><span>On your To Be Read shelf</span></div>
+          </div>
+          <button className="secondary" type="button" onClick={()=>goCatalogue('reading')}>View currently reading</button>
+        </section> : screen.section === 'offline' ? <section className="offline-shelf" aria-label="Offline manga chapters">
           <p className="eyebrow">READY WHEN DISCONNECTED</p>
           <h1>Offline chapters</h1>
           <p>Only chapters you explicitly saved appear here. Removing a copy never clears reading progress.</p>
@@ -359,11 +464,12 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
             if (saved.status === 'ok') setPreferences(saved.value);
           }} />
         <section className="shelf" aria-label="Manga catalogue">
-          <div className="shelf-heading"><div><p className="eyebrow">DISCOVER / THE SHELF</p><h2>{demo ? 'The sample collection' : 'Your collection'}</h2></div>
-            <p>{filtered.length} {filtered.length === 1 ? 'series' : 'series'} shown</p></div>
+          <div className="shelf-heading"><div><p className="eyebrow">DISCOVER / THE SHELF</p>
+              <h2>{screen.section === 'home' ? (demo ? 'The sample collection' : 'Your collection') : labels[screen.section]}</h2>
+            </div><p>{displayed.length} {displayed.length === 1 ? 'series' : 'series'} shown</p></div>
           <div className="toolbar">
             <label className="search-label">Search series or aliases
-              <input type="search" autoComplete="off" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Find a story..." /></label>
+              <input id="catalogue-search" type="search" autoComplete="off" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Find a story..." /></label>
             <label>Publication
               <select value={status} onChange={e=>setStatus(e.target.value as PublicationStatus | 'all')}>
                 <option value="all">All statuses</option><option value="ongoing">Ongoing</option><option value="completed">Completed</option>
@@ -380,25 +486,27 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
                 <option value="title">Title A to Z</option><option value="rating">Rating</option><option value="chapters">Chapter count</option>
               </select></label>
           </div>
-          {filtered.length ? <div className="book-grid">{filtered.map((item, index) =>
+          {displayed.length ? <div className="book-grid">{displayed.map((item, index) =>
             <a className="book-card" key={item.id} href={routeHref({kind:'details',mangaId:item.id},import.meta.env.BASE_URL)}
               onClick={event=>followLink(event,()=>navigateTo({kind:'details',mangaId:item.id}))}>
               <span className={'book-cover cover-'+(demoEntries.findIndex(d=>d.id===item.id)%3+1)}>
+                {item.publicationStatus !== 'unknown' && <span className="status-ribbon">{item.publicationStatus}</span>}
                 <span className="cover-number">{String(index+1).padStart(2,'0')} / T</span>
                 <span className="cover-illustration" aria-hidden="true"><i /><b /></span>
                 <span className="cover-title">{item.title}</span><span className="cover-foot">ORIGINAL DEMONSTRATION</span>
               </span>
               <span className="book-details"><strong>{item.title}</strong>
-                <span>{item.chapters.length} chapters <span aria-hidden="true">·</span> {item.publicationStatus}</span>
+                <span>{item.chapters.length} chapters <span aria-hidden="true">·</span> {item.creators.join(', ')}</span>
                 {progress[item.id] && restoreProgress(item,manifests,progress[item.id]) &&
                   <span className="book-progress">In progress · Chapter {orderedChapters(item)
                     .findIndex(chapter=>chapter.id===progress[item.id]!.chapterId) + 1} of {item.chapters.length}</span>}
-                <span className="book-micro">{item.rating ? '★ ' + item.rating + '/10 (sample)' : 'Not rated'} <span aria-hidden="true">↗</span></span>
+                <span className="book-micro">{item.rating ? '★ ' + item.rating + '/10 (sample)' : ''} <span aria-hidden="true">↗</span></span>
               </span>
             </a>)}</div> :
             <div className="empty-state"><span className="empty-icon" aria-hidden="true">◇</span>
-              <h3>{demo ? 'Nothing matches these filters' : 'Your collection is not connected yet'}</h3>
-              <p>{demo ? 'Try a different search, genre, publication status or collection.' :
+              <h3>{demo ? (screen.section === 'home' || screen.section === 'library' ?
+                'Nothing matches these filters' : 'No manga in ' + labels[screen.section] + ' yet') : 'Your collection is not connected yet'}</h3>
+              <p>{demo ? 'Change a personal shelf on a manga details page, or try different filters.' :
                 'This is an honest empty state. No sign-in, private catalogue or storage integration is enabled.'}</p>
               {demo && <button className="secondary" type="button" onClick={()=>{setQuery('');setTag('');setStatus('all');setCollection('');}}>Clear filters</button>}
             </div>}
@@ -409,15 +517,28 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
           onClick={event=>followLink(event,()=>goCatalogue())}>← Back to the shelf</a>
         <section className="series-detail">
           <div className={'detail-cover cover-'+(demoEntries.findIndex(d=>d.id===entry.id)%3+1)} aria-hidden="true">
+            {entry.publicationStatus !== 'unknown' && <span className="status-ribbon">{entry.publicationStatus}</span>}
             <span className="cover-illustration"><i /><b /></span><span className="cover-title">{entry.title}</span>
           </div>
           <div className="detail-content"><p className="eyebrow">SERIES / PRIVATE READING ROOM</p>
             <h1>{entry.title}</h1><p className="detail-sub">{entry.creators.join(', ')} <span aria-hidden="true">·</span> {entry.publicationStatus}</p>
             <p className="detail-description">{entry.synopsis}</p>
-            <div className="tag-row">{entry.tags.map(value=><span className="tag" key={value}>{value}</span>)}</div>
+            <div className="tag-row">{entry.tags.map(value=><button type="button" className="tag" key={value}
+              onClick={()=>jumpToFilter('tag',value)} title={'Filter All Manga by ' + value}>{value}</button>)}</div>
             <div className="stat-strip"><span><strong>{entry.chapters.length}</strong> chapters</span>
               <span><strong>{entry.rating ?? '–'}</strong> sample rating / 10</span>
               <span><strong>Scroll</strong> continuous chapter view</span></div>
+            <div className="personal-shelf-selector">
+              <label>Personal reading shelf
+                <select aria-label="Personal reading shelf" value={personalShelves[entry.id] ?? ''}
+                  onChange={event=>changeShelf(entry, (event.target.value || null) as ShelfSelection)}>
+                  <option value="">No personal shelf</option>
+                  <option value="trying">Trying Out</option>
+                  <option value="to-read">To Be Read</option>
+                  <option value="finished">Finished</option>
+                </select></label>
+              <p>Stored only on this device. Your publication status is not changed.</p>
+            </div>
             <div className="detail-actions">
               <a className="primary" href={routeHref({kind:'reader',mangaId:entry.id,
                 chapterId:progressForEntry?.chapterId ?? chapters[0]?.id ?? 'unavailable',
@@ -431,7 +552,12 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
           </div>
         </section>
         <section className="chapter-section"><div className="shelf-heading"><div><p className="eyebrow">CONTENTS / READING ORDER</p><h2>Chapters &amp; volumes</h2></div></div>
-          {chapters.map((chapter,index)=><div className="chapter-entry" key={chapter.id}>
+          <label className="chapter-search">Search chapters
+            <input type="search" value={chapterQuery} onChange={event=>setChapterQuery(event.target.value)}
+              placeholder="Find a chapter..." />
+          </label>
+          {chapters.filter(chapter => chapter.label.toLocaleLowerCase().includes(chapterQuery.toLocaleLowerCase()))
+            .map(chapter=>{ const index = chapters.findIndex(value=>value.id === chapter.id); return <div className="chapter-entry" key={chapter.id}>
             <a className="chapter-row"
               href={routeHref({kind:'reader',mangaId:entry.id,chapterId:chapter.id,pageIndex:0},import.meta.env.BASE_URL)}
               onClick={event=>followLink(event,()=>openChapter(entry,chapter.id))}>
@@ -441,7 +567,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
               <span className="chapter-open">Read ↗</span></a>
             {manifests.get(chapter.id) && <OfflineChapterControl manifest={manifests.get(chapter.id)!}
               onChange={()=>setInventoryRevision(value=>value+1)} />}
-          </div>)}
+          </div>;})}
         </section>
       </>}
       {screen.kind === 'reader' && entry && location && <section className="reader-shell" ref={readerRef} tabIndex={0}
@@ -470,7 +596,8 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
                 <select value={preferences.theme} onChange={event=>updatePreferences({
                   ...preferences, theme: event.target.value as ReaderPreferences['theme'],
                 })}>
-                  <option value="dark">Dark</option><option value="sepia">Sepia</option><option value="light">Light</option>
+                  {(['sepia','paper','charcoal','midnight','ocean','plum'] as const).map(theme =>
+                    <option key={theme} value={theme}>{theme[0].toUpperCase()+theme.slice(1)}</option>)}
                 </select></label>
               <label>Choose chapter
                 <select value={location.chapterId} onChange={event=>openChapter(entry,event.target.value)}>
@@ -505,9 +632,15 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
         <div className="page-navigation">
           <button className="secondary" type="button" disabled={!stepChapter(entry, manifests, location, -1)}
             onClick={()=>move(-1)}>← Previous chapter</button>
-          <p aria-live="polite">Chapter {chapters.findIndex(chapter=>chapter.id===location.chapterId)+1} of {chapters.length}
-            <span aria-hidden="true"> · </span> {activeChapter?.label}
-            <span aria-hidden="true"> · </span> Page {location.pageIndex+1} of {manifest?.pages.length ?? '?'}</p>
+          <div className="bottom-chapter-picker">
+            <label>Chapter
+              <select aria-label="Bottom chapter selection" value={location.chapterId}
+                onChange={event=>openChapter(entry,event.target.value)}>
+                {chapters.map(chapter=><option key={chapter.id} value={chapter.id}>{chapter.label}</option>)}
+              </select></label>
+            <p aria-live="polite">Chapter {chapters.findIndex(chapter=>chapter.id===location.chapterId)+1} of {chapters.length}
+              <span aria-hidden="true"> · </span> Page {location.pageIndex+1} of {manifest?.pages.length ?? '?'}</p>
+          </div>
           <button className="primary" type="button" disabled={!stepChapter(entry, manifests, location, 1)}
             onClick={()=>move(1)}>Next chapter →</button>
         </div>
@@ -523,8 +656,11 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
         <p>This series is no longer in the selected catalogue.</p><button className="secondary" onClick={()=>goCatalogue()}>Return to the shelf</button></div>}
       {notice && screen.kind !== 'reader' && <p className="reader-notice" role="status">{notice}</p>}
       {storageNotice && <p className="storage-notice" role="status">{storageNotice}</p>}
+      {shelfNotice && <div className="success-toast" role="status">
+        <span>{shelfNotice}</span><button type="button" aria-label="Dismiss notification" onClick={()=>setShelfNotice('')}>×</button>
+      </div>}
     </main>
-    <footer className="site-footer"><span>TAIYOU / PERSONAL MANGA LIBRARY</span>
+    <footer className="site-footer"><span>Created by Taiyou · TAIYOU / PERSONAL MANGA LIBRARY</span>
       <span>{demo ? 'Synthetic sample catalogue · No cloud sync' : 'No private catalogue connected'} · Independent of the hub</span></footer>
   </div>;
 }
