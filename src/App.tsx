@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { entries as realEntries } from './data/catalogue';
+import { fetchPrivateLibrary, type CloudRead } from './data/privateLibrary';
 import { demoEntries, demoManifests, fixtureStatement } from './data/fixtures';
 import { verifyOfflineChapter } from './data/offlineChapters';
 import { OfflineChapterControl } from './components/OfflineChapterControl';
@@ -63,6 +64,10 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
   const initialRoute = useMemo(currentBrowserRoute, []);
   const initialFilters = useMemo(readCatalogueQuery, []);
   const [demo, setDemo] = useState(initialDemo);
+  const [remoteEntries, setRemoteEntries] = useState<MangaEntry[]>([]);
+  const [cloud, setCloud] = useState<CloudRead | {status:'checking';message:string}>({
+    status:'checking',message:'Checking private library connection…',
+  });
   const [screen, setScreen] = useState<Screen>(() => {
     if (initialRoute.kind !== 'details' && initialRoute.kind !== 'reader' && initialRoute.kind !== 'not-found') {
       return { kind: 'catalogue', section: initialRoute.kind };
@@ -127,7 +132,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
   const [inventoryRevision, setInventoryRevision] = useState(0);
   const [offlineChapterIds, setOfflineChapterIds] = useState<ReadonlySet<string>>(() => new Set());
   const readerRef = useRef<HTMLElement | null>(null);
-  const catalogue = demo ? demoEntries : realEntries;
+  const catalogue = demo ? demoEntries : remoteEntries;
   const manifests: ReadonlyMap<string, ChapterManifest> = demo ? demoManifests : new Map<string, ChapterManifest>();
   const entry = screen.kind === 'reader' || screen.kind === 'details' ? catalogue.find(item => item.id === screen.id) : undefined;
   const manifest = location ? manifests.get(location.chapterId) : undefined;
@@ -190,6 +195,26 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
     .sort((a, b) => Date.parse(b.saved.updatedAt) - Date.parse(a.saved.updatedAt))
     .slice(0, 4);
 
+  useEffect(() => {
+    const controller = new AbortController();
+    let live = true;
+    const oauthFailure = new URL(window.location.href).searchParams.get('oauth_error');
+    void fetchPrivateLibrary(controller.signal).then(result => {
+      if (!live) return;
+      setCloud(oauthFailure && result.status!=='connected'
+        ? {...result,message:'Hugging Face sign-in was not completed (' + oauthFailure.slice(0,40) + '). Please try again.'}
+        : result);
+      if (result.status==='connected') {
+        setRemoteEntries([...result.entries]);
+        setDemo(false);
+        setPersonalShelves(loadShelves(result.entries).shelves);
+        setAnnotations(loadAnnotations(result.entries).annotations);
+        setProgress(loadAllProgress(result.entries,new Map()).progress);
+        setScreen(previous=>previous.kind==='catalogue'?previous:{kind:'catalogue',section:'home'});
+      }
+    }).catch(() => { if (live) setCloud({status:'unavailable',message:'Unable to reach private library.'}); });
+    return () => { live=false; controller.abort(); };
+  }, []);
   useEffect(() => {
     const media = window.matchMedia?.('(max-width: 740px)');
     if (!media) return;
@@ -379,7 +404,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
     const target = resume ? restoreProgress(item, manifests, progress[item.id]) :
       { chapterId: chapterId ?? orderedChapters(item)[0]?.id ?? '', pageIndex: 0 };
     if (!target || !manifests.has(target.chapterId)) {
-      setNotice('No verified demonstration pages are available for this chapter.');
+      setNotice('No verified pages are available for this chapter yet.');
       return;
     }
     navigateTo({ kind: 'reader', mangaId: item.id, chapterId: target.chapterId, pageIndex: target.pageIndex });
@@ -455,6 +480,18 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
   }
   function goCatalogue(section: CatalogueSection = 'library') {
     navigateTo({ kind: section });
+  }
+  async function disconnectCloud() {
+    try {
+      const result=await fetch('/api/auth/logout',{
+        method:'POST',credentials:'same-origin',cache:'no-store',
+        headers:{'X-Taiyou-Request':'logout'},
+      });
+      if(!result.ok)throw Error('logout failed');
+      setCloud({status:'disconnected',message:'Signed out of your private Hugging Face library.'});
+      setRemoteEntries([]);
+      changeDemo(true);
+    } catch {setStorageNotice('Could not sign out. Check your connection and try again.');}
   }
   function changeDemo(value: boolean) {
     exitImmersive();
@@ -618,7 +655,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
             {(['sepia','paper','charcoal','midnight','ocean','plum'] as const).map(theme =>
               <option key={theme} value={theme}>{theme.charAt(0).toUpperCase() + theme.slice(1)}</option>)}
           </select></label>
-        <span className="demo-pill">SAMPLE</span>
+        <span className="demo-pill">{demo?'SAMPLE':cloud.status==='connected'?'PRIVATE LIBRARY':'NOT CONNECTED'}</span>
         <span className="network-state">{online ? 'Device online' : 'Device offline'}</span>
       </div>
     </header>
@@ -717,10 +754,20 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
         </section> : <>
         <div className="mode-bar" role="group" aria-label="Catalogue source">
           <div><strong>{demo ? 'Explore the demonstration' : 'Your private library'}</strong>
-            <p>{demo ? fixtureStatement : 'No private source has been configured. Your personal catalogue is not loaded.'}</p></div>
+            <p>{demo ? fixtureStatement :
+              cloud.status==='connected'
+                ? remoteEntries.length===0
+                  ? 'Your private Hugging Face dataset is connected and empty. No manga have been imported yet.'
+                  : 'Connected to your private Hugging Face dataset. Catalogue metadata is read-only.'
+                : cloud.message}</p></div>
           <div className="mode-actions">
+            {cloud.status==='connected' ?
+              <button type="button" className="chip" onClick={()=>{void disconnectCloud();}}>Sign out of Hugging Face</button> :
+              <a className="chip cloud-connect-link" href="/api/auth/login">Sign in with Hugging Face</a>}
             <button type="button" aria-pressed={demo} className={demo ? 'chip active' : 'chip'} onClick={() => changeDemo(true)}>Sample series</button>
-            <button type="button" aria-pressed={!demo} className={!demo ? 'chip active' : 'chip'} onClick={() => changeDemo(false)}>My library (empty)</button>
+            <button type="button" aria-pressed={!demo} className={!demo ? 'chip active' : 'chip'} onClick={() => changeDemo(false)}>
+              {cloud.status==='connected'?'My library ('+remoteEntries.length+')':'My library (empty)'}
+            </button>
           </div>
         </div>
         <LocalBackupControl entries={catalogue} manifests={manifests}
@@ -846,7 +893,9 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
               <h3>{demo ? (screen.section === 'home' || screen.section === 'library' ?
                 'Nothing matches these filters' : 'No manga in ' + labels[screen.section] + ' yet') : 'Your collection is not connected yet'}</h3>
               <p>{demo ? 'Change a personal shelf on a manga details page, or try different filters.' :
-                'This is an honest empty state. No sign-in, private catalogue or storage integration is enabled.'}</p>
+                cloud.status==='connected'
+                  ? 'Your private dataset is connected, but no manga are listed yet.'
+                  : 'Sign in with Hugging Face to connect your private manga library.'}</p>
               {demo && <button className="secondary" type="button" onClick={()=>{setQuery('');setTag('');setStatus('all');setCollection('');}}>Clear filters</button>}
             </div>}
         </section></>}
@@ -1115,6 +1164,6 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
       </div>}
     </main>
     <footer className="site-footer"><span>Created by Taiyou · TAIYOU / PERSONAL MANGA LIBRARY</span>
-      <span>{demo ? 'Synthetic sample catalogue · No cloud sync' : 'No private catalogue connected'} · Independent of the hub</span></footer>
+      <span>{demo ? 'Synthetic sample catalogue' : cloud.status==='connected'?'Private dataset connected':'Private dataset not connected'} · No cloud progress sync · Independent of the hub</span></footer>
   </div>;
 }
