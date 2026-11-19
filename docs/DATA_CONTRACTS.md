@@ -6,7 +6,7 @@
 - `taiyou-manga:progress:v1:<mangaId>`: validated current chapter, page and approximate vertical offset, timestamp.
 - Reader preferences: persisted six-theme UI state, page fit and reading direction; old Dark/Light values migrate to Charcoal/Paper.
 - `taiyou-manga:personal-shelf:v1:<mangaId>`: Trying Out, Finished, To Be Read; Currently Reading is derived from real saved progress.
-- `taiyou-manga:personal-annotation:v1:<mangaId>`: integer personal rating 1–10, bounded notes and case-insensitive Title Case personal tags, distinct from imported genres.
+- `taiyou-manga:personal-annotation:v1:<mangaId>`: integer personal rating 1–10, bounded notes, case-insensitive Title Case personal tags and an optional favourite flag. Older records without the flag mean not favourited. All remain distinct from imported genres.
 - `taiyou-manga:personal-collections:v1`: revisioned nested collection tree with cycle prevention, unique sibling names and stable collection membership IDs.
 
 **Backup:** `taiyou-manga-local-personal-backup` schemaVersion 2, exported progress/preferences/shelves/annotations and optional validated nested collection tree. Importer understands old v1 reader backups and older v2 backups lacking collections. Nonempty local shelves, newer local notes and existing collections are never overwritten without a new explicit conflict policy; invalid local bytes are preserved.
