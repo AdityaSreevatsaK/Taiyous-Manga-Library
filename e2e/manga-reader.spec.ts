@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { readFile } from 'node:fs/promises';
 
 async function assertNoHorizontalOverflow(page: Page) {
   const snapshot = await page.evaluate(() => {
@@ -378,6 +379,66 @@ test.describe('persistent browser reading state', () => {
     await page.reload();
     await expect(page.locator('.page-navigation')).toContainText('Page 4 of 5');
     await expect(page.locator('.vertical-page-image').first()).toBeVisible();
+  });
+});
+
+test.describe('manual local reading backup and restore', () => {
+  test('downloads and restores a versioned progress file without media or accidental overwrite', async ({page}) => {
+    await page.goto('/manga/mng_lanternarchive');
+    await page.getByRole('link', {name:/Read from beginning/}).click();
+    await expect(page.locator('.vertical-page-image').first()).toBeVisible();
+    await page.locator('.vertical-page').nth(2).evaluate(el=>el.scrollIntoView({block:'start'}));
+    await expect(page.locator('.page-navigation')).toContainText('Page 3 of 5');
+    await page.goto('/library');
+    await page.getByText('Transfer reading progress between devices').click();
+    const downloadPromise=page.waitForEvent('download');
+    await page.getByRole('button',{name:'Download progress backup'}).click();
+    const download=await downloadPromise;
+    expect(download.suggestedFilename()).toMatch(/^taiyou-manga-progress-\d{4}-\d{2}-\d{2}\.json$/);
+    const file=await download.path();
+    expect(file).toBeTruthy();
+    const bytes=await readFile(file!);
+    const backup=JSON.parse(bytes.toString('utf-8'));
+    expect(backup.schemaVersion).toBe(1);
+    expect(backup.kind).toBe('taiyou-manga-local-reader-backup');
+    expect(backup.progress).toHaveLength(1);
+    expect(backup.progress[0].pageIndex).toBe(2);
+    expect(JSON.stringify(backup)).not.toContain('assetPath');
+    await page.evaluate(()=>localStorage.removeItem('taiyou-manga:progress:v1:mng_lanternarchive'));
+    await page.reload();
+    await page.getByText('Transfer reading progress between devices').click();
+    await page.locator('.backup-panel input[type=file]').setInputFiles({
+      name: download.suggestedFilename(), mimeType:'application/json', buffer:bytes,
+    });
+    await expect(page.locator('.backup-preview')).toContainText('1 potentially restorable');
+    await expect(page.getByRole('button',{name:'Confirm restore'})).toBeEnabled();
+    await page.getByRole('button',{name:'Confirm restore'}).click();
+    await expect(page.getByRole('status')).toContainText('1 newer progress records imported');
+    await page.goto('/manga/mng_lanternarchive');
+    await page.getByRole('link',{name:/Continue reading/}).click();
+    await expect(page.locator('.page-navigation')).toContainText('Page 3 of 5');
+  });
+
+  test('refuses invalid files and requires explicit confirmation for valid imports', async ({page}) => {
+    await page.goto('/library');
+    await page.getByText('Transfer reading progress between devices').click();
+    const input=page.locator('.backup-panel input[type=file]');
+    await input.setInputFiles({name:'untrusted.json',mimeType:'application/json',
+      buffer:Buffer.from('{"kind":"wrong","progress":[]}')});
+    await expect(page.locator('.backup-message')).toContainText('not a supported');
+    await expect(page.locator('.backup-preview')).toHaveCount(0);
+    const document={
+      schemaVersion:1,mediaKind:'manga',kind:'taiyou-manga-local-reader-backup',
+      exportedAt:'2026-11-19T00:00:00.000Z',progress:[],preferences:{direction:'vertical',fit:'width',theme:'sepia'},
+    };
+    await input.setInputFiles({name:'settings.json',mimeType:'application/json',
+      buffer:Buffer.from(JSON.stringify(document))});
+    await expect(page.getByRole('button',{name:'Confirm restore'})).toBeDisabled();
+    await page.getByRole('checkbox',{name:/Also replace this device/}).check();
+    await expect(page.getByRole('button',{name:'Confirm restore'})).toBeEnabled();
+    await page.getByRole('button',{name:'Cancel'}).click();
+    await expect(page.locator('.backup-preview')).toHaveCount(0);
+    await expect(page.locator('.app-shell')).toHaveClass(/theme-dark/);
   });
 });
 
