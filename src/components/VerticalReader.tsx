@@ -9,6 +9,7 @@ import type { ChapterManifest } from '../domain/types';
  */
 interface Props {
   manifest: ChapterManifest;
+  fit?: 'page' | 'width';
   activeIndex: number;
   jumpToken: number;
   onActivePage: (index: number) => void;
@@ -17,7 +18,7 @@ interface Props {
   initialOffsetRatio?: number;
 }
 
-export function VerticalReader({ manifest, activeIndex, jumpToken, onActivePage, onViewedPage, onScrollAnchor, initialOffsetRatio = 0 }: Props) {
+export function VerticalReader({ manifest, fit = 'width', activeIndex, jumpToken, onActivePage, onViewedPage, onScrollAnchor, initialOffsetRatio = 0 }: Props) {
   const root = useRef<HTMLDivElement>(null);
   const visible = useRef(activeIndex);
   const callbacks = useRef({ onActivePage, onViewedPage, onScrollAnchor });
@@ -133,7 +134,7 @@ export function VerticalReader({ manifest, activeIndex, jumpToken, onActivePage,
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [manifest.chapterId, jumpToken]);
 
-  return <div ref={root} className="vertical-reader" aria-label="Continuous vertical manga pages">
+  return <div ref={root} className={"vertical-reader reader-fit-" + fit} aria-label="Complete manga chapter, continuous vertical scroll">
     {manifest.pages.map((page, index) =>
       <div key={page.id} data-vertical-page={index} className="vertical-page"
         style={{ aspectRatio: `${page.width} / ${page.height}` }}

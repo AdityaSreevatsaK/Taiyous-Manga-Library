@@ -4,6 +4,20 @@ import type { ChapterManifest } from '../domain/types';
 /** Entirely fictional series, creators and chapters. No rights-protected media. */
 export const demoEntries = parseCatalogue([
   {
+    kind: 'manga', id: 'mng_fivechaptertrial', title: 'Five Chapter Scroll Trial',
+    aliases: ['Chapter Scroll Demo'], creators: ['Taiyou Studio (fictional)'],
+    tags: ['Adventure', 'Fantasy', 'Demo'], publicationStatus: 'completed',
+    direction: 'vertical', collections: ['Reader Experiments'],
+    synopsis: 'An original five-chapter scroll-testing story. Each chapter contains multiple independently generated sample illustrations, stacked in one uninterrupted reading page. No copyrighted manga is included.',
+    chapters: [
+      { id: 'ch_trialawakening', label: '01 · The awakening', sequence: 10, volume: 'Trial Volume', pageCount: 7 },
+      { id: 'ch_trialcrossroad', label: '02 · The crossroads', sequence: 20, volume: 'Trial Volume', pageCount: 6 },
+      { id: 'ch_trialskybridge', label: '03 · The sky bridge', sequence: 30, volume: 'Trial Volume', pageCount: 9 },
+      { id: 'ch_trialstarlight', label: '04 · A spark of light', sequence: 40, volume: 'Trial Volume', pageCount: 8 },
+      { id: 'ch_trialnewdawn', label: '05 · The new dawn', sequence: 50, volume: 'Trial Volume', pageCount: 6 },
+    ],
+  },
+  {
     kind: 'manga', id: 'mng_lanternarchive', title: 'The Lantern Archive',
     aliases: ['Keeper of the Last Light'], creators: ['Taiyou Studio (fictional)'],
     tags: ['Mystery', 'Fantasy', 'Adventure'], publicationStatus: 'ongoing',
@@ -49,4 +63,4 @@ export const demoManifests: ReadonlyMap<string, ChapterManifest> = new Map(
     }),
   ] as const)),
 );
-export const fixtureStatement = 'Fictional demonstration. Pages are generated in your browser. No actual manga, provider or private catalogue is connected.';
+export const fixtureStatement = 'Fictional demonstration, including a five-chapter scroll trial. Pages are generated in your browser. No actual manga, provider or private catalogue is connected.';

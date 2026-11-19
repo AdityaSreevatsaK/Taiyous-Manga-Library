@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ChapterManifest, MangaEntry } from './types';
-import { keyNavigation, nextPreloadIndex, orderedChapters, restoreProgress, stepReader, swipeNavigation } from './reader';
+import { keyNavigation, nextPreloadIndex, orderedChapters, restoreProgress, stepChapter, stepReader, swipeNavigation } from './reader';
 const entry: MangaEntry = {
   kind: 'manga', id: 'mng_example001', title: 'Example', aliases: [], creators: [], tags: [],
   publicationStatus: 'completed', direction: 'rtl',
@@ -32,6 +32,15 @@ describe('reader traversal and exact resume', () => {
   it('never skips a missing or corrupted chapter', () => {
     expect(stepReader(entry,new Map([['ch_first0000',manifests.get('ch_first0000')!]]),{chapterId:'ch_first0000',pageIndex:1},1)).toBeNull();
     expect(stepReader(entry,manifests,{chapterId:'ch_first0000',pageIndex:44},1)).toBeNull();
+  });
+  it('navigates only between chapters and always opens the neighbouring chapter at its start', () => {
+    expect(stepChapter(entry, manifests, {chapterId:'ch_first0000',pageIndex:1}, 1))
+      .toEqual({chapterId:'ch_second000',pageIndex:0});
+    expect(stepChapter(entry, manifests, {chapterId:'ch_second000',pageIndex:2}, -1))
+      .toEqual({chapterId:'ch_first0000',pageIndex:0});
+    expect(stepChapter(entry, manifests, {chapterId:'ch_first0000',pageIndex:1}, -1)).toBeNull();
+    expect(stepChapter(entry, manifests, {chapterId:'ch_second000',pageIndex:0}, 1)).toBeNull();
+    expect(stepChapter(entry, new Map(), {chapterId:'ch_first0000',pageIndex:0}, 1)).toBeNull();
   });
   it('maps physical keys and swipes correctly in RTL, LTR and vertical', () => {
     expect(keyNavigation('rtl','ArrowLeft')).toBe(1);

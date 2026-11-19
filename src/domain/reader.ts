@@ -29,6 +29,27 @@ export function stepReader(
     pageIndex: delta === 1 ? 0 : adjacentManifest.pages.length - 1,
   };
 }
+/**
+ * Chapter-first traversal: Next and Previous never navigate individual pages.
+ * Both directions start the neighbouring chapter at its first page so the
+ * reader can scroll the whole chapter naturally. Missing manifests fail closed.
+ */
+export function stepChapter(
+  entry: MangaEntry,
+  manifests: ReadonlyMap<string, ChapterManifest>,
+  location: ReaderLocation,
+  delta: -1 | 1,
+): ReaderLocation | null {
+  const chapters = orderedChapters(entry);
+  const position = chapters.findIndex(chapter => chapter.id === location.chapterId);
+  if (position < 0) return null;
+  const target = chapters[position + delta];
+  if (!target) return null;
+  const manifest = manifests.get(target.id);
+  if (!manifest || manifest.chapterId !== target.id || manifest.pages.length === 0) return null;
+  return { chapterId: target.id, pageIndex: 0 };
+}
+
 /** Arrow direction is visual; physical navigation changes for RTL reading. */
 export function keyNavigation(direction: ReadingDirection, key: string): -1 | 0 | 1 {
   if (direction === 'vertical') return key === 'ArrowDown' ? 1 : key === 'ArrowUp' ? -1 : 0;

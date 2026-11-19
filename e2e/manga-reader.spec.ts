@@ -1,12 +1,33 @@
 import { expect, test, type Page } from '@playwright/test';
 
+async function assertNoHorizontalOverflow(page: Page) {
+  const snapshot = await page.evaluate(() => {
+    const width = window.innerWidth;
+    const offenders = [...document.querySelectorAll<HTMLElement>('*')]
+      .filter(element => element.getBoundingClientRect().right > width + 1 ||
+        element.scrollWidth > element.clientWidth + 1)
+      .slice(0, 30)
+      .map(element => ({
+        element: element.tagName.toLowerCase(),
+        className: String(element.className).slice(0, 80),
+        right: Math.round(element.getBoundingClientRect().right),
+        ownWidth: Math.round(element.getBoundingClientRect().width),
+        scrollWidth: element.scrollWidth,
+        clientWidth: element.clientWidth,
+        outline: getComputedStyle(element).outlineWidth,
+      }));
+    return { width, scrollWidth: document.documentElement.scrollWidth, offenders };
+  });
+  expect(snapshot.scrollWidth, JSON.stringify(snapshot)).toBeLessThanOrEqual(snapshot.width);
+}
+
 async function openSampleReader(page: Page) {
   await page.goto('/');
   await page.locator('.book-card').filter({ hasText: 'The Lantern Archive' }).click();
   await expect(page.getByRole('heading', { name: 'The Lantern Archive' })).toBeVisible();
   await page.getByRole('link', { name: /Read from beginning/ }).click();
-  await expect(page.locator('.reader-page')).toBeVisible();
-  await expect(page.getByRole('button', { name: /Next page/ })).toBeEnabled();
+  await expect(page.locator('.vertical-page-image').first()).toBeVisible();
+  await expect(page.getByRole('button', { name: /Next chapter/ })).toBeEnabled();
   await expect(page.locator('.page-navigation')).toContainText('Page 1 of 5');
 }
 
@@ -16,15 +37,15 @@ test.describe('local manga catalogue and chapter reader', () => {
       await page.setViewportSize({ width, height: 860 });
       await page.goto('/');
       await expect(page.getByRole('heading', { name: 'The sample collection' })).toBeVisible();
-      await expect(page.locator('.book-card')).toHaveCount(3);
-      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      await expect(page.locator('.book-card')).toHaveCount(4);
+      await assertNoHorizontalOverflow(page);
       await page.locator('.book-card').first().click();
       await expect(page.getByRole('heading', { name: 'Chapters & volumes' })).toBeVisible();
-      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      await assertNoHorizontalOverflow(page);
       await page.getByRole('link', { name: /Read from beginning/ }).click();
       // Alphabetical first series defaults to genuine vertical mode.
-      await expect(page.locator('.reader-page,.vertical-page-image').first()).toBeVisible();
-      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      await expect(page.locator('.vertical-page-image').first()).toBeVisible();
+      await assertNoHorizontalOverflow(page);
     });
   }
   test('searches/filter/sorts the generated catalogue and honours the empty source', async ({ page }) => {
@@ -33,7 +54,7 @@ test.describe('local manga catalogue and chapter reader', () => {
     await expect(page.locator('.book-card')).toHaveCount(1);
     await page.getByRole('searchbox', { name: /Search series or aliases/ }).fill('');
     await page.getByRole('combobox', { name: 'Publication' }).selectOption('completed');
-    await expect(page.locator('.book-card')).toHaveCount(1);
+    await expect(page.locator('.book-card')).toHaveCount(2);
     await page.getByRole('combobox', { name: 'Publication' }).selectOption('all');
     await page.getByRole('combobox', { name: 'Collection' }).selectOption('Nightfall Stories');
     await expect(page.locator('.book-card')).toHaveCount(2);
@@ -41,32 +62,25 @@ test.describe('local manga catalogue and chapter reader', () => {
     await expect(page.getByText('Your collection is not connected yet')).toBeVisible();
     await expect(page.locator('.book-card')).toHaveCount(0);
   });
-  test('RTL/LTR arrows and true continuous vertical scrolling with exact resume within the tab', async ({ page }) => {
+  test('scrolls an entire chapter without clicking page controls and resumes the exact position', async ({ page }) => {
     await openSampleReader(page);
-    const reader = page.locator('.reader-shell');
-    await reader.focus();
-    await page.keyboard.press('ArrowLeft');
-    await expect(page.locator('.page-navigation')).toContainText('Page 2 of 5');
-    await page.getByRole('button', { name: 'Left to right' }).click();
-    await reader.focus();
-    await page.keyboard.press('ArrowRight');
-    await expect(page.locator('.page-navigation')).toContainText('Page 3 of 5');
-    await page.getByRole('button', { name: 'Vertical' }).click();
     await expect(page.locator('.vertical-page')).toHaveCount(5);
-    await expect(page.locator('.vertical-page-image')).toHaveCount(3);
-    // Page 4 is physically below page 3, not a stepper pretending to scroll.
-    await page.locator('.vertical-page').nth(3).evaluate(element => element.scrollIntoView({ block: 'start' }));
+    await expect(page.getByRole('button', { name: /Next page/ })).toHaveCount(0);
+    await page.locator('.vertical-page').nth(3).evaluate(el => el.scrollIntoView({block:'start'}));
     await expect(page.locator('.page-navigation')).toContainText('Page 4 of 5');
     await expect(page.locator('.vertical-page-image')).toHaveCount(3);
-    await page.getByRole('link', { name: /Series details/ }).click();
+    await expect.poll(async () => page.evaluate(() => {
+      const raw = localStorage.getItem('taiyou-manga:progress:v1:mng_lanternarchive');
+      return raw ? JSON.parse(raw).progress.pageIndex : null;
+    })).toBe(3);
+    await page.goto('/manga/mng_lanternarchive');
     await page.getByRole('link', { name: /Continue reading/ }).click();
     await expect(page.locator('.page-navigation')).toContainText('Page 4 of 5');
   });
 
   test('vertical page selector jumps without changing the chapter order or decoding every page', async ({ page }) => {
     await openSampleReader(page);
-    await page.getByRole('button', { name: 'Vertical' }).click();
-    await page.getByRole('combobox', { name: 'Go to page' }).selectOption('4');
+    await page.getByRole('combobox', { name: 'Jump within chapter' }).selectOption('4');
     await expect(page.locator('.page-navigation')).toContainText('Page 5 of 5');
     await expect(page.locator('.vertical-page-image')).toHaveCount(2);
     expect(await page.locator('.vertical-page').nth(4).evaluate(node => {
@@ -82,77 +96,71 @@ test.describe('local manga catalogue and chapter reader', () => {
     await openSampleReader(page);
     await page.getByRole('button', { name: 'Focus view' }).click();
     await expect(page.getByRole('button', { name: 'Exit focus view' })).toBeVisible();
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await assertNoHorizontalOverflow(page);
     await page.getByRole('button', { name: 'Exit focus view' }).click();
     await expect(page.getByRole('button', { name: 'Focus view' })).toBeVisible();
   });
 
-  test('vertical fixture generation failure is explicit and does not falsely record progress', async ({ page }) => {
+  test('vertical image failures never silently mark failed pages as read', async ({ page }) => {
     await page.addInitScript(() => {
       HTMLCanvasElement.prototype.toDataURL = function () { throw new Error('Synthetic canvas failure'); };
     });
-    await page.goto('/');
-    await page.locator('.book-card').filter({ hasText: 'The Lantern Archive' }).click();
+    await page.goto('/manga/mng_lanternarchive');
     await page.getByRole('link', { name: /Read from beginning/ }).click();
-    await page.getByRole('button', { name: 'Vertical' }).click();
     await expect(page.locator('.vertical-page-error').first()).toContainText('could not be loaded');
-    await expect(page.getByRole('button', { name: /Next page/ })).toBeDisabled();
-    await page.getByRole('link', { name: /Series details/ }).click();
-    await expect(page.getByRole('link', { name: /Read from beginning/ })).toBeVisible();
+    expect(await page.evaluate(() => localStorage.getItem('taiyou-manga:progress:v1:mng_lanternarchive'))).toBeNull();
   });
 
-  test('chapter transitions never silently skip missing pages', async ({ page }) => {
+  test('Next and Previous change chapter, never page, including from middle of chapter', async ({ page }) => {
     await openSampleReader(page);
-    const next = page.getByRole('button', { name: /Next page/ });
-    for (let index = 0; index < 5; index++) await next.click();
-    await expect(page.locator('.page-navigation')).toContainText('Page 1 of 4');
+    await page.locator('.vertical-page').nth(2).evaluate(el => el.scrollIntoView({block:'start'}));
+    await expect(page.locator('.page-navigation')).toContainText('Page 3 of 5');
+    await page.getByRole('button', { name: /Next chapter/ }).click();
     await expect(page.locator('.reader-heading')).toContainText('Above the rooftops');
-    await page.getByRole('button', { name: /Previous page/ }).click();
-    await expect(page.locator('.page-navigation')).toContainText('Page 5 of 5');
+    await expect(page.locator('.vertical-page')).toHaveCount(4);
+    await expect(page.locator('.page-navigation')).toContainText('Chapter 2 of 3');
+    await expect(page.locator('.page-navigation')).toContainText('Page 1 of 4');
+    await page.getByRole('button', { name: /Previous chapter/ }).click();
     await expect(page.locator('.reader-heading')).toContainText('The forgotten key');
+    await expect(page.locator('.page-navigation')).toContainText('Chapter 1 of 3');
+    await expect(page.locator('.page-navigation')).toContainText('Page 1 of 5');
   });
+
   test('page selector jumps to an exact zero-based location and resumes it', async ({ page }) => {
     await openSampleReader(page);
-    await page.getByRole('combobox', { name: 'Go to page' }).selectOption('4');
+    await page.getByRole('combobox', { name: 'Jump within chapter' }).selectOption('4');
     await expect(page.locator('.page-navigation')).toContainText('Page 5 of 5');
-    await expect(page.locator('.reader-page')).toBeVisible();
-    await expect(page.getByRole('button', { name: /Next page/ })).toBeEnabled();
+    await expect(page.locator('.vertical-page-image').first()).toBeVisible();
+    await expect(page.getByRole('button', { name: /Next chapter/ })).toBeEnabled();
     await page.getByRole('link', { name: /Series details/ }).click();
     await page.getByRole('link', { name: /Continue reading/ }).click();
     await expect(page.locator('.page-navigation')).toContainText('Page 5 of 5');
     await page.getByRole('combobox', { name: 'Choose chapter' }).selectOption('ch_lanternrooftop');
     await expect(page.locator('.page-navigation')).toContainText('Page 1 of 4');
   });
-  test('RTL swipe changes the canonical page, not reverse image ordering', async ({ page }) => {
+  test('vertical scrolling does not change chapters or require tapping each page', async ({ page }) => {
     await openSampleReader(page);
-    await page.locator('.reader-stage').evaluate(node => {
-      const first = new Touch({ identifier: 1, target: node, clientX: 90, clientY: 330 });
-      const last = new Touch({ identifier: 1, target: node, clientX: 220, clientY: 330 });
-      node.dispatchEvent(new TouchEvent('touchstart', { bubbles: true, touches: [first], changedTouches: [first] }));
-      node.dispatchEvent(new TouchEvent('touchend', { bubbles: true, touches: [], changedTouches: [last] }));
-    });
+    await page.locator('.vertical-page').nth(1).evaluate(el => el.scrollIntoView({block:'start'}));
     await expect(page.locator('.page-navigation')).toContainText('Page 2 of 5');
+    await expect(page.locator('.reader-heading')).toContainText('The forgotten key');
+    await expect(page.locator('.vertical-page')).toHaveCount(5);
   });
-  test('corrupt canvas images show a recoverable error and do not advance progress', async ({ page }) => {
+
+  test('corrupt synthetic illustrations show retry controls and do not record unread pages', async ({ page }) => {
     await page.addInitScript(() => {
       HTMLCanvasElement.prototype.toDataURL = function () { throw new Error('Synthetic canvas failure'); };
     });
-    await page.goto('/');
-    await page.locator('.book-card').filter({ hasText: 'The Lantern Archive' }).click();
+    await page.goto('/manga/mng_lanternarchive');
     await page.getByRole('link', { name: /Read from beginning/ }).click();
-    await expect(page.getByRole('alert')).toContainText('offline copy is unavailable or corrupt');
-    await expect(page.locator('.page-navigation')).toContainText('Page 1 of 5');
-    await expect(page.getByRole('button', { name: /Next page/ })).toBeDisabled();
-    await expect(page.getByRole('button', { name: /Previous page/ })).toBeDisabled();
-    await page.getByRole('button', { name: 'Retry page' }).click();
-    await expect(page.getByRole('alert')).toContainText('offline copy is unavailable or corrupt');
-    await expect(page.locator('.page-navigation')).toContainText('Page 1 of 5');
-    await page.getByRole('link', { name: /Series details/ }).click();
-    // A page that could not load must never be falsely recorded as read.
+    await expect(page.locator('.vertical-page-error').first()).toContainText('could not be loaded');
+    await page.getByRole('button', { name: 'Retry page' }).first().click();
+    await expect(page.locator('.vertical-page-error').first()).toContainText('could not be loaded');
+    await page.goto('/manga/mng_lanternarchive');
     await expect(page.getByRole('link', { name: /Read from beginning/ })).toBeVisible();
     await expect(page.getByRole('link', { name: /Continue reading/ })).toHaveCount(0);
   });
-  test('synthetic sample remains readable offline without protected external requests', async ({ page, context }) => {
+
+  test('synthetic chapters remain navigable in a loaded offline tab without remote media calls', async ({ page, context }) => {
     const external: string[] = [];
     page.on('request', request => {
       const url = new URL(request.url());
@@ -160,10 +168,47 @@ test.describe('local manga catalogue and chapter reader', () => {
     });
     await openSampleReader(page);
     await context.setOffline(true);
-    await page.getByRole('button', { name: /Next page/ }).click();
-    await expect(page.locator('.page-navigation')).toContainText('Page 2 of 5');
-    await expect(page.locator('.reader-page')).toBeVisible();
+    await page.getByRole('button', { name: /Next chapter/ }).click();
+    await expect(page.locator('.reader-heading')).toContainText('Above the rooftops');
+    await expect(page.locator('.page-navigation')).toContainText('Page 1 of 4');
+    await expect(page.locator('.vertical-page-image').first()).toBeVisible();
     expect(external).toEqual([]);
+  });
+
+});
+
+test.describe('five-chapter continuous scroll trial', () => {
+  test('the whole chapter is scrollable, and Next moves through all five chapters', async ({ page }) => {
+    await page.goto('/manga/mng_fivechaptertrial');
+    await expect(page.getByRole('heading', { name: 'Five Chapter Scroll Trial' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Download chapter' })).toHaveCount(5);
+    await page.getByRole('link', { name: /Read from beginning/ }).click();
+    const ids = ['ch_trialawakening', 'ch_trialcrossroad', 'ch_trialskybridge', 'ch_trialstarlight', 'ch_trialnewdawn'];
+    const pages = [7,6,9,8,6];
+    for (let i = 0; i < ids.length; i++) {
+      expect(new URL(page.url()).pathname).toContain('/chapters/' + ids[i]);
+      expect(new URL(page.url()).searchParams.get('page')).toBe('1');
+      await expect(page.locator('.vertical-page')).toHaveCount(pages[i]!);
+      await expect(page.locator('.page-navigation')).toContainText('Chapter ' + (i+1) + ' of 5');
+      if (i === 0) {
+        await page.locator('.vertical-page').nth(4).evaluate(el => el.scrollIntoView({block:'start'}));
+        await expect(page.locator('.page-navigation')).toContainText('Page 5 of 7');
+      }
+      if (i < ids.length - 1) await page.getByRole('button', { name: /Next chapter/ }).click();
+    }
+    await expect(page.getByRole('button', { name: /Next chapter/ })).toBeDisabled();
+    await page.getByRole('button', { name: /Previous chapter/ }).click();
+    await expect(page.locator('.page-navigation')).toContainText('Chapter 4 of 5');
+    await expect(page.locator('.page-navigation')).toContainText('Page 1 of 8');
+  });
+
+  test('loads only nearby images although every page occupies a place in the chapter', async ({ page }) => {
+    await page.goto('/manga/mng_fivechaptertrial/chapters/ch_trialskybridge?page=1');
+    await expect(page.locator('.vertical-page')).toHaveCount(9);
+    expect(await page.locator('.vertical-page-image').count()).toBeLessThanOrEqual(3);
+    await page.locator('.vertical-page').nth(7).evaluate(el => el.scrollIntoView({block:'start'}));
+    await expect(page.locator('.page-navigation')).toContainText('Page 8 of 9');
+    await expect(page.locator('.vertical-page-image')).toHaveCount(3);
   });
 });
 
@@ -173,7 +218,7 @@ test.describe('browser history and deep links', () => {
     await expect(page.locator('.reader-heading')).toContainText('The Lantern Archive');
     await expect(page.getByRole('combobox', { name: 'Choose chapter' })).toHaveValue('ch_lanternrooftop');
     await expect(page.locator('.page-navigation')).toContainText('Page 3 of 4');
-    await expect(page.locator('.reader-page')).toBeVisible();
+    await expect(page.locator('.vertical-page-image').first()).toBeVisible();
     await page.reload();
     await expect(page.locator('.page-navigation')).toContainText('Page 3 of 4');
   });
@@ -184,14 +229,14 @@ test.describe('browser history and deep links', () => {
     await expect(page).toHaveURL(/\/manga\/mng_lanternarchive$/);
     await page.getByRole('link', { name: /Read from beginning/ }).click();
     await expect(page).toHaveURL(/\/chapters\/ch_lanternopening\?page=1$/);
-    await page.getByRole('button', { name: /Next page/ }).click();
-    await expect(page).toHaveURL(/\?page=2$/);
+    await page.getByRole('button', { name: /Next chapter/ }).click();
+    await expect(page).toHaveURL(/\/chapters\/ch_lanternrooftop\?page=1$/);
     await page.goBack();
-    await expect(page.locator('.page-navigation')).toContainText('Page 1 of 5');
+    await expect(page.locator('.reader-heading')).toContainText('The forgotten key');
     await page.goBack();
     await expect(page.getByRole('heading', { name: 'Chapters & volumes' })).toBeVisible();
     await page.goForward();
-    await expect(page.locator('.page-navigation')).toContainText('Page 1 of 5');
+    await expect(page.locator('.reader-heading')).toContainText('The forgotten key');
   });
 
   test('an actual new tab can open a series independently', async ({ page, context }) => {
@@ -231,7 +276,7 @@ test.describe('browser history and deep links', () => {
 test.describe('persistent browser reading state', () => {
   test('page identity and location survive reload and new tab on one browser', async ({ page, context }) => {
     await openSampleReader(page);
-    await page.getByRole('button', { name: /Next page/ }).click();
+    await page.locator('.vertical-page').nth(1).evaluate(el => el.scrollIntoView({block:'start'}));
     await expect(page.locator('.page-navigation')).toContainText('Page 2 of 5');
     await page.reload();
     await expect(page.locator('.page-navigation')).toContainText('Page 2 of 5');
@@ -247,22 +292,21 @@ test.describe('persistent browser reading state', () => {
     await openSampleReader(page);
     await page.getByRole('combobox', { name: 'Reader theme' }).selectOption('sepia');
     await page.getByRole('combobox', { name: 'Image fit' }).selectOption('width');
-    await page.getByRole('button', { name: 'Left to right' }).click();
     await expect(page.locator('.app-shell')).toHaveClass(/theme-sepia/);
     await page.reload();
     await expect(page.getByRole('combobox', { name: 'Reader theme' })).toHaveValue('sepia');
     await expect(page.getByRole('combobox', { name: 'Image fit' })).toHaveValue('width');
-    await expect(page.getByRole('button', { name: 'Left to right' })).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByText(/Continuous chapter scroll/)).toBeVisible();
     await page.getByRole('combobox', { name: 'Reader theme' }).focus();
     await expect(page.getByRole('combobox', { name: 'Reader theme' })).toHaveValue('sepia');
   });
 
   test('a corrupt record does not erase another manga history or itself', async ({ page }) => {
     await openSampleReader(page);
-    await page.getByRole('button', { name: /Next page/ }).click();
+    await page.getByRole('button', { name: /Next chapter/ }).click();
     await page.goto('/manga/mng_silvergarden');
     await page.getByRole('link', { name: /Read from beginning/ }).click();
-    await expect(page.locator('.reader-page')).toBeVisible();
+    await expect(page.locator('.vertical-page-image').first()).toBeVisible();
     await page.evaluate(() => localStorage.setItem('taiyou-manga:progress:v1:mng_lanternarchive', '{broken-json'));
     await page.reload();
     await expect(page.getByText(/saved reading records could not be verified/)).toBeVisible();
@@ -277,7 +321,7 @@ test.describe('persistent browser reading state', () => {
   test('page progress remains available when device goes offline in an already loaded tab', async ({ page, context }) => {
     await openSampleReader(page);
     await context.setOffline(true);
-    await page.getByRole('button', { name: /Next page/ }).click();
+    await page.locator('.vertical-page').nth(1).evaluate(el => el.scrollIntoView({block:'start'}));
     await expect(page.locator('.page-navigation')).toContainText('Page 2 of 5');
     const raw = await page.evaluate(() => localStorage.getItem('taiyou-manga:progress:v1:mng_lanternarchive'));
     expect(raw).toContain('ch_lanternopening');
@@ -289,7 +333,6 @@ test.describe('persistent browser reading state', () => {
 
   test('vertical progress stores a stable page identity after scrolling', async ({ page }) => {
     await openSampleReader(page);
-    await page.getByRole('button', { name: 'Vertical' }).click();
     await page.locator('.vertical-page').nth(3).evaluate(el => el.scrollIntoView({block:'start'}));
     await expect(page.locator('.page-navigation')).toContainText('Page 4 of 5');
     await expect.poll(async () => page.evaluate(() => {
@@ -315,8 +358,8 @@ test.describe('explicit offline chapter storage and application shell', () => {
     await expect(page).toHaveURL('/offline');
     await expect(page.locator('.offline-series-link')).toHaveCount(1);
     await page.locator('.offline-series-link').first().click();
-    await expect.poll(async () => page.locator('.reader-page').getAttribute('src')).toMatch(/^blob:/);
-    await page.getByRole('button', { name: /Next page/ }).click();
+    await expect.poll(async () => page.locator('.vertical-page-image').first().getAttribute('src')).toMatch(/^blob:/);
+    await page.locator('.vertical-page').nth(1).evaluate(el => el.scrollIntoView({block:'start'}));
     await expect(page.locator('.page-navigation')).toContainText('Page 2 of 5');
     await page.getByRole('link', { name: /Series details/ }).click();
     await page.getByRole('button', { name: 'Remove offline copy' }).first().click();
@@ -339,8 +382,8 @@ test.describe('explicit offline chapter storage and application shell', () => {
     await expect(page.getByText('Offline copy needs repair')).toBeVisible();
     await expect(page.getByRole('link', { name: 'Offline (0)' })).toBeVisible();
     await page.getByRole('link', { name: /Read from beginning/ }).click();
-    await expect(page.getByRole('alert')).toContainText('offline copy');
-    await expect(page.getByRole('button', { name: /Next page/ })).toBeDisabled();
+    await expect(page.locator('.vertical-page-error').first()).toContainText('could not be loaded');
+    await expect(page.getByRole('link', { name: /Continue reading/ })).toHaveCount(0);
     await page.getByRole('link', { name: /Series details/ }).click();
     await page.getByRole('button', { name: 'Remove offline copy' }).first().click();
     await expect(page.getByText(/Offline copy removed/)).toBeVisible();
@@ -373,12 +416,12 @@ test.describe('explicit offline chapter storage and application shell', () => {
     await expect(page.getByRole('heading', { name: 'Offline chapters' })).toBeVisible();
     await expect(page.locator('.offline-series-link')).toHaveCount(1);
     await page.locator('.offline-series-link').click();
-    await expect.poll(async () => page.locator('.reader-page').getAttribute('src')).toMatch(/^blob:/);
-    await page.getByRole('button', { name: /Next page/ }).click();
+    await expect.poll(async () => page.locator('.vertical-page-image').first().getAttribute('src')).toMatch(/^blob:/);
+    await page.locator('.vertical-page').nth(1).evaluate(el => el.scrollIntoView({block:'start'}));
     await expect(page.locator('.page-navigation')).toContainText('Page 2 of 5');
     await page.reload();
     await expect(page.locator('.page-navigation')).toContainText('Page 2 of 5');
-    await expect.poll(async () => page.locator('.reader-page').getAttribute('src')).toMatch(/^blob:/);
+    await expect.poll(async () => page.locator('.vertical-page-image').first().getAttribute('src')).toMatch(/^blob:/);
     await context.setOffline(false);
   });
 
@@ -415,7 +458,7 @@ test.describe('offline failure handling and accessibility hardening', () => {
     });
     await page.goto('/manga/mng_lanternarchive');
     await page.getByRole('link', { name: /Read from beginning/ }).click();
-    await page.getByRole('button', { name: /Next page/ }).click();
+    await page.locator('.vertical-page').nth(1).evaluate(el => el.scrollIntoView({block:'start'}));
     await expect(page.locator('.page-navigation')).toContainText('Page 2 of 5');
     await page.getByRole('link', { name: /Series details/ }).click();
     await page.getByRole('button', { name: 'Download chapter' }).first().click();
@@ -434,7 +477,7 @@ test.describe('offline failure handling and accessibility hardening', () => {
     await expect(page.getByRole('button', { name: 'Download chapter' })).toHaveCount(3);
     await page.getByRole('link', { name: /Continue reading/ }).click();
     await expect(page.locator('.page-navigation')).toContainText('Page 2 of 5');
-    await expect(page.locator('.reader-page')).toBeVisible();
+    await expect(page.locator('.vertical-page-image').first()).toBeVisible();
   });
 
   test('cache quota refusal is explicit and never marks the chapter as downloaded', async ({ page }) => {
@@ -453,7 +496,7 @@ test.describe('offline failure handling and accessibility hardening', () => {
     await page.getByRole('button', { name: 'Download chapter' }).first().click();
     await expect(page.getByText('Available offline')).toHaveCount(1);
     await page.getByRole('link', { name: /Read from beginning/ }).click();
-    await page.getByRole('button', { name: /Next page/ }).click();
+    await page.locator('.vertical-page').nth(1).evaluate(el => el.scrollIntoView({block:'start'}));
     await expect(page.locator('.page-navigation')).toContainText('Page 2 of 5');
     await page.evaluate(async () => {
       const registration = await navigator.serviceWorker.ready;
@@ -461,7 +504,7 @@ test.describe('offline failure handling and accessibility hardening', () => {
     });
     await page.reload();
     await expect(page.locator('.page-navigation')).toContainText('Page 2 of 5');
-    await expect.poll(async () => page.locator('.reader-page').getAttribute('src')).toMatch(/^blob:/);
+    await expect.poll(async () => page.locator('.vertical-page-image').first().getAttribute('src')).toMatch(/^blob:/);
     await expect(page.getByRole('link', { name: 'Offline (1)' })).toBeVisible();
     const cache = await page.evaluate(() => caches.keys());
     expect(cache).toContain('taiyou-manga-synthetic-chapters-v1');
@@ -471,13 +514,13 @@ test.describe('offline failure handling and accessibility hardening', () => {
     for (const width of [320, 375, 390, 430, 768, 1024, 1280]) {
       await page.setViewportSize({ width, height: 760 });
       await page.goto('/manga/mng_lanternarchive');
-      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      await assertNoHorizontalOverflow(page);
       const heights = await page.locator('.site-nav-link, .offline-chapter-control button')
         .evaluateAll(elements => elements.map(el => Math.round(el.getBoundingClientRect().height)));
       expect(heights.every(height => height >= 44), 'touch target width ' + width + ': ' + heights).toBe(true);
       // Repeating viewport checks should use either the fresh start or the stored resume link.
       await page.getByRole('link', { name: /Read from beginning|Continue reading/ }).click();
-      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      await assertNoHorizontalOverflow(page);
       const readerHeights = await page.locator('.reader-options button, .page-navigation button, .reader-selectors select')
         .evaluateAll(elements => elements.map(el => Math.round(el.getBoundingClientRect().height)));
       expect(readerHeights.every(height => height >= 44), 'reader touch targets ' + width + ': ' + readerHeights).toBe(true);
@@ -498,6 +541,6 @@ test.describe('offline failure handling and accessibility hardening', () => {
     expect(await link.evaluate(el => getComputedStyle(el).transitionDuration)).toMatch(/^0s/);
     await link.focus();
     await page.keyboard.press('Enter');
-    await expect(page.locator('.reader-page')).toBeVisible();
+    await expect(page.locator('.vertical-page-image').first()).toBeVisible();
   });
 });

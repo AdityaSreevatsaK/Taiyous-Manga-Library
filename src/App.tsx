@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { entries as realEntries } from './data/catalogue';
 import { demoEntries, demoManifests, fixtureStatement } from './data/fixtures';
-import { resolveSyntheticPage, type PageSource } from './data/pageSource';
 import { verifyOfflineChapter } from './data/offlineChapters';
 import { OfflineChapterControl } from './components/OfflineChapterControl';
 import { VerticalReader } from './components/VerticalReader';
@@ -9,8 +8,8 @@ import { parseAppRoute, routeHref, type AppRoute } from './domain/routes';
 import { defaultReaderPreferences, laterProgress, loadAllProgress, loadPreferences, loadProgress,
   nextProgressTimestamp, savePreferences, saveProgress, type ReaderPreferences } from './domain/localReaderStorage';
 import { filterCatalogue, type SortMode } from './domain/filters';
-import { keyNavigation, nextPreloadIndex, orderedChapters, restoreProgress, stepReader, swipeNavigation, type ReaderLocation } from './domain/reader';
-import type { ChapterManifest, MangaEntry, MangaProgress, PublicationStatus, ReadingDirection } from './domain/types';
+import { orderedChapters, restoreProgress, stepChapter, type ReaderLocation } from './domain/reader';
+import type { ChapterManifest, MangaEntry, MangaProgress, PublicationStatus } from './domain/types';
 import './styles.css';
 
 type Screen = { kind: 'catalogue'; section: 'home' | 'library' | 'offline' } | { kind: 'details' | 'reader'; id: string } | { kind: 'not-found' };
@@ -18,7 +17,6 @@ function currentBrowserRoute(): AppRoute {
   return typeof window === 'undefined' ? { kind: 'home' } :
     parseAppRoute(window.location.pathname, window.location.search, import.meta.env.BASE_URL);
 }
-const directions: ReadingDirection[] = ['rtl', 'ltr', 'vertical'];
 
 export default function App({ initialDemo = true }: { initialDemo?: boolean } = {}) {
   const initialRoute = useMemo(currentBrowserRoute, []);
@@ -46,11 +44,6 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
     const read = loadPreferences();
     return read.status === 'ok' ? read.value : defaultReaderPreferences;
   });
-  const [direction, setDirection] = useState<ReadingDirection>(() =>
-    preferences.direction ??
-    (initialRoute.kind === 'reader' || initialRoute.kind === 'details'
-      ? (initialDemo ? demoEntries : realEntries).find(item => item.id === initialRoute.mangaId)?.direction
-      : undefined) ?? 'rtl');
   const [immersive, setImmersive] = useState(false);
   const [jumpToken, setJumpToken] = useState(0);
   const [location, setLocation] = useState<ReaderLocation | null>(() =>
@@ -63,29 +56,14 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
     return snapshot.invalid > 0 ? 'Some saved reading records could not be verified. They were preserved for recovery.' : '';
   });
   const [notice, setNotice] = useState('');
-  const [image, setImage] = useState<{ key: string; src: string } | null>(null);
-  const [imageError, setImageError] = useState<string | null>(null);
-  const [loadedPageKey, setLoadedPageKey] = useState<string | null>(null);
-  const [imageRetry, setImageRetry] = useState(0);
   const [online, setOnline] = useState(() => typeof navigator === 'undefined' ? true : navigator.onLine);
   const [inventoryRevision, setInventoryRevision] = useState(0);
   const [offlineChapterIds, setOfflineChapterIds] = useState<ReadonlySet<string>>(() => new Set());
-  const cache = useRef(new Map<string, PageSource>());
-  function clearPageCache() {
-    for (const source of cache.current.values()) source.release();
-    cache.current.clear();
-  }
-  const touch = useRef<{ x: number; y: number } | null>(null);
   const readerRef = useRef<HTMLElement | null>(null);
   const catalogue = demo ? demoEntries : realEntries;
   const manifests: ReadonlyMap<string, ChapterManifest> = demo ? demoManifests : new Map<string, ChapterManifest>();
   const entry = screen.kind === 'reader' || screen.kind === 'details' ? catalogue.find(item => item.id === screen.id) : undefined;
   const manifest = location ? manifests.get(location.chapterId) : undefined;
-  const activePageKey = location ? location.chapterId + ':' + location.pageIndex : null;
-  // Do not momentarily show the previous page under a new location while its effect runs.
-  const displayedImage = image?.key === activePageKey ? image.src : null;
-  const pageReady = direction === 'vertical' ? !!activePageKey && loadedPageKey === activePageKey :
-    !!displayedImage && !!activePageKey && loadedPageKey === activePageKey && !imageError;
   const chapters = entry ? orderedChapters(entry) : [];
   const activeChapter = chapters.find(chapter => chapter.id === location?.chapterId);
   const allTags = [...new Set(catalogue.flatMap(item => item.tags))].sort();
@@ -153,54 +131,6 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
     document.addEventListener('fullscreenchange', syncFullscreen);
     return () => document.removeEventListener('fullscreenchange', syncFullscreen);
   }, []);
-  useEffect(() => {
-    // Only one image is displayed in horizontal mode. Cached copies are verified
-    // before reading; failed integrity never results in silent page skipping.
-    if (direction === 'vertical' && screen.kind === 'reader') return;
-    if (screen.kind !== 'reader' || !entry || !location || !manifest || !demo) {
-      setImage(null); setLoadedPageKey(null);
-      return;
-    }
-    let cancelled = false;
-    setLoadedPageKey(null);
-    setImageError(null);
-    const key = location.chapterId + ':' + location.pageIndex;
-    const neighbour = nextPreloadIndex(location.pageIndex, manifest.pages.length);
-    const nextKey = neighbour === null ? null : location.chapterId + ':' + neighbour;
-    const keep = new Set([key, ...(nextKey ? [nextKey] : [])]);
-    for (const cached of cache.current.keys()) if (!keep.has(cached)) {
-      cache.current.get(cached)?.release();
-      cache.current.delete(cached);
-    }
-    void (async () => {
-      try {
-        if (!cache.current.has(key)) {
-          const source = await resolveSyntheticPage(manifest, location.pageIndex);
-          if (cancelled) { source.release(); return; }
-          cache.current.set(key, source);
-        }
-        if (cancelled) return;
-        setImage({ key, src: cache.current.get(key)!.src });
-        if (nextKey && neighbour !== null && !cache.current.has(nextKey)) {
-          try {
-            const near = await resolveSyntheticPage(manifest, neighbour);
-            if (cancelled) near.release();
-            else {
-              cache.current.set(nextKey, near);
-              const preload = new Image();
-              preload.src = near.src;
-            }
-          } catch { /* Neighbour failure does not skip or fail the active page. */ }
-        }
-      } catch {
-        if (!cancelled) {
-          setImage(null);
-          setImageError('This page or its offline copy is unavailable or corrupt. Retry or remove the offline chapter.');
-        }
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [screen.kind, entry, location, manifest, demo, imageRetry, direction === 'vertical']);
   function updateLocation(next: ReaderLocation) {
     // Selecting a page is not proof it was successfully loaded or read.
     // Progress is committed only after the active image has loaded.
@@ -210,8 +140,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
         chapterId: next.chapterId, pageIndex: next.pageIndex }, import.meta.env.BASE_URL);
       if (window.location.pathname + window.location.search !== url) window.history.pushState(null, '', url);
     }
-    setLoadedPageKey(null);
-    if (direction === 'vertical') setJumpToken(value => value + 1);
+    setJumpToken(value => value + 1);
     setNotice('');
   }
   function markPageViewed(item: MangaEntry, viewed: ReaderLocation, verticalOffsetRatio?: number) {
@@ -222,9 +151,9 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
     const prior = laterProgress(progress[item.id], saved.status === 'ok' ? saved.value : undefined);
     const record: MangaProgress = {
       mangaId: item.id, chapterId: viewed.chapterId, pageIndex: viewed.pageIndex, pageId,
-      updatedAt: nextProgressTimestamp(prior), readingMode: direction,
+      updatedAt: nextProgressTimestamp(prior), readingMode: 'vertical',
       ...(verticalOffsetRatio !== undefined ? { verticalOffsetRatio } :
-        prior?.chapterId === viewed.chapterId && prior?.pageId === pageId && direction === 'vertical'
+        prior?.chapterId === viewed.chapterId && prior?.pageId === pageId
           ? { verticalOffsetRatio: prior.verticalOffsetRatio } : {}),
     };
     const stored = saveProgress(record, item, manifests);
@@ -246,8 +175,9 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
     });
   }
   function updatePreferences(next: ReaderPreferences) {
-    setPreferences(next);
-    if (!savePreferences(next))
+    const normalised = { ...next, direction: 'vertical' as const };
+    setPreferences(normalised);
+    if (!savePreferences(normalised))
       setStorageNotice('Reader settings could not be saved. Changes are only active in this session.');
     else setStorageNotice('');
   }
@@ -258,16 +188,13 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
       setNotice('No verified demonstration pages are available for this chapter.');
       return;
     }
-    // Keep the user's active direction when changing chapters inside the reader.
-    if (screen.kind !== 'reader') setDirection(preferences.direction ?? item.direction);
     navigateTo({ kind: 'reader', mangaId: item.id, chapterId: target.chapterId, pageIndex: target.pageIndex });
   }
   function move(delta: -1 | 1) {
-    // A failed image must not be skipped or recorded as read via arrows/swipes.
-    if (!entry || !location || !manifest || !pageReady) return;
-    const next = stepReader(entry, manifests, location, delta);
+    if (!entry || !location || !manifest) return;
+    const next = stepChapter(entry, manifests, location, delta);
     if (next) updateLocation(next);
-    else setNotice(delta === 1 ? 'End of available chapters. No pages were skipped.' : 'Start of this series.');
+    else setNotice(delta === 1 ? 'You have reached the final chapter.' : 'You are at the first chapter.');
   }
   function exitImmersive() {
     if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
@@ -316,9 +243,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
         !verified || route.pageIndex >= verified.pages.length) {
       exitImmersive(); setScreen({ kind: 'not-found' }); setLocation(null); return;
     }
-    if (screen.kind !== 'reader' || screen.id !== item.id) setDirection(preferences.direction ?? item.direction);
     setLocation({ chapterId: route.chapterId, pageIndex: route.pageIndex });
-    setLoadedPageKey(null);
     setJumpToken(value => value + 1);
     setScreen({ kind: 'reader', id: item.id });
   }
@@ -340,7 +265,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
   function changeDemo(value: boolean) {
     exitImmersive();
     setDemo(value); setLocation(null); setNotice(''); goCatalogue('home');
-    clearPageCache(); setQuery(''); setTag(''); setCollection(''); setStatus('all');
+    setQuery(''); setTag(''); setCollection(''); setStatus('all');
   }
   const progressForEntry = entry ? restoreProgress(entry, manifests, progress[entry.id]) : null;
 
@@ -455,7 +380,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
             <div className="tag-row">{entry.tags.map(value=><span className="tag" key={value}>{value}</span>)}</div>
             <div className="stat-strip"><span><strong>{entry.chapters.length}</strong> chapters</span>
               <span><strong>{entry.rating ?? '–'}</strong> sample rating / 10</span>
-              <span><strong>{entry.direction.toUpperCase()}</strong> default mode</span></div>
+              <span><strong>Scroll</strong> continuous chapter view</span></div>
             <div className="detail-actions">
               <a className="primary" href={routeHref({kind:'reader',mangaId:entry.id,
                 chapterId:progressForEntry?.chapterId ?? chapters[0]?.id ?? 'unavailable',
@@ -464,7 +389,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
                 {progressForEntry ? 'Continue reading' : 'Read from beginning'} <span aria-hidden="true">↗</span></a>
               {progressForEntry && <a className="secondary"
                 href={routeHref({kind:'reader',mangaId:entry.id,chapterId:chapters[0]?.id ?? 'unavailable',pageIndex:0},import.meta.env.BASE_URL)}
-                onClick={event=>followLink(event,()=>openChapter(entry,chapters[0]?.id))}>Start from page one</a>}</div>
+                onClick={event=>followLink(event,()=>openChapter(entry,chapters[0]?.id))}>Start from chapter one</a>}</div>
             <p className="fine-print">Reading progress is stored locally on this device, when browser storage permits. Cross-device sync is not enabled.</p>
           </div>
         </section>
@@ -478,13 +403,12 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
                 <small>{chapter.volume ?? 'No volume'} · {chapter.pageCount ?? 'Unknown'} sample pages</small></span>
               <span className="chapter-open">Read ↗</span></a>
             {manifests.get(chapter.id) && <OfflineChapterControl manifest={manifests.get(chapter.id)!}
-              onChange={()=>{clearPageCache();setInventoryRevision(value=>value+1);}} />}
+              onChange={()=>setInventoryRevision(value=>value+1)} />}
           </div>)}
         </section>
       </>}
       {screen.kind === 'reader' && entry && location && <section className="reader-shell" ref={readerRef} tabIndex={0}
-        onKeyDown={event=>{if (event.target !== event.currentTarget || direction === 'vertical') return; const delta=keyNavigation(direction,event.key);if(delta){event.preventDefault();move(delta);}}}
-        aria-label="Manga reader">
+        aria-label="Manga reader, continuous chapter view">
         <div className="reader-topline">
           <a className="back" href={routeHref({kind:'details',mangaId:entry.id},import.meta.env.BASE_URL)}
             onClick={event=>followLink(event,()=>navigateTo({kind:'details',mangaId:entry.id}))}>← Series details</a>
@@ -497,24 +421,13 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
         </div>
         <div className="reader-controls">
           <div className="reader-heading"><h1>{entry.title}</h1><p>{activeChapter?.label ?? 'Unknown chapter'}</p></div>
-          <div className="reader-options"><fieldset><legend>Reading direction</legend>
-              {directions.map(option=><button type="button" key={option} className={direction===option?'chip active':'chip'}
-                aria-pressed={direction===option} onClick={()=>{
-                  if (direction === option) return;
-                  // Switching physical arrow direction must not invalidate an already loaded image.
-                  if (direction === 'vertical' || option === 'vertical') {setLoadedPageKey(null);setImageError(null);}
-                  setDirection(option);
-                  updatePreferences({ ...preferences, direction: option });
-                  setNotice('');
-                }}>
-                {option==='rtl'?'Right to left':option==='ltr'?'Left to right':'Vertical'}</button>)}
-            </fieldset>
+          <div className="reader-options"><p className="scroll-mode-note">Continuous chapter scroll · One chapter per view</p>
             <div className="reader-selectors">
               <label>Image fit
                 <select value={preferences.fit} onChange={event=>updatePreferences({
                   ...preferences, fit: event.target.value as ReaderPreferences['fit'],
                 })}>
-                  <option value="page">Fit page</option><option value="width">Fit width</option>
+                  <option value="page">Standard width</option><option value="width">Wide view</option>
                 </select></label>
               <label>Reader theme
                 <select value={preferences.theme} onChange={event=>updatePreferences({
@@ -526,7 +439,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
                 <select value={location.chapterId} onChange={event=>openChapter(entry,event.target.value)}>
                   {chapters.map(chapter=><option key={chapter.id} value={chapter.id}>{chapter.label}</option>)}</select>
               </label>
-              {manifest && <label>Go to page
+              {manifest && <label>Jump within chapter
                 <select value={location.pageIndex} onChange={event=>{
                   const pageIndex = Number(event.target.value);
                   if (Number.isSafeInteger(pageIndex) && pageIndex >= 0 && pageIndex < manifest.pages.length)
@@ -537,8 +450,9 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
               </label>}
             </div></div>
         </div>
-        {direction === 'vertical' && manifest ?
-          <VerticalReader key={manifest.chapterId} manifest={manifest} activeIndex={location.pageIndex} jumpToken={jumpToken}
+        {manifest ?
+          <VerticalReader key={manifest.chapterId + ':' + inventoryRevision} manifest={manifest}
+            fit={preferences.fit} activeIndex={location.pageIndex} jumpToken={jumpToken}
             initialOffsetRatio={progress[entry.id]?.chapterId === location.chapterId &&
               progress[entry.id]?.pageId === manifest.pages[location.pageIndex]?.id
                 ? progress[entry.id]?.verticalOffsetRatio ?? 0 : 0}
@@ -549,42 +463,19 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
               setLocation(previous => previous?.chapterId === manifest.chapterId && previous.pageIndex === index
                 ? previous : { chapterId: manifest.chapterId, pageIndex: index });
             }}
-            onViewedPage={index => {
-              setLoadedPageKey(manifest.chapterId + ':' + index);
-              markPageViewed(entry, { chapterId: manifest.chapterId, pageIndex: index });
-            }} /> :
-        <div className="reader-stage" onTouchStart={event=>{
-          const start=event.touches[0];if(start)touch.current={x:start.clientX,y:start.clientY};
-        }} onTouchEnd={event=>{
-          const start=touch.current;const end=event.changedTouches[0];touch.current=null;
-          if (!start || !end)return;
-          const delta=swipeNavigation(direction,end.clientX-start.x,end.clientY-start.y);
-          if(delta)move(delta);
-        }} style={{touchAction:direction==='vertical'?'pan-x':'pan-y'}}>
-          {manifest && displayedImage && !imageError ? <img key={location.chapterId + ':' + location.pageIndex}
-            className={'reader-page reader-fit-' + preferences.fit} src={displayedImage}
-            alt={'Synthetic illustration, '+(activeChapter?.label??'chapter')+', page '+(location.pageIndex+1)}
-            onLoad={()=>{
-              setLoadedPageKey(activePageKey);
-              markPageViewed(entry, location);
-            }}
-            onError={()=>setImageError('This sample page is unavailable. Retry rather than silently skipping it.')}
-            decoding="async" /> : manifest && !imageError && !displayedImage ?
-            <div className="page-error" role="status"><h2>Preparing sample page</h2>
-              <p>Generating this original illustration locally.</p></div> :
-            <div className="page-error" role="alert"><h2>Page unavailable</h2>
-              <p>{imageError ?? 'No verified page image exists for this chapter.'}</p>
-              <button className="secondary" type="button" onClick={()=>{clearPageCache();setImageRetry(value=>value+1);}}>Retry page</button>
-            </div>}
-          <div className="page-stamp">{location.pageIndex+1} / {manifest?.pages.length ?? '?'}</div>
-        </div>}
+            onViewedPage={index => markPageViewed(entry, { chapterId: manifest.chapterId, pageIndex: index })} /> :
+          <div className="page-error" role="alert">Chapter pages are not available.</div>}
         <div className="page-navigation">
-          <button className="secondary" type="button" disabled={!manifest || !pageReady} onClick={()=>move(-1)}>← Previous page</button>
-          <p aria-live="polite">Page {location.pageIndex+1} of {manifest?.pages.length ?? '?'} <span aria-hidden="true">·</span> {activeChapter?.label}</p>
-          <button className="primary" type="button" disabled={!manifest || !pageReady} onClick={()=>move(1)}>Next page →</button>
+          <button className="secondary" type="button" disabled={!stepChapter(entry, manifests, location, -1)}
+            onClick={()=>move(-1)}>← Previous chapter</button>
+          <p aria-live="polite">Chapter {chapters.findIndex(chapter=>chapter.id===location.chapterId)+1} of {chapters.length}
+            <span aria-hidden="true"> · </span> {activeChapter?.label}
+            <span aria-hidden="true"> · </span> Page {location.pageIndex+1} of {manifest?.pages.length ?? '?'}</p>
+          <button className="primary" type="button" disabled={!stepChapter(entry, manifests, location, 1)}
+            onClick={()=>move(1)}>Next chapter →</button>
         </div>
         {notice && <p className="reader-notice" role="status">{notice}</p>}
-        <p className="reader-hint">{direction === 'vertical' ? 'Scroll continuously through the chapter. Only nearby images are loaded.' : 'Use Previous / Next, swipe or focus the reader and use ← / → arrow keys.'}</p>
+        <p className="reader-hint">Scroll down to read every page in this chapter. Previous and Next move between chapters only. Nearby images load on demand.</p>
         <p className="fine-print">Synthetic chapter copies can be saved from series details for genuine offline access. No real private media is connected.</p>
       </section>}
       {screen.kind === 'not-found' && <div className="empty-state" role="alert"><h2>Page unavailable</h2>
