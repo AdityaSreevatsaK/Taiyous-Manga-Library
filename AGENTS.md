@@ -13,7 +13,7 @@ Build a secure, maintainable, privacy-respecting manga application to read and o
 5. Implement only the current agreed scope on a short-lived feature branch.
 6. Add tests, update docs, run CI, review the PR diff and verify the merge state before claiming completion.
 7. Do not merge changes that break the typecheck, unit tests, build, privacy rules or user-visible core functionality.
-8. Do not deploy or set production secrets without explicit owner approval.
+8. The owner has authorised non-destructive merges and subsequent deployments by default. Merge only after green required CI; verify Cloudflare production after merging. Production secrets, destructive changes or private data still require explicit approval.
 
 ## Source of truth and boundaries
 - This repository owns its domain types and implementation. Shared Core's v0 contracts are **proposals**, not a migration mandate.
@@ -45,3 +45,13 @@ A read-only local catalogue with an explicit no-data state, a chapter manifest v
 
 ## Visibility approval
 The owner authorised public **source code** on 18 November 2026. This is not approval to publish private manga, private datasets, credentials or production access details. Actual GitHub API visibility still needs confirmation; the last report remained private.
+
+## Approved UI specification, 19 November 2026
+- Eight primary sections in exact order: Home, Currently Reading, Trying Out, Available Offline, Finished, To Be Read, All Manga, Analytics.
+- Mobile displays Currently Reading, Trying Out, Available Offline and a More menu, with no duplicated live links.
+- Six themes: Sepia (default), Paper, Charcoal, Midnight, Ocean, Plum. Persist selection; an open menu must not mutate it.
+- The Taiyou Sun artwork is approved and must remain transparent. Use the theme-specific mark, favicon and PWA icons; footer says Created by Taiyou.
+- Reader displays ALL images in one vertical scroll. Previous/Next navigate CHAPTERS only; bottom-centre chapter selector.
+- Personal reading shelf values and publication statuses are independent; shelf state is device-local pending secure cloud sync.
+- Use diagonal text ribbons on covers. No "Unrated" labels, browser-native confirms or fake connectivity.
+- Merge and deploy once CI passes unless the owner explicitly asks to stop. Preserve real user progress, downloaded images and rollback compatibility.
