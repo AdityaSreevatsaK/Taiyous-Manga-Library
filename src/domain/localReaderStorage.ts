@@ -6,13 +6,14 @@ const PREFERENCES_KEY = 'taiyou-manga:reader-preferences';
 const directions: ReadingDirection[] = ['rtl', 'ltr', 'vertical'];
 
 export type ImageFit = 'page' | 'width';
-export type ReaderTheme = 'dark' | 'sepia' | 'light';
+export type ReaderTheme = 'sepia' | 'paper' | 'charcoal' | 'midnight' | 'ocean' | 'plum';
+export const readerThemes: readonly ReaderTheme[] = ['sepia', 'paper', 'charcoal', 'midnight', 'ocean', 'plum'];
 export interface ReaderPreferences {
   direction: ReadingDirection | null;
   fit: ImageFit;
   theme: ReaderTheme;
 }
-export const defaultReaderPreferences: ReaderPreferences = { direction: null, fit: 'page', theme: 'dark' };
+export const defaultReaderPreferences: ReaderPreferences = { direction: null, fit: 'page', theme: 'sepia' };
 export type StorageResult<T> =
   | { status: 'ok'; value: T }
   | { status: 'missing' | 'invalid' | 'unavailable' | 'stale' };
@@ -37,9 +38,9 @@ function parsePreferences(raw: unknown): ReaderPreferences {
   const p = raw.preferences;
   if (!(p.direction === null || (typeof p.direction === 'string' && directions.includes(p.direction as ReadingDirection))) ||
     (p.fit !== 'page' && p.fit !== 'width') ||
-    (p.theme !== 'dark' && p.theme !== 'sepia' && p.theme !== 'light'))
+    !(typeof p.theme === 'string' && [...readerThemes, 'dark', 'light'].includes(p.theme)))
     throw new Error('Invalid reader preferences');
-  return { direction: p.direction as ReadingDirection | null, fit: p.fit as ImageFit, theme: p.theme as ReaderTheme };
+  return { direction: p.direction as ReadingDirection | null, fit: p.fit as ImageFit, theme: (p.theme === 'dark' ? 'charcoal' : p.theme === 'light' ? 'paper' : p.theme) as ReaderTheme };
 }
 /** Pure validation for manually imported reader settings; never writes storage. */
 export function validateReaderPreferences(input: unknown): ReaderPreferences {

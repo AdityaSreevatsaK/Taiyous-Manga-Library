@@ -6,6 +6,12 @@ import { fileURLToPath } from 'node:url';
 const STAMP_PREFIX = '/* Taiyou offline shell release: ';
 const STAMP_PATTERN = /\/\* Taiyou offline shell release: ([a-f0-9]{24}) \*\//;
 const VALID_ASSET = /^\/(?:[a-zA-Z0-9_-]+\/)*assets\/[a-zA-Z0-9._-]+\.(?:js|css)$/;
+export const STATIC_SHELL_ASSETS = [
+  'branding/sun-dark.webp', 'branding/sun-light.webp',
+  'branding/favicon-dark.png', 'branding/favicon-light.png',
+  'branding/taiyou-app-192.png', 'branding/taiyou-app-512.png',
+  'manifest.webmanifest',
+];
 
 /** Identical builds produce identical SW bytes; any changed app shell forces a new install. */
 export function computeReleaseFingerprint(html, readAsset) {
@@ -20,6 +26,9 @@ export function computeReleaseFingerprint(html, readAsset) {
     // Only the asset filename beneath dist/assets is used; no absolute input paths.
     const filename = path.slice(path.lastIndexOf('/assets/') + 1);
     hash.update(path).update(readAsset(filename));
+  }
+  for (const path of STATIC_SHELL_ASSETS) {
+    hash.update(path).update(readAsset(path));
   }
   return hash.digest('hex').slice(0, 24);
 }

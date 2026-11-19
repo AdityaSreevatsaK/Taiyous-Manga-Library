@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { computeReleaseFingerprint } from './stamp-service-worker.mjs';
+import { computeReleaseFingerprint, STATIC_SHELL_ASSETS } from './stamp-service-worker.mjs';
 
 const html = `<!doctype html><script type="module" src="/assets/app-123.js"></script><link rel="stylesheet" href="/assets/main-456.css">`;
 const assets = new Map([
   ['assets/app-123.js', Buffer.from('console.log("first version")')],
   ['assets/main-456.css', Buffer.from('body{color:black}')],
+  ...STATIC_SHELL_ASSETS.map(asset => [asset, Buffer.from('approved asset ' + asset)]),
 ]);
 function fingerprint(markup = html, files = assets) {
   return computeReleaseFingerprint(markup, path => {
@@ -43,4 +44,14 @@ test('rejects missing assets, external URLs and builds without both JS and CSS',
   assert.throws(() => fingerprint('<script src="https://evil.example/app.js"></script><link href="/assets/main-456.css">'),
     /local JavaScript and CSS/);
   assert.throws(() => fingerprint('<script src="/assets/app-123.js"></script>'), /local JavaScript and CSS/);
+});
+
+test('changed approved branding bytes require a new offline release', () => {
+  const first=fingerprint();
+  const updated=new Map(assets);
+  updated.set('branding/sun-light.webp',Buffer.from('updated blue-gold mark'));
+  assert.notEqual(first,fingerprint(html,updated));
+  const missing=new Map(assets);
+  missing.delete('manifest.webmanifest');
+  assert.throws(()=>fingerprint(html,missing),/Missing manifest.webmanifest/);
 });

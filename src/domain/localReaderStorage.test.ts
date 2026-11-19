@@ -72,10 +72,20 @@ describe('reader local persistence', () => {
   it('preserves preferences and ignores unsupported versions without destroying data', () => {
     const store = fakeStorage();
     expect(loadPreferences(store).status).toBe('missing');
+    expect(defaultReaderPreferences.theme).toBe('sepia');
     expect(savePreferences({ ...defaultReaderPreferences, direction: 'ltr', theme: 'sepia', fit: 'width' }, store)).toBe(true);
     expect(loadPreferences(store)).toEqual({ status: 'ok', value: { direction: 'ltr', fit: 'width', theme: 'sepia' } });
     expect(savePreferences({ ...defaultReaderPreferences, direction: 'invalid' as 'rtl' }, store)).toBe(false);
     expect(loadPreferences(store).status).toBe('ok');
+  });
+  it('reads older dark/light themes without losing stored preferences', () => {
+    const store = fakeStorage();
+    store.setItem('taiyou-manga:reader-preferences', JSON.stringify({
+      schemaVersion:1, mediaKind:'manga',preferences:{direction:null,fit:'page',theme:'dark'},
+    }));
+    expect(loadPreferences(store)).toMatchObject({status:'ok',value:{theme:'charcoal'}});
+    expect(savePreferences({ ...defaultReaderPreferences, theme:'ocean' },store)).toBe(true);
+    expect(loadPreferences(store)).toMatchObject({status:'ok',value:{theme:'ocean'}});
   });
   it('continues session-only reading if browser storage is blocked or full', () => {
     const denied = fakeStorage();

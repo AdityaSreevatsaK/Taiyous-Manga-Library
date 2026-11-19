@@ -101,10 +101,10 @@ describe('manual browser-only progress transfer', () => {
     const store = fakeStorage();
     const input=backup([]);
     input.preferences={direction:'ltr',fit:'width',theme:'sepia'};
-    savePreferences({direction:'vertical',fit:'page',theme:'dark'},store);
+    savePreferences({direction:'vertical',fit:'page',theme:'charcoal'},store);
     const plan=previewLocalReaderBackup(input,demoEntries,demoManifests,store);
     restoreLocalReaderBackup(plan,demoEntries,demoManifests,store);
-    expect(loadPreferences(store)).toMatchObject({status:'ok',value:{theme:'dark'}});
+    expect(loadPreferences(store)).toMatchObject({status:'ok',value:{theme:'charcoal'}});
     const opted=restoreLocalReaderBackup(plan,demoEntries,demoManifests,store,true);
     expect(opted.preferencesRestored).toBe(true);
     expect(loadPreferences(store)).toMatchObject({status:'ok',value:{direction:'vertical',fit:'width',theme:'sepia'}});

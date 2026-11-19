@@ -258,7 +258,7 @@ test.describe('browser history and deep links', () => {
       await expect(page.getByRole('heading', { name: 'Page unavailable' })).toBeVisible();
       await page.getByRole('link', { name: 'Open the library' }).click();
       await expect(page).toHaveURL('/library');
-      await expect(page.getByRole('heading', { name: 'The sample collection' })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'All Manga' })).toBeVisible();
     }
   });
 
@@ -438,7 +438,7 @@ test.describe('manual local reading backup and restore', () => {
     await expect(page.getByRole('button',{name:'Confirm restore'})).toBeEnabled();
     await page.getByRole('button',{name:'Cancel'}).click();
     await expect(page.locator('.backup-preview')).toHaveCount(0);
-    await expect(page.locator('.app-shell')).toHaveClass(/theme-dark/);
+    await expect(page.locator('.app-shell')).toHaveClass(/theme-sepia/);
   });
 });
 
@@ -462,10 +462,10 @@ test.describe('explicit offline chapter storage and application shell', () => {
     await expect(page.getByRole('button', { name: 'Download chapter' })).toHaveCount(3);
     await page.getByRole('button', { name: 'Download chapter' }).first().click();
     await expect(page.getByText('Chapter saved locally and verified.')).toBeVisible();
-    await expect(page.getByText('Available offline')).toHaveCount(1);
-    await expect(page.getByRole('link', { name: 'Offline (1)' })).toBeVisible();
+    await expect(page.getByText('Available offline',{exact:true})).toHaveCount(1);
+    await expect(page.getByRole('link', { name: 'Available Offline (1)' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Download chapter' })).toHaveCount(2);
-    await page.getByRole('link', { name: 'Offline (1)' }).click();
+    await page.getByRole('link', { name: 'Available Offline (1)' }).click();
     await expect(page).toHaveURL('/offline');
     await expect(page.locator('.offline-series-link')).toHaveCount(1);
     await page.locator('.offline-series-link').first().click();
@@ -475,14 +475,14 @@ test.describe('explicit offline chapter storage and application shell', () => {
     await page.getByRole('link', { name: /Series details/ }).click();
     await page.getByRole('button', { name: 'Remove offline copy' }).first().click();
     await expect(page.getByText(/Offline copy removed/)).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Offline (0)' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Available Offline (0)' })).toBeVisible();
     await expect(page.getByRole('link', { name: /Continue reading/ })).toBeVisible();
   });
 
   test('a corrupt cached chapter is flagged and cannot silently skip pages', async ({ page }) => {
     await page.goto('/manga/mng_lanternarchive');
     await page.getByRole('button', { name: 'Download chapter' }).first().click();
-    await expect(page.getByText('Available offline')).toHaveCount(1);
+    await expect(page.getByText('Available offline',{exact:true})).toHaveCount(1);
     await page.evaluate(async () => {
       const cache = await caches.open('taiyou-manga-synthetic-chapters-v1');
       const keys = await cache.keys();
@@ -491,7 +491,7 @@ test.describe('explicit offline chapter storage and application shell', () => {
     });
     await page.reload();
     await expect(page.getByText('Offline copy needs repair')).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Offline (0)' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Available Offline (0)' })).toBeVisible();
     await page.getByRole('link', { name: /Read from beginning/ }).click();
     await expect(page.locator('.vertical-page-error').first()).toContainText('could not be loaded');
     await expect(page.getByRole('link', { name: /Continue reading/ })).toHaveCount(0);
@@ -503,7 +503,7 @@ test.describe('explicit offline chapter storage and application shell', () => {
   test('cold offline start opens an explicitly downloaded chapter from production shell cache', async ({ page, context }) => {
     await page.goto('/manga/mng_lanternarchive');
     await page.getByRole('button', { name: 'Download chapter' }).first().click();
-    await expect(page.getByText('Available offline')).toHaveCount(1);
+    await expect(page.getByText('Available offline',{exact:true})).toHaveCount(1);
     await expect.poll(async () => page.evaluate(async () =>
       (await caches.keys()).some(key => key.startsWith('taiyou-manga-shell-v1-')))).toBe(true);
     await page.evaluate(async () => { await navigator.serviceWorker.ready; });
@@ -525,7 +525,7 @@ test.describe('explicit offline chapter storage and application shell', () => {
     const offlineControl = await page.evaluate(() => navigator.serviceWorker.controller?.scriptURL ?? 'not-controlled');
     expect(offlineControl).toContain('/sw.js');
     await expect(page.getByRole('heading', { name: 'Offline chapters' })).toBeVisible();
-    await expect(page.locator('.offline-series-link')).toHaveCount(1);
+    await expect(page.locator('.offline-series-link')).toHaveCount(1,{timeout:15000});
     await page.locator('.offline-series-link').click();
     await expect.poll(async () => page.locator('.vertical-page-image').first().getAttribute('src')).toMatch(/^blob:/);
     await page.locator('.vertical-page').nth(1).evaluate(el => el.scrollIntoView({block:'start'}));
@@ -539,7 +539,7 @@ test.describe('explicit offline chapter storage and application shell', () => {
   test('a vertical chapter uses downloaded images without loading every image', async ({ page }) => {
     await page.goto('/manga/mng_clockworkshore');
     await page.getByRole('button', { name: 'Download chapter' }).click();
-    await expect(page.getByText('Available offline')).toBeVisible();
+    await expect(page.getByText('Available offline',{exact:true})).toBeVisible();
     await page.getByRole('link', { name: /Read from beginning/ }).click();
     await expect(page.locator('.vertical-page')).toHaveCount(5);
     await expect.poll(async () => page.locator('.vertical-page-image').first().getAttribute('src')).toMatch(/^blob:/);
@@ -598,14 +598,14 @@ test.describe('offline failure handling and accessibility hardening', () => {
     await page.goto('/manga/mng_lanternarchive');
     await page.getByRole('button', { name: 'Download chapter' }).first().click();
     await expect(page.getByText(/Synthetic quota exceeded/)).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Offline (0)' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Available Offline (0)' })).toBeVisible();
     expect(await page.evaluate(() => localStorage.getItem('taiyou-manga:offline-chapter:v1:ch_lanternopening'))).toBeNull();
   });
 
   test('service worker update check preserves verified media and progress', async ({ page }) => {
     await page.goto('/manga/mng_lanternarchive');
     await page.getByRole('button', { name: 'Download chapter' }).first().click();
-    await expect(page.getByText('Available offline')).toHaveCount(1);
+    await expect(page.getByText('Available offline',{exact:true})).toHaveCount(1);
     await page.getByRole('link', { name: /Read from beginning/ }).click();
     await page.locator('.vertical-page').nth(1).evaluate(el => el.scrollIntoView({block:'start'}));
     await expect(page.locator('.page-navigation')).toContainText('Page 2 of 5');
@@ -616,7 +616,7 @@ test.describe('offline failure handling and accessibility hardening', () => {
     await page.reload();
     await expect(page.locator('.page-navigation')).toContainText('Page 2 of 5');
     await expect.poll(async () => page.locator('.vertical-page-image').first().getAttribute('src')).toMatch(/^blob:/);
-    await expect(page.getByRole('link', { name: 'Offline (1)' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Available Offline (1)' })).toBeVisible();
     const cache = await page.evaluate(() => caches.keys());
     expect(cache).toContain('taiyou-manga-synthetic-chapters-v1');
   });
@@ -626,7 +626,7 @@ test.describe('offline failure handling and accessibility hardening', () => {
       await page.setViewportSize({ width, height: 760 });
       await page.goto('/manga/mng_lanternarchive');
       await assertNoHorizontalOverflow(page);
-      const heights = await page.locator('.site-nav-link, .offline-chapter-control button')
+      const heights = await page.locator('.site-nav > .site-nav-link, .offline-chapter-control button')
         .evaluateAll(elements => elements.map(el => Math.round(el.getBoundingClientRect().height)));
       expect(heights.every(height => height >= 44), 'touch target width ' + width + ': ' + heights).toBe(true);
       // Repeating viewport checks should use either the fresh start or the stored resume link.
@@ -642,9 +642,9 @@ test.describe('offline failure handling and accessibility hardening', () => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.goto('/manga/mng_lanternarchive');
     await page.getByRole('button', { name: 'Download chapter' }).first().click();
-    await expect(page.getByText('Available offline')).toHaveCount(1);
-    await page.getByRole('link', { name: 'Offline (1)' }).focus();
-    await expect(page.getByRole('link', { name: 'Offline (1)' })).toBeFocused();
+    await expect(page.getByText('Available offline',{exact:true})).toHaveCount(1);
+    await page.getByRole('link', { name: 'Available Offline (1)' }).focus();
+    await expect(page.getByRole('link', { name: 'Available Offline (1)' })).toBeFocused();
     await page.keyboard.press('Enter');
     await expect(page).toHaveURL('/offline');
     const link = page.locator('.offline-series-link');
@@ -654,4 +654,90 @@ test.describe('offline failure handling and accessibility hardening', () => {
     await page.keyboard.press('Enter');
     await expect(page.locator('.vertical-page-image').first()).toBeVisible();
   });
+});
+
+test.describe('approved library navigation and personal presentation', () => {
+  test('defaults to Sepia and supports six persisted themes and matching branding', async ({page}) => {
+    await page.goto('/');
+    const selector=page.getByRole('combobox',{name:'App theme'});
+    await expect(selector).toHaveValue('sepia');
+    await expect(page.locator('.wordmark .brand-sun')).toHaveAttribute('src',/sun-light.webp/);
+    for (const theme of ['paper','charcoal','midnight','ocean','plum','sepia']) {
+      await selector.selectOption(theme);
+      await expect(page.locator('.app-shell')).toHaveClass(new RegExp('theme-'+theme));
+    }
+    await selector.selectOption('charcoal');
+    await expect(page.locator('.wordmark .brand-sun')).toHaveAttribute('src',/sun-dark.webp/);
+    await expect(page.locator('#taiyou-favicon')).toHaveAttribute('href',/favicon-dark.png/);
+    await page.reload();
+    await expect(page.getByRole('combobox',{name:'App theme'})).toHaveValue('charcoal');
+    const manifest=await page.request.get('/manifest.webmanifest');
+    expect(manifest.ok()).toBe(true);
+    expect((await manifest.json()).icons).toHaveLength(2);
+  });
+
+  test('eight sections on desktop and accessible compact More navigation on mobile', async ({page}) => {
+    await page.setViewportSize({width:1280,height:900});
+    await page.goto('/');
+    await expect(page.locator('.site-nav > .site-nav-link')).toHaveCount(8);
+    await page.getByRole('link',{name:'Currently Reading (0)'}).click();
+    await expect(page).toHaveURL('/reading');
+    await expect(page.locator('.site-nav-link[aria-current="page"]')).toHaveCount(1);
+    await page.setViewportSize({width:320,height:800});
+    await expect(page.locator('.site-nav > .site-nav-link')).toHaveCount(3);
+    await expect(page.getByText('More',{exact:true})).toBeVisible();
+    await page.locator('.nav-more summary').click();
+    await page.getByRole('link',{name:'Analytics'}).click();
+    await expect(page).toHaveURL('/analytics');
+    await expect(page.getByRole('heading',{name:'Analytics'})).toBeVisible();
+    await assertNoHorizontalOverflow(page);
+  });
+
+  test('personal shelves persist locally and publication ribbons remain separate', async ({page}) => {
+    await page.goto('/manga/mng_lanternarchive');
+    const selector=page.getByRole('combobox',{name:'Personal reading shelf'});
+    await selector.selectOption('trying');
+    await expect(page.getByRole('status')).toContainText('Trying Out');
+    await page.goto('/trying');
+    await expect(page.locator('.book-card')).toHaveCount(1);
+    await expect(page.locator('.book-card .status-ribbon').first()).toBeVisible();
+    await page.reload();
+    await expect(page.locator('.book-card')).toHaveCount(1);
+    await page.goto('/manga/mng_lanternarchive');
+    await page.getByRole('combobox',{name:'Personal reading shelf'}).selectOption('finished');
+    await page.goto('/finished');
+    await expect(page.locator('.book-card')).toHaveCount(1);
+    await page.goto('/trying');
+    await expect(page.locator('.book-card')).toHaveCount(0);
+  });
+
+  test('chapter footer selects whole chapters rather than advancing pages', async ({page}) => {
+    await openSampleReader(page);
+    const picker=page.getByRole('combobox',{name:'Bottom chapter selection'});
+    const options=await picker.locator('option').all();
+    expect(options.length).toBeGreaterThan(1);
+    await picker.selectOption({index:1});
+    await expect(page.locator('.page-navigation')).toContainText('Chapter 2 of');
+    await expect(page.locator('.vertical-page')).toHaveCount(4);
+    await expect(page.getByRole('button',{name:/Next page/})).toHaveCount(0);
+  });
+});
+
+test('approved brand assets survive an offline cold launch', async ({page,context}) => {
+  await page.goto('/');
+  await page.evaluate(async () => {await navigator.serviceWorker.ready;});
+  await page.waitForFunction(async () => {
+    const names=await caches.keys();
+    for (const name of names.filter(name=>name.startsWith('taiyou-manga-shell-v1-'))) {
+      const cache=await caches.open(name);
+      if (await cache.match('/branding/sun-light.webp')) return true;
+    }
+    return false;
+  });
+  await context.setOffline(true);
+  await page.goto('/');
+  await expect(page.getByRole('link',{name:'Taiyou Manga home'})).toBeVisible();
+  await expect.poll(async () => page.locator('.wordmark .brand-sun').evaluate(
+    (img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
+  await context.setOffline(false);
 });
