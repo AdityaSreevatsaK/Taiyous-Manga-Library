@@ -4,13 +4,17 @@ async function assertNoHorizontalOverflow(page: Page) {
   const snapshot = await page.evaluate(() => {
     const width = window.innerWidth;
     const offenders = [...document.querySelectorAll<HTMLElement>('*')]
-      .filter(element => element.getBoundingClientRect().right > width + 1)
-      .slice(0, 12)
+      .filter(element => element.getBoundingClientRect().right > width + 1 ||
+        element.scrollWidth > element.clientWidth + 1)
+      .slice(0, 30)
       .map(element => ({
         element: element.tagName.toLowerCase(),
-        className: element.className,
+        className: String(element.className).slice(0, 80),
         right: Math.round(element.getBoundingClientRect().right),
-        width: Math.round(element.getBoundingClientRect().width),
+        ownWidth: Math.round(element.getBoundingClientRect().width),
+        scrollWidth: element.scrollWidth,
+        clientWidth: element.clientWidth,
+        outline: getComputedStyle(element).outlineWidth,
       }));
     return { width, scrollWidth: document.documentElement.scrollWidth, offenders };
   });
