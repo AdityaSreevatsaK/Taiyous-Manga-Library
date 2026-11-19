@@ -26,13 +26,13 @@ Read and organise legitimately acquired manga with chapter/page-level progress a
 
 ## Implemented on `master`
 
-- Responsive horizontal and continuously scrolling vertical manga reader, touch and keyboard navigation, fullscreen/focus mode and reading preferences.
+- Continuous full-chapter vertical scrolling with Previous/Next navigating **chapters only**, mobile layouts, focus mode and reading preferences.
 - Browser deep links and Back/Forward navigation for catalogue, series and chapters.
 - Versioned local progress and reading settings, with safe handling of stale or corrupt records.
 - Opt-in offline downloads for fictional chapters, offline library navigation, service worker and cache-integrity tests.
 - Accessibility, error recovery, responsive and production-browser checks.
 
-The current catalogue contains deliberately fictional fixtures. No real manga or private backend is connected.
+The current catalogue includes **Five Chapter Scroll Trial**, containing 36 original illustration pages over five chapters, with no real manga or private backend connected. See the [chapter reader acceptance checklist](docs/CHAPTER_READER_ACCEPTANCE.md) to test scrolling, chapter navigation, offline copies and progress on mobile.
 
 ## Non-negotiable boundaries
 - The owner has authorised public repository source visibility. Verify the actual GitHub setting before asserting that the change is live. No personal media or private credentials may be added to Git.
