@@ -629,6 +629,8 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
             setProgress(loadAllProgress(catalogue, manifests).progress);
             setPersonalShelves(loadShelves(catalogue).shelves);
             setAnnotations(loadAnnotations(catalogue).annotations);
+            const restoredCollections=loadCollections();
+            if(restoredCollections.status==='ok')setCollections(restoredCollections.value);
             const saved = loadPreferences();
             if (saved.status === 'ok') setPreferences(saved.value);
           }} />

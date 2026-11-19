@@ -6,4 +6,4 @@
 - All Manga and header Collections dropdown can filter imported sample labels or personal collections.
 - Deleting a collection never deletes manga, reader progress, notes or offline downloads.
 - Revision-guarded updates detect stale tabs, though cross-tab writes are still best-effort, not transactional cloud sync.
-- **Current backup caveat:** the existing v2 personal backup covers progress, personal shelves, notes, ratings and tags, but does not yet contain collection trees. Collection backup/restore and cross-device synchronisation are a separate follow-on milestone.
+- v2 personal backup now optionally includes the validated nested collection tree. Import never overwrites existing collections; new IDs are merged when parents exist and names do not conflict. Older v1 progress-only and v2 pre-collection backups remain supported. Real-time cross-device sync is not implemented.
