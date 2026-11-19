@@ -29,7 +29,7 @@ export function cleanCollectionName(value: string): string {
 }
 export function validateCollections(value:unknown):CollectionState {
   if(!object(value)||value.schemaVersion!==1||value.mediaKind!=='manga'||
-     !Number.isSafeInteger(value.revision)||Number(value.revision)<0||
+     (typeof value.revision!=='number'||!Number.isSafeInteger(value.revision)||value.revision<0)||
      !Array.isArray(value.items)||value.items.length>MAX_COLLECTIONS)
     throw Error('Unsupported or oversized collection catalogue.');
   const ids=new Set<string>();
