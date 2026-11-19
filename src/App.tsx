@@ -73,6 +73,12 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
     [catalogue, query, status, tag, collection, sort],
   );
   const offlineSeries = catalogue.filter(item => item.chapters.some(chapter => offlineChapterIds.has(chapter.id)));
+  const continueReading = catalogue
+    .map(item => ({ item, saved: progress[item.id], resume: restoreProgress(item, manifests, progress[item.id]) }))
+    .filter((value): value is { item: MangaEntry; saved: MangaProgress; resume: ReaderLocation } =>
+      value.saved !== undefined && value.resume !== null)
+    .sort((a, b) => Date.parse(b.saved.updatedAt) - Date.parse(a.saved.updatedAt))
+    .slice(0, 4);
 
   useEffect(() => {
     if (!import.meta.env.PROD || !('serviceWorker' in navigator)) return;
@@ -298,6 +304,26 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
           <div className="hero-art" aria-hidden="true"><span className="hero-orbit orbit-one" /><span className="hero-orbit orbit-two" />
             <span className="hero-moon" /><span className="hero-art-label">THE ART OF TURNING PAGES</span></div>
         </section>}
+        {screen.section === 'home' && continueReading.length > 0 && <section className="continue-section" aria-label="Continue reading">
+          <div className="shelf-heading">
+            <div><p className="eyebrow">PICK UP WHERE YOU LEFT OFF</p><h2>Continue reading</h2></div>
+            <p>Saved on this device</p>
+          </div>
+          <div className="continue-list">
+            {continueReading.map(({ item, resume }) => {
+              const ordered = orderedChapters(item);
+              const index = ordered.findIndex(chapter => chapter.id === resume.chapterId);
+              const totalPages = manifests.get(resume.chapterId)?.pages.length ?? 0;
+              return <a key={item.id} className="continue-card"
+                href={routeHref({kind:'reader',mangaId:item.id,chapterId:resume.chapterId,pageIndex:resume.pageIndex},import.meta.env.BASE_URL)}
+                onClick={event=>followLink(event,()=>openChapter(item,undefined,true))}>
+                <strong>{item.title}</strong>
+                <span>Chapter {index + 1} of {ordered.length} · Page {resume.pageIndex + 1} of {totalPages}</span>
+                <span className="continue-action">Resume chapter ↗</span>
+              </a>;
+            })}
+          </div>
+        </section>}
         {screen.section === 'offline' ? <section className="offline-shelf" aria-label="Offline manga chapters">
           <p className="eyebrow">READY WHEN DISCONNECTED</p>
           <h1>Offline chapters</h1>
@@ -356,6 +382,9 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
               </span>
               <span className="book-details"><strong>{item.title}</strong>
                 <span>{item.chapters.length} chapters <span aria-hidden="true">·</span> {item.publicationStatus}</span>
+                {progress[item.id] && restoreProgress(item,manifests,progress[item.id]) &&
+                  <span className="book-progress">In progress · Chapter {orderedChapters(item)
+                    .findIndex(chapter=>chapter.id===progress[item.id]!.chapterId) + 1} of {item.chapters.length}</span>}
                 <span className="book-micro">{item.rating ? '★ ' + item.rating + '/10 (sample)' : 'Not rated'} <span aria-hidden="true">↗</span></span>
               </span>
             </a>)}</div> :
