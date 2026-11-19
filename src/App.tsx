@@ -24,9 +24,23 @@ function currentBrowserRoute(): AppRoute {
   return typeof window === 'undefined' ? { kind: 'home' } :
     parseAppRoute(window.location.pathname, window.location.search, import.meta.env.BASE_URL);
 }
+/** Keep catalogue filters bookmarkable, but never include private notes or rating data. */
+function readCatalogueQuery() {
+  const params=typeof window==='undefined'?new URLSearchParams():new URLSearchParams(window.location.search);
+  const status=params.get('status')??'all';
+  const sort=params.get('sort')??'title';
+  return {
+    query:(params.get('q')??'').slice(0,150),
+    tag:(params.get('tag')??'').slice(0,80),
+    collection:(params.get('collection')??'').slice(0,150),
+    status:(['all','unknown','ongoing','completed','hiatus'].includes(status)?status:'all') as PublicationStatus|'all',
+    sort:(['title','rating','chapters'].includes(sort)?sort:'title') as SortMode,
+  };
+}
 
 export default function App({ initialDemo = true }: { initialDemo?: boolean } = {}) {
   const initialRoute = useMemo(currentBrowserRoute, []);
+  const initialFilters = useMemo(readCatalogueQuery, []);
   const [demo, setDemo] = useState(initialDemo);
   const [screen, setScreen] = useState<Screen>(() => {
     if (initialRoute.kind !== 'details' && initialRoute.kind !== 'reader' && initialRoute.kind !== 'not-found') {
@@ -42,11 +56,11 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
       verified && initialRoute.pageIndex < verified.pages.length ?
       { kind: 'reader', id: item.id } : { kind: 'not-found' };
   });
-  const [query, setQuery] = useState('');
-  const [status, setStatus] = useState<PublicationStatus | 'all'>('all');
-  const [tag, setTag] = useState('');
-  const [collection, setCollection] = useState('');
-  const [sort, setSort] = useState<SortMode>('title');
+  const [query, setQuery] = useState(initialRoute.kind==='library'?initialFilters.query:'');
+  const [status, setStatus] = useState<PublicationStatus | 'all'>(initialRoute.kind==='library'?initialFilters.status:'all');
+  const [tag, setTag] = useState(initialRoute.kind==='library'?initialFilters.tag:'');
+  const [collection, setCollection] = useState(initialRoute.kind==='library'?initialFilters.collection:'');
+  const [sort, setSort] = useState<SortMode>(initialRoute.kind==='library'?initialFilters.sort:'title');
   const [chapterQuery, setChapterQuery] = useState('');
   const [compactNav, setCompactNav] = useState(() => typeof window !== 'undefined' &&
     window.matchMedia?.('(max-width: 740px)').matches || false);
@@ -226,10 +240,28 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
   }, [catalogue, manifests]);
 
   useEffect(() => {
-    const onBackForward = () => applyRoute(currentBrowserRoute());
+    const onBackForward = () => {
+      const filters=readCatalogueQuery();
+      setQuery(filters.query);setTag(filters.tag);setCollection(filters.collection);
+      setStatus(filters.status);setSort(filters.sort);
+      applyRoute(currentBrowserRoute());
+    };
     window.addEventListener('popstate', onBackForward);
     return () => window.removeEventListener('popstate', onBackForward);
   }, [screen, demo]);
+  useEffect(() => {
+    if(screen.kind!=='catalogue'||screen.section!=='library')return;
+    const params=new URLSearchParams();
+    if(query)params.set('q',query);
+    if(tag)params.set('tag',tag);
+    if(collection)params.set('collection',collection);
+    if(status!=='all')params.set('status',status);
+    if(sort!=='title')params.set('sort',sort);
+    const suffix=params.toString();
+    const url=routeHref({kind:'library'},import.meta.env.BASE_URL)+(suffix?'?'+suffix:'');
+    if(window.location.pathname+window.location.search!==url)
+      window.history.replaceState(null,'',url);
+  }, [screen,query,tag,collection,status,sort]);
   useEffect(() => {
     const update = () => setOnline(navigator.onLine);
     window.addEventListener('online', update);

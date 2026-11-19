@@ -762,7 +762,7 @@ test.describe('personal annotations never leave the browser',()=>{
     await expect(page.getByRole('textbox',{name:'Personal notes'})).toHaveValue('A brilliant, quiet story');
     await expect(page.getByText('10 / 10')).toBeVisible();
     await page.getByRole('button',{name:'Romance',exact:true}).click();
-    await expect(page).toHaveURL('/library');
+    await expect(page).toHaveURL(/\/library\?tag=Romance/);
     await expect(page.locator('.book-card')).toHaveCount(1);
     await expect(page.locator('.book-card')).toContainText('10/10 (mine)');
   });
@@ -841,7 +841,7 @@ test.describe('nested personal manga collections',()=>{
     await expect(page.locator('.collection-member')).toContainText('Favourites / Romance');
     await expect(page.locator('.detail-sub')).toHaveText(publicationBefore);
     await page.locator('.collection-member .tag').click();
-    await expect(page).toHaveURL('/library');
+    await expect(page).toHaveURL(/\/library\?collection=personal%3A/);
     await expect(page.locator('.book-card')).toHaveCount(1);
     await expect(page.locator('.book-card')).toContainText('The Lantern Archive');
     await page.reload();
@@ -879,4 +879,16 @@ test.describe('nested personal manga collections',()=>{
       await collections.locator('summary').click();
     }
   });
+});
+
+test('catalogue search and private collection filters remain bookmarkable on reload',async({page})=>{
+  await page.goto('/library?tag=Adventure&q=lantern&sort=chapters');
+  await expect(page.getByRole('combobox',{name:'Genre'})).toHaveValue('Adventure');
+  await expect(page.getByRole('searchbox',{name:'Search series or aliases'})).toHaveValue('lantern');
+  await expect(page.getByRole('combobox',{name:'Sort'})).toHaveValue('chapters');
+  await expect(page.locator('.book-card')).toHaveCount(1);
+  await page.reload();
+  await expect(page.locator('.book-card')).toHaveCount(1);
+  await page.getByRole('combobox',{name:'Genre'}).selectOption('');
+  await expect(page).not.toHaveURL(/tag=Adventure/);
 });
