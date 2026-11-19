@@ -7,7 +7,7 @@ Personal reading status and personal annotations are distinct from imported publ
 - All records are JSON envelopes with `schemaVersion:1`, `mediaKind:'manga'` and immutable series IDs. Invalid existing data is preserved and never silently overwritten.
 - Public fixture genres remain distinct from the personal tag collection. The UI lets users filter by either.
 - No personal annotation is shipped in public JavaScript, logged to external analytics or synchronised to a provider.
-- Browser storage can be evicted. Back up personal data before clearing site data. The existing v1 reader JSON backup still includes **only** progress and preferences, not annotation/shelf records. A compatible backup extension is the next independent phase.
+- Browser storage can be evicted. Back up personal data before clearing site data. The v2 personal JSON export includes progress, reader settings, reading shelves, ratings, notes and tags. It does not contain manga images. The importer also accepts legacy v1 reader-only backups. Users explicitly opt in to personal metadata restoration. Existing nonempty shelves and newer personal annotations are never overwritten; invalid local data stays intact.
 
 ## Regression contract
 Do not change continuous full-chapter scrolling, saved progress IDs, bounded image decode or explicit offline downloads. Never import a damaged record over valid local state.

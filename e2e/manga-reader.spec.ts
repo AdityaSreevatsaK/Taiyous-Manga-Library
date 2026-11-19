@@ -392,17 +392,17 @@ test.describe('manual local reading backup and restore', () => {
     await page.goto('/library');
     await page.getByText('Transfer reading progress between devices').click();
     const downloadPromise=page.waitForEvent('download');
-    await page.getByRole('button',{name:'Download progress backup'}).click();
+    await page.getByRole('button',{name:'Download personal backup'}).click();
     const download=await downloadPromise;
-    expect(download.suggestedFilename()).toMatch(/^taiyou-manga-progress-\d{4}-\d{2}-\d{2}\.json$/);
+    expect(download.suggestedFilename()).toMatch(/^taiyou-manga-personal-\d{4}-\d{2}-\d{2}\.json$/);
     const file=await download.path();
     expect(file).toBeTruthy();
     const bytes=await readFile(file!);
     const backup=JSON.parse(bytes.toString('utf-8'));
-    expect(backup.schemaVersion).toBe(1);
-    expect(backup.kind).toBe('taiyou-manga-local-reader-backup');
-    expect(backup.progress).toHaveLength(1);
-    expect(backup.progress[0].pageIndex).toBe(2);
+    expect(backup.schemaVersion).toBe(2);
+    expect(backup.kind).toBe('taiyou-manga-local-personal-backup');
+    expect(backup.reader.progress).toHaveLength(1);
+    expect(backup.reader.progress[0].pageIndex).toBe(2);
     expect(JSON.stringify(backup)).not.toContain('assetPath');
     await page.evaluate(()=>localStorage.removeItem('taiyou-manga:progress:v1:mng_lanternarchive'));
     await page.reload();
@@ -779,5 +779,46 @@ test.describe('personal annotations never leave the browser',()=>{
     await expect(page.getByRole('button',{name:'Remove tag Keep This'})).toHaveCount(0);
     await page.reload();
     await expect(page.getByRole('button',{name:'Remove tag Keep This'})).toHaveCount(0);
+  });
+});
+
+test.describe('compatible private manga library backups',()=>{
+  test('exports and restores notes, ratings, tags and reading shelves with explicit consent',async({page})=>{
+    await page.goto('/manga/mng_lanternarchive');
+    await page.getByRole('combobox',{name:'Personal reading shelf'}).selectOption('trying');
+    await page.getByRole('button',{name:'Rate 9 out of 10'}).click();
+    await page.getByRole('textbox',{name:'Personal notes'}).fill('My export test note');
+    await page.getByRole('button',{name:'Save notes'}).click();
+    await page.getByLabel('Add a personal tag').fill('Adventure Favourite');
+    await page.getByRole('button',{name:'Add tag'}).click();
+    await page.goto('/library');
+    await page.getByText('Transfer reading progress between devices').click();
+    const got=page.waitForEvent('download');
+    await page.getByRole('button',{name:'Download personal backup'}).click();
+    const download=await got;
+    const bytes=await readFile((await download.path())!);
+    const document=JSON.parse(bytes.toString('utf8'));
+    expect(document.schemaVersion).toBe(2);
+    expect(document.annotations).toHaveLength(1);
+    expect(document.shelves).toHaveLength(1);
+    expect(document.annotations[0].notes).toBe('My export test note');
+    await page.evaluate(()=>{
+      for(const suffix of ['personal-shelf:v1:','personal-annotation:v1:'])
+        localStorage.removeItem('taiyou-manga:'+suffix+'mng_lanternarchive');
+    });
+    await page.reload();
+    await page.getByText('Transfer reading progress between devices').click();
+    await page.locator('.backup-panel input[type=file]').setInputFiles({
+      name:'private.json',mimeType:'application/json',buffer:bytes,
+    });
+    await expect(page.locator('.backup-preview')).toContainText('2 eligible to restore');
+    await page.getByRole('checkbox',{name:/Also restore personal shelves/}).check();
+    await page.getByRole('button',{name:'Confirm restore'}).click();
+    await expect(page.locator('.backup-message')).toContainText('1 personal shelves and 1 annotations restored');
+    await page.goto('/manga/mng_lanternarchive');
+    await expect(page.getByRole('combobox',{name:'Personal reading shelf'})).toHaveValue('trying');
+    await expect(page.getByRole('textbox',{name:'Personal notes'})).toHaveValue('My export test note');
+    await expect(page.getByRole('button',{name:'Remove tag Adventure Favourite'})).toBeVisible();
+    await expect(page.getByText('9 / 10')).toBeVisible();
   });
 });

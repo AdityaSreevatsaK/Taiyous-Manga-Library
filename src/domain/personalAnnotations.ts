@@ -111,3 +111,22 @@ export function saveAnnotation(id: string, patch: AnnotationPatch, store: Storag
     return { status:'ok',value:next };
   } catch { return { status:'unavailable' }; }
 }
+
+/** Import only genuinely newer data; preserve the source timestamp and corrupt local records. */
+export function importAnnotation(record: PersonalAnnotation, store: Storage | null = browserStorage()):
+  'restored' | 'stale' | 'invalid' | 'unavailable' {
+  let incoming: PersonalAnnotation;
+  try { incoming = validatePersonalAnnotation(record.mangaId, record); }
+  catch { return 'invalid'; }
+  if (!store) return 'unavailable';
+  const current = readAnnotation(incoming.mangaId, store);
+  if (current.status !== 'ok') return current.status;
+  if (current.value && Date.parse(current.value.updatedAt) >= Date.parse(incoming.updatedAt))
+    return 'stale';
+  try {
+    store.setItem(annotationKey(incoming.mangaId), JSON.stringify({
+      schemaVersion:1, mediaKind:'manga', annotation:incoming,
+    }));
+    return 'restored';
+  } catch { return 'unavailable'; }
+}
