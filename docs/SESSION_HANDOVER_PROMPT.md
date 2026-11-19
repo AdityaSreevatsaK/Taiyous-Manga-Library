@@ -1,3 +1,15 @@
+# Current authoritative Manga Reader checkpoint, 18 November 2026
+
+- Public repository, canonical `master` commit: `6a6e3375611c94213d7f73757d9dc0abd872f463`.
+- PR #2 and #9 merged. The verified baseline passed 19 unit and 12 Chromium tests. The latest overall `master` workflow failed at GitHub Pages configuration, not application tests.
+- Cloudflare Pages project was reportedly configured with branch `master`, build `npm ci && npm run build`, output `dist`; **deployment and live URL not verified**.
+- **Current isolated feature branch:** `feature/mobile-reader-continuous-vertical-20261118`. Implements PR A: continuous vertical reading, bounded synthetic page window, compact responsive controls, native fullscreen/CSS focus fallback, and browser acceptance tests.
+- This branch is **not yet verified or merged**. Wait for its own GitHub Actions evidence. Do not deploy production from this branch.
+- Real manga images, private HF storage, authenticated delivery, persistent progress, route deep links and genuine offline downloads remain deliberately unimplemented. Next planned PRs are B routing, C progress/preferences, D offline, E reliability hardening.
+- Historical notes later in this file claiming the repo is private, PR #2 is unmerged or CI has never run are superseded by this checkpoint. Read live GitHub state first.
+
+---
+
 # Copy into a dedicated AI-agent session: Manga
 
 Act as the **Principal Engineer, domain architect, security reviewer and accessibility lead** for **Taiyous-Manga-Library**:

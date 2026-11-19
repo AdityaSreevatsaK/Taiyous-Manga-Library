@@ -1,3 +1,11 @@
+# Current quality gates (18 November 2026)
+
+The baseline on `master` passed 19 unit tests and 12 Playwright tests at widths 320/375/390/768/1280. Latest overall workflow failed in GitHub Pages publish configuration. PR A adds continuous vertical-scroll, bounded image window, 430/1024 widths, focus/landscape and broken image tests. **PR A tests are not confirmed passing until GitHub Actions executes them.**
+
+Run `npm ci`, `npm run typecheck`, `npm test`, `npm run build`, `npm run test:e2e`. Review Playwright failure traces. Validate both viewport and fullscreen scrolling without false progress writes, as well as 320px safe areas and keyboard focus. Final real-device swipe and memory benchmarks remain manual acceptance.
+
+---
+
 # Test Strategy and Quality Gates
 
 ## Commands
