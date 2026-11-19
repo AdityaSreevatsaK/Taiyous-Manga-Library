@@ -61,3 +61,6 @@ Keep personal rating, notes, tags and shelves strictly in device-local versioned
 
 ## Nested collections constraints
 Treat collection IDs as immutable; preserve the tree on invalid data, reject cyclic reparenting and same-parent duplicates, protect writes by revision, and require an app dialog before deleting a collection subtree or membership. Never delete manga image bytes or reading progress as a side effect of collection operations. Deploy after green CI/merge.
+
+## Advanced discovery and analytics
+Never fabricate reading durations, streaks or completed chapters from a single latest-position record. Statistics must derive from validated local progress, personal ratings and actual offline chapter inventory only. Preserve bookmarkable /library filter query strings and Back/Forward behaviour. Advanced search is local-only, never an external metadata or personal-data request.

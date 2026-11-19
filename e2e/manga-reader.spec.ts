@@ -922,3 +922,53 @@ test('a full personal backup restores a nested collection tree with confirmation
   await page.reload();
   await expect(page.getByText('Manage my collections (2)')).toBeVisible();
 });
+
+test.describe('advanced discovery and grounded personal analytics',()=>{
+  test('creator and chapter range compose, remain bookmarkable and reset correctly',async({page})=>{
+    await page.goto('/library?creator=Taiyou&minChapters=3&maxChapters=3&offline=not-downloaded');
+    await expect(page.locator('.advanced-search')).toBeVisible();
+    await expect(page.locator('.book-card')).toHaveCount(1);
+    await expect(page.locator('.book-card')).toContainText('The Lantern Archive');
+    await page.reload();
+    await expect(page.getByRole('spinbutton',{name:'Minimum chapters'})).toHaveValue('3');
+    await expect(page.getByRole('spinbutton',{name:'Maximum chapters'})).toHaveValue('3');
+    await page.getByRole('button',{name:'Reset advanced filters'}).click();
+    await expect(page.locator('.book-card')).toHaveCount(4);
+    await expect(page).not.toHaveURL(/minChapters/);
+  });
+  test('personal ratings and shelves participate in advanced filters without changing published metadata',async({page})=>{
+    await page.goto('/manga/mng_lanternarchive');
+    await page.getByRole('button',{name:'Rate 10 out of 10'}).click();
+    await page.getByRole('combobox',{name:'Personal reading shelf'}).selectOption('trying');
+    await page.goto('/library?minRating=9&reading=trying');
+    await expect(page.locator('.book-card')).toHaveCount(1);
+    await expect(page.locator('.book-card')).toContainText('The Lantern Archive');
+    await page.getByRole('combobox',{name:'My reading state'}).selectOption('finished');
+    await expect(page.locator('.book-card')).toHaveCount(0);
+    await expect(page).toHaveURL(/reading=finished/);
+    await page.reload();
+    await expect(page.locator('.book-card')).toHaveCount(0);
+  });
+  test('analytics reports exact saved positions and personal ratings, never fabricated durations',async({page})=>{
+    await page.goto('/manga/mng_lanternarchive');
+    await page.getByRole('button',{name:'Rate 8 out of 10'}).click();
+    await page.getByRole('link',{name:/Read from beginning/}).click();
+    await expect(page.locator('.vertical-page-image').first()).toBeVisible();
+    await page.goto('/analytics');
+    await expect(page.getByRole('heading',{name:'Analytics'})).toBeVisible();
+    await expect(page.locator('.analytics-grid')).toContainText('1');
+    await expect(page.locator('.analytics-grid')).toContainText('8');
+    await expect(page.locator('.analytics-recent')).toContainText('The Lantern Archive');
+    await expect(page.locator('.analytics-ratings')).toContainText('My ratings distribution');
+    await expect(page.locator('.analytics-shelf')).not.toContainText('minutes read');
+  });
+  test('advanced Search header stays usable on small mobile screens',async({page})=>{
+    for(const width of [320,375,390,768]){
+      await page.setViewportSize({width,height:812});
+      await page.goto('/library');
+      await page.getByRole('button',{name:'Advanced Search'}).click();
+      await expect(page.locator('.advanced-search')).toBeVisible();
+      await assertNoHorizontalOverflow(page);
+    }
+  });
+});
