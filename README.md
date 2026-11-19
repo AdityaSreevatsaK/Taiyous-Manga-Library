@@ -4,7 +4,7 @@
 >
 > **Release checks:** GitHub Actions runs TypeScript, unit, production-build and Chromium browser tests. After each `master` push, a separate live workflow verifies Cloudflare has deployed the exact build, its deep links and offline service worker. Passing CI does not replace real-device testing.
 >
-> **Privacy:** No authentication, private asset delivery or automatic cross-device sync is implemented. Manual backup and restore of local reading positions is available without uploading user data.
+> **Privacy:** No authentication, private asset delivery or automatic cross-device sync is implemented. User-controlled v2 manual JSON backups include local progress, personal shelves, ratings, notes, tags and collections. Keep the downloaded backup private.
 
 ## Mission
 Read and organise legitimately acquired manga with chapter/page-level progress and optional offline access. The user experience should remain readable, fast, polished and accessible on phones, tablets and desktop. The existing novel library is the visual inspiration, not an implementation dependency.
@@ -26,16 +26,19 @@ Read and organise legitimately acquired manga with chapter/page-level progress a
 
 - Continuous full-chapter vertical scrolling with Previous/Next navigating **chapters only**, mobile layouts, focus mode and reading preferences.
 - Browser deep links and Back/Forward navigation for catalogue, series and chapters.
-- Versioned local progress, Continue Reading shelf and manual JSON backup/restore. Malformed data is preserved and newer progress is not overwritten.
-- Opt-in offline downloads for fictional chapters, offline library navigation, service worker and cache-integrity tests.
-- Accessibility, error recovery, responsive and production-browser checks, plus automated live Cloudflare smoke verification.
+- Eight primary catalogue sections with mobile More navigation, six persisted themes (Sepia default), approved Taiyou Sun artwork and status ribbons.
+- Personal rating, notes, custom tags, reading shelves and arbitrary nested collections with validated device-local storage and green success notices.
+- Advanced on-device Search and personal Analytics derived from real saved positions and ratings, not fabricated reading durations.
+- Versioned local progress, Continue Reading, and manual JSON v2 backups including personal metadata and collections. Malformed data is preserved; v1 backups still import.
+- Opt-in offline downloads for fictional chapters, offline navigation, release-fingerprinted service worker and cache-integrity checks.
+- Accessibility, error recovery, responsive Chromium browser tests, separate Firefox/WebKit smoke checks and automatic live Cloudflare deployment verification.
 
 The current catalogue includes **Five Chapter Scroll Trial**, containing 36 original illustration pages over five chapters, with no real manga or private backend connected. See the [chapter reader acceptance checklist](docs/CHAPTER_READER_ACCEPTANCE.md) to test scrolling, chapter navigation, offline copies and progress on mobile.
 
 ## Non-negotiable boundaries
 - The owner has authorised public repository source visibility. Verify the actual GitHub setting before asserting that the change is live. No personal media or private credentials may be added to Git.
 - No real private media or credentials in Git, browser bundles, test fixtures or GitHub Actions logs.
-- No unapproved production deployment. Owner-approved merges to `master` may automatically deploy through Cloudflare; use short-lived branches, CI and reviewed pull requests.
+- The owner allows routine non-destructive merges once CI is green; `master` automatically deploys through Cloudflare. Always verify the live smoke check after merge. Secrets and destructive private actions require separate approval.
 - No cross-app single sign-on promises. The deployed Novel Library's Hugging Face OAuth cookie cannot simply authenticate unrelated app origins.
 - No copied entire Novel Library, no Git submodules, no premature shared database.
 - No unlicensed manga downloads, paywall bypass, scraping of protected sites, reader requests to arbitrary URLs, or remote image proxying without SSRF protection.
@@ -70,7 +73,7 @@ The production source branch is `master`, with Cloudflare Pages Git integration 
 
 ## Current limitations
 
-Private Hugging Face storage integration, user authentication, authorised media delivery and **automatic** cross-device progress sync remain separate future work. Manual progress transfer is available through the library's local backup panel. No private manga content belongs in Git or an unauthorised public static site.
+Private Hugging Face storage integration, per-app authentication, authorised original manga delivery and **automatic** cross-device progress sync remain future work. Multi-engine automated smoke is now available; physical iOS/Android and 300–1,000-page low-memory stress testing remain to be verified. Manual personal data transfer is available through the local backup panel. No private manga belongs in public Git or static hosting.
 
 ## Licensing
 

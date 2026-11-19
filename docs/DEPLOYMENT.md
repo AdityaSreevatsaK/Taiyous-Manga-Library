@@ -1,3 +1,40 @@
+# Cloudflare Pages production deployment, 19 November 2026
+
+**Live synthetic application:** https://taiyous-manga-library.pages.dev/
+**Repository:** https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library
+**Release branch:** `master`. The Cloudflare Pages Git integration automatically publishes commits from `master`. The previous GitHub Pages publication job was removed and is **not** a production route.
+
+The owner permits non-destructive merges and subsequent deployments unless explicitly stopped. Merge only after the mandatory GitHub Actions quality and browser checks succeed. Then verify the **actual** deployed bundle via [`live-cloudflare-smoke.yml`](../.github/workflows/live-cloudflare-smoke.yml). A green PR job is not deployment verification.
+
+## Cloudflare configuration
+
+| Setting | Value |
+| --- | --- |
+| Framework | React/Vite |
+| Production branch | `master` |
+| Build | `npm ci && npm run build` |
+| Output | `dist` |
+| Node | 22 |
+| Live host | `https://taiyous-manga-library.pages.dev/` |
+
+The public bundle includes **only fictional sample manga pages**. There is no authenticated dataset integration, no private provider secrets, no permanent owner deletion and no automatic multi-device sync. Never configure HF secrets as `VITE_*` environment values, include them in Pages public files or commit private media.
+
+## Release and rollback
+
+1. Create a focused feature branch from latest `master`, run `npm ci`, typecheck, tests, production build, Playwright and bundle budgets.
+2. Create a PR, fix all failing checks, and merge only a green head SHA.
+3. Verify the master CI and Cloudflare live smoke job, deep-linked routes, page assets, theme logo and service-worker release fingerprint.
+4. If deployed smoke fails, diagnose Cloudflare build/deployment before asserting that release is live. Roll back to last known-good Cloudflare deployment or revert the PR, without clearing device-local progress or downloaded media.
+5. Do not delete private data, rotate secrets or reconfigure owner account permissions as part of routine UI release.
+
+Owner dashboard action may still be required for enforcing protected branch PR checks, production environment gates and server secret setup; the GitHub integration cannot read master protection settings.
+
+## Historical GitHub Pages plan, retained for context
+
+Everything below describes the **superseded** 18 November deployment proposal, including a no-longer-configured GitHub Pages publisher. Do not follow it as current procedure.
+
+---
+
 # Demo deployment runbook: GitHub Pages now, Cloudflare Pages later
 
 **Status:** Public synthetic-code demo only. Private manga media, authentication, progress sync and imports are NOT implemented.  

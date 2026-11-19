@@ -1,3 +1,27 @@
+# Manga Library: current roadmap, 19 November 2026
+
+Verified production `master` with automated Cloudflare smoke checks. The original scaffold planning text below is retained solely for historical evidence.
+
+| Phase | State | Evidence / next acceptance |
+| --- | --- | --- |
+| A. Release reliability | Implemented | Service-worker release fingerprints, bounded synthetic media and automatic deployed smoke checks |
+| B. Branding, navigation and themes | Implemented | Eight sections, responsive mobile More, approved Sun artwork and six themes, Sepia default, PR #23 |
+| C. Catalogue and details | Implemented for synthetic data | Status ribbons, chapter search, personal rating/notes, local filters, PR #24 |
+| D. Local organisation and backups | Implemented | Reading shelves, personal tags, arbitrary nested collections, confirmation, safe v2 backup and legacy import, PRs #25 to #27 |
+| E. Search, analytics and browser parity | Implemented for synthetic/local data | Advanced Search, evidence-based analytics, Firefox/WebKit smoke alongside full Chromium, PRs #28 to #29 |
+| E. Deep performance and device assurance | Pending | 300–1,000-page realistic decode/memory test, mobile iOS/Android, two-release offline upgrade/rollback, accessibility audit |
+| F. Private originals and sync | Blocked pending secure backend | Per-app OAuth, object-level access, user-cleared rights, owner-configured private HF secrets, server-side revisions and disposable test dataset |
+
+The live application is a **fictional synthetic demo only**. No real manga data, authenticated Hugging Face image delivery or automatic multi-device progress synchronisation exists. Never publish private originals, credentials or annotations in GitHub or Cloudflare public files.
+
+**Current release procedure:** short-lived branch -> PR -> typecheck, unit, build, bundle and browser checks -> merge green PR -> Cloudflare automatic deploy -> verify live Cloudflare smoke. Owner permits routine green non-destructive merges without another approval.
+
+## Historical scaffold plan, archived verbatim
+
+The content below records the earlier unmerged scaffold state and is **not** an accurate description of current `master`.
+
+---
+
 # Reader reliability milestones, 18 November 2026
 
 All milestones are implemented on **stacked draft PRs**, not merged or deployed to production.

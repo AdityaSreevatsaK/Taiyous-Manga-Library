@@ -1,3 +1,20 @@
+# Manga Library operations: current state, 19 November 2026
+
+- Public source repo, production `master`, live Cloudflare Pages: https://taiyous-manga-library.pages.dev/.
+- Owner allows non-destructive merges **without repeated approval** once all mandatory CI checks pass. Verify live deployment after each merge. Do not infer live state merely from GitHub PR merge.
+- Node 22 + locked `npm ci`; TypeScript, Vitest, release fingerprint, production build, bundle budgets and full Chromium Playwright in main CI; additional Firefox and WebKit smoke CI.
+- Device-local versioned progress, theme, shelves, ratings, notes, tags, nested collections and v2 personal backup with backward-compatible imports. Browser storage is not permanent; backup files may contain private notes and must be kept private.
+- Original synthetic manga only. No private HF dataset, server authorisation, encrypted offline media, automatic sync or server-side deletion.
+- Rollback: redeploy the previously verified Cloudflare Pages commit or revert changes. Preserve browser progress and CacheStorage; never clear user data to fix a failed deployment.
+- Windows PowerShell local test: `npm ci; npm run typecheck; npm test; npm run build; $env:E2E_PRODUCTION='1'; npm run test:e2e`. Linux/macOS: `E2E_PRODUCTION=1 npm run test:e2e`.
+- Security blockers before real originals: verified rights, per-app OAuth, server-side object authorisation, HF credentials only in server secrets, revision-guarded writes and disposable-data tests.
+
+## Historical scaffold notes, retained
+
+The remaining text below is archival. References to private visibility, missing lockfiles, missing hosting and owner approval for every merge are **superseded** by the verified current state above.
+
+---
+
 # Authoritative operations checkpoint, 18 November 2026
 
 - Public GitHub repository, production branch `master`. Do **not** merge stacked PRs without owner approval because Cloudflare may automatically deploy `master`.
