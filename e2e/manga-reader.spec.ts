@@ -33,7 +33,7 @@ test.describe('local manga catalogue and chapter reader', () => {
     await expect(page.locator('.book-card')).toHaveCount(1);
     await page.getByRole('searchbox', { name: /Search series or aliases/ }).fill('');
     await page.getByRole('combobox', { name: 'Publication' }).selectOption('completed');
-    await expect(page.locator('.book-card')).toHaveCount(1);
+    await expect(page.locator('.book-card')).toHaveCount(2);
     await page.getByRole('combobox', { name: 'Publication' }).selectOption('all');
     await page.getByRole('combobox', { name: 'Collection' }).selectOption('Nightfall Stories');
     await expect(page.locator('.book-card')).toHaveCount(2);
