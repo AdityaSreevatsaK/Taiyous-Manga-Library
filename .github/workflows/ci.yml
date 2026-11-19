@@ -27,6 +27,8 @@ jobs:
         run: npm ci --no-audit --no-fund
       - run: npm run typecheck
       - run: npm test
+      - name: Verify offline release fingerprint invariants
+        run: node --test scripts/stamp-service-worker.test.mjs
       - run: npm run build
       - name: Enforce production bundle budgets
         run: node scripts/check-bundle.mjs
