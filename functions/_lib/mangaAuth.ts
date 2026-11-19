@@ -19,7 +19,8 @@ export function configured(env:Env):boolean{return env.HF_REPO_ID===REPO&&owner(
 function b64(bytes:Uint8Array):string{let raw='';for(const b of bytes)raw+=String.fromCharCode(b);return btoa(raw).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');}
 function from64(value:string):Uint8Array{if(!/^[A-Za-z0-9_-]{1,7000}$/.test(value))throw Error('cookie');
  return Uint8Array.from(atob(value.replace(/-/g,'+').replace(/_/g,'/')+'='.repeat((4-value.length%4)%4)),c=>c.charCodeAt(0));}
-const key=async(env:Env)=>crypto.subtle.importKey('raw',keyData(env)!,'AES-GCM',false,['encrypt','decrypt']);
+const key=async(env:Env)=>{const bytes=new ArrayBuffer(32);new Uint8Array(bytes).set(keyData(env)!);
+ return crypto.subtle.importKey('raw',bytes,'AES-GCM',false,['encrypt','decrypt']);};
 export const random=(n=32)=>b64(crypto.getRandomValues(new Uint8Array(n)));
 export const challenge=async(v:string)=>b64(new Uint8Array(await crypto.subtle.digest('SHA-256',te.encode(v))));
 export async function seal(data:unknown,env:Env,aad:string):Promise<string>{const iv=crypto.getRandomValues(new Uint8Array(12));
