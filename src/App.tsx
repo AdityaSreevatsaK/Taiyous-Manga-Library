@@ -523,6 +523,18 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
       'Browser storage is unavailable or full. The annotation was not saved.');
     return false;
   }
+  function toggleChapterComplete(item: MangaEntry, chapterId: string) {
+    // Explicit reader choice, not an automatic consequence of opening a page.
+    if (!item.chapters.some(chapter => chapter.id === chapterId)) {
+      setStorageNotice('This chapter is not part of the selected manga.');
+      return;
+    }
+    const existing = annotations[item.id]?.completedChapterIds ?? [];
+    const done = existing.includes(chapterId);
+    changeAnnotation(item, {completedChapterIds: done ?
+      existing.filter(id=>id!==chapterId) : [...existing,chapterId]},
+      done ? 'Chapter marked incomplete' : 'Chapter marked completed');
+  }
   function addTag(item: MangaEntry) {
     try {
       const existing = annotations[item.id]?.tags ?? [];
@@ -962,6 +974,10 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
             <input type="search" value={chapterQuery} onChange={event=>setChapterQuery(event.target.value)}
               placeholder="Find a chapter..." />
           </label>
+          <p className="chapter-completion-summary">
+            {chapters.filter(chapter => annotations[entry.id]?.completedChapterIds?.includes(chapter.id)).length}
+            {' '}of {chapters.length} chapters explicitly marked completed on this device.
+          </p>
           {chapters.filter(chapter => chapter.label.toLocaleLowerCase().includes(chapterQuery.toLocaleLowerCase()))
             .map(chapter=>{ const index = chapters.findIndex(value=>value.id === chapter.id); return <div className="chapter-entry" key={chapter.id}>
             <a className="chapter-row"
@@ -971,6 +987,15 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
               <span className="chapter-title"><strong>{chapter.label}</strong>
                 <small>{chapter.volume ?? 'No volume'} · {chapter.pageCount ?? 'Unknown'} sample pages</small></span>
               <span className="chapter-open">Read ↗</span></a>
+            <button type="button" className="secondary chapter-completion-toggle"
+              aria-label={annotations[entry.id]?.completedChapterIds?.includes(chapter.id) ?
+                'Mark chapter ' + (index + 1) + ' incomplete' :
+                'Mark chapter ' + (index + 1) + ' completed'}
+              aria-pressed={!!annotations[entry.id]?.completedChapterIds?.includes(chapter.id)}
+              onClick={()=>toggleChapterComplete(entry,chapter.id)}>
+              {annotations[entry.id]?.completedChapterIds?.includes(chapter.id) ?
+                '✓ Completed' : 'Mark completed'}
+            </button>
             {manifests.get(chapter.id) && <OfflineChapterControl manifest={manifests.get(chapter.id)!}
               onChange={()=>setInventoryRevision(value=>value+1)} />}
           </div>;})}
