@@ -76,7 +76,15 @@ function worker(cacheStore,originServer,timestamp=1700000000000) {
     assert.ok(task,'fetch should be intercepted for '+path);
     return task;
   }
-  return {lifecycle,request};
+  function intercepts(path,mode='navigate'){
+    let called=false;
+    events.get('fetch')({
+      request:{method:'GET',url:new URL(path,ORIGIN).href,mode},
+      respondWith(){called=true;},
+    });
+    return called;
+  }
+  return {lifecycle,request,intercepts};
 }
 async function readNames(caches){
   return (await caches.keys()).filter(name=>name.startsWith(PREFIX)).sort().reverse();
@@ -128,4 +136,14 @@ test('two verified releases survive, including same-millisecond installs and rol
   const rollback=await third.request('/reading','navigate');
   assert.match(await rollback.text(),/two/);
   assert.deepEqual(await readNames(cache),[names[1]]);
+});
+
+test('service worker never intercepts private API or OAuth navigation',()=>{
+  const cache=makeCaches(),network=server('one'),w=worker(cache,network);
+  for(const path of ['/api/auth/login','/api/auth/callback?code=redacted',
+    '/api/auth/session','/api/auth/logout','/api/library']){
+    assert.equal(w.intercepts(path,'navigate'),false,path+' should bypass offline shell');
+    assert.equal(w.intercepts(path,'same-origin'),false,path+' should bypass cache');
+  }
+  assert.equal(w.intercepts('/library','navigate'),true,'ordinary app route still works');
 });

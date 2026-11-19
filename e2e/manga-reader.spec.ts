@@ -1008,3 +1008,30 @@ test('manual chapter completion persists and never alters chapter reading naviga
   await page.getByRole('link',{name:/Series details/}).click();
   await expect(page.getByText('0 of 3 chapters explicitly marked completed on this device.')).toBeVisible();
 });
+
+test('mock authenticated empty HF dataset replaces sample catalogue with a truthful private view', async ({page}) => {
+  await page.route('**/api/auth/session', route => route.fulfill({
+    status:200,contentType:'application/json',body:JSON.stringify({
+      connected:true,repo:'AdityaSreevatsaK/Taiyous-Manga',owner:'AdityaSreevatsaK',
+    }),
+  }));
+  await page.route('**/api/library', route => route.fulfill({
+    status:200,contentType:'application/json',body:JSON.stringify({
+      connected:true,repo:'AdityaSreevatsaK/Taiyous-Manga',empty:true,
+      revision:'a'.repeat(40),entries:[],
+    }),
+  }));
+  await page.route('**/api/auth/logout', route => route.fulfill({
+    status:200,contentType:'application/json',body:'{"connected":false}',
+  }));
+  await page.goto('/');
+  await expect(page.getByRole('button',{name:'My library (0)'})).toBeVisible();
+  await expect(page.getByText('Your private Hugging Face dataset is connected and empty.',{exact:false})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Your private library is empty'})).toBeVisible();
+  await expect(page.locator('.book-card')).toHaveCount(0);
+  await expect(page.getByText('PRIVATE LIBRARY',{exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Sign out of Hugging Face'}).click();
+  await expect(page.getByRole('button',{name:'My library (empty)'})).toBeVisible();
+  await expect(page.locator('.book-card')).toHaveCount(4);
+  await expect(page.getByText('SAMPLE',{exact:true})).toBeVisible();
+});

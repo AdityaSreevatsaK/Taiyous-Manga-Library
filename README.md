@@ -1,10 +1,10 @@
 # Taiyou's Manga Library
 
-> **Live synthetic manga reader:** [taiyous-manga-library.pages.dev](https://taiyous-manga-library.pages.dev/). The public build contains only fictional demonstration artwork, including a five-chapter trial. No personal manga files, Hugging Face tokens or private catalogues are included.
+> **Live Manga Library:** [taiyous-manga-library.pages.dev](https://taiyous-manga-library.pages.dev/). The public build contains only fictional demonstration artwork. Private dataset catalogue metadata is read through owner-only Cloudflare Pages Functions after Hugging Face OAuth; no personal manga images, Hugging Face tokens or private catalogue documents are included in the static build.
 >
 > **Release checks:** GitHub Actions runs TypeScript, unit, production-build and Chromium browser tests. After each `master` push, a separate live workflow verifies Cloudflare has deployed the exact build, its deep links and offline service worker. Passing CI does not replace real-device testing.
 >
-> **Privacy:** No authentication, private asset delivery or automatic cross-device sync is implemented. User-controlled v2 manual JSON backups include local progress, personal shelves, ratings, notes, tags and collections. Keep the downloaded backup private.
+> **Privacy:** Owner-only read access to a private Hugging Face dataset is available through server-side OAuth. Chapter-image delivery, private uploads, and automatic cross-device progress sync are **not** enabled. User-controlled v2 manual JSON backups remain local and private.
 
 ## Mission
 Read and organise legitimately acquired manga with chapter/page-level progress and optional offline access. The user experience should remain readable, fast, polished and accessible on phones, tablets and desktop. The existing novel library is the visual inspiration, not an implementation dependency.
@@ -24,7 +24,8 @@ Read and organise legitimately acquired manga with chapter/page-level progress a
 
 ## Implemented on `master`
 
-- Continuous full-chapter vertical scrolling with Previous/Next navigating **chapters only**, mobile layouts, focus mode and reading preferences.
+- Confidential Hugging Face OAuth for the exact Manga Library owner and a read-only private catalogue connection. An empty dataset is shown as empty, not silently filled with fictional manga. See [HF connection and acceptance](docs/HF_READONLY_CONNECTION.md).
+- Continuous full-chapter **synthetic** vertical scrolling with Previous/Next navigating **chapters only**, mobile layouts, focus mode and reading preferences.
 - Browser deep links and Back/Forward navigation for catalogue, series and chapters.
 - Eight primary catalogue sections with mobile More navigation, six persisted themes (Sepia default), approved Taiyou Sun artwork and status ribbons.
 - Personal rating, notes, custom tags, favourites, **explicit per-chapter completion markers**, reading shelves and arbitrary nested collections with validated device-local storage and green success notices. Completion markers are manual and never inferred from scrolling. On Home, favourites are shown first; All Manga retains alphabetical sorting.
@@ -33,7 +34,7 @@ Read and organise legitimately acquired manga with chapter/page-level progress a
 - Opt-in offline downloads for fictional chapters, offline navigation, release-fingerprinted service worker and cache-integrity checks.
 - Accessibility, error recovery, responsive Chromium browser tests, separate Firefox/WebKit smoke checks and automatic live Cloudflare deployment verification.
 
-The current catalogue includes **Five Chapter Scroll Trial**, containing 36 original illustration pages over five chapters, with no real manga or private backend connected. See the [chapter reader acceptance checklist](docs/CHAPTER_READER_ACCEPTANCE.md) to test scrolling, chapter navigation, offline copies and progress on mobile.
+The optional **sample** catalogue includes **Five Chapter Scroll Trial**, containing 36 original illustration pages over five chapters. The private dataset is connected separately through read-only OAuth; the manuscript/image reading gateway remains disabled. See the [chapter reader acceptance checklist](docs/CHAPTER_READER_ACCEPTANCE.md) to test scrolling, chapter navigation, offline copies and progress on mobile.
 
 ## Non-negotiable boundaries
 - The owner has authorised public repository source visibility. Verify the actual GitHub setting before asserting that the change is live. No personal media or private credentials may be added to Git.
@@ -73,7 +74,7 @@ The production source branch is `master`, with Cloudflare Pages Git integration 
 
 ## Current limitations
 
-Private Hugging Face storage integration, per-app authentication, authorised original manga delivery and **automatic** cross-device progress sync remain future work. Multi-engine automated smoke is now available; physical iOS/Android and 300–1,000-page low-memory stress testing remain to be verified. Manual personal data transfer is available through the local backup panel. No private manga belongs in public Git or static hosting.
+Private HF **catalogue metadata reading** and per-app OAuth have been added. Authorised original manga chapter/page delivery, rights-checked importer integration and **automatic** cross-device progress sync remain future work. Multi-engine automated smoke is now available; physical iOS/Android and 300–1,000-page low-memory stress testing remain to be verified. Manual personal data transfer is available through the local backup panel. No private manga belongs in public Git or static hosting.
 
 ## Licensing
 

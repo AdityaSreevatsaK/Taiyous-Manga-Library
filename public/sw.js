@@ -109,7 +109,8 @@ self.addEventListener('fetch', event => {
   const url = new URL(request.url);
   if (request.method !== 'GET' || url.origin !== SCOPE.origin ||
     !url.pathname.startsWith(SCOPE.pathname)) return;
-  if (url.pathname.endsWith('/sw.js') || url.pathname.includes('/__offline_manga__/')) return;
+  // Authentication redirects and private JSON must never be intercepted, cached or replaced by offline HTML.
+  if (url.pathname.startsWith('/api/') || url.pathname.endsWith('/sw.js') || url.pathname.includes('/__offline_manga__/')) return;
   if (request.mode === 'navigate') {
     event.respondWith((async () => {
       try {

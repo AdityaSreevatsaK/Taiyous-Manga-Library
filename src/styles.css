@@ -574,3 +574,7 @@ a.book-card:focus-visible,a.chapter-row:focus-visible,a.back:focus-visible,a.pri
 .chapter-completion-summary{margin:4px 0 14px;font-size:13px;color:var(--muted,#a2aab1)}
 .chapter-completion-toggle{min-height:44px;white-space:nowrap}
 .chapter-completion-toggle[aria-pressed="true"]{font-weight:700;border-color:currentColor}
+
+/* Same-origin private OAuth button in the source selector; no misleading green cloud dot. */
+.cloud-connect-link{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;min-height:44px;font-weight:650}
+.cloud-connect-link:focus-visible{outline:3px solid #efd09a;outline-offset:3px}

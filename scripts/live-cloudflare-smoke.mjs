@@ -86,6 +86,29 @@ async function main() {
     }
   });
 
+  // Security boundary: a public SPA shell must never replace a private API response.
+  await check('Private HF API rejects anonymous reads', async () => {
+    for (const route of ['/api/auth/session','/api/library']) {
+      const response = await fetch(origin+route,{
+        redirect:'manual',signal:AbortSignal.timeout(15000),cache:'no-store',
+      });
+      if(response.status!==401 || !response.headers.get('Content-Type')?.includes('application/json') ||
+         !response.headers.get('Cache-Control')?.includes('no-store')) {
+        throw new Error(route+' did not return private 401 JSON (status '+response.status+')');
+      }
+    }
+  });
+  await check('Production OAuth redirects to Hugging Face only', async () => {
+    const response=await fetch(origin+'/api/auth/login',{
+      redirect:'manual',signal:AbortSignal.timeout(15000),cache:'no-store',
+    });
+    const location=response.headers.get('Location')||'';
+    if(response.status!==303 || !location.startsWith('https://huggingface.co/oauth/authorize?') ||
+       !response.headers.get('Set-Cookie')?.includes('HttpOnly')) {
+      throw new Error('Expected a secure confidential OAuth redirect');
+    }
+  });
+
   for (const asset of served) {
     await check('Deployed asset ' + asset, async () => {
       const response = await get(asset);
