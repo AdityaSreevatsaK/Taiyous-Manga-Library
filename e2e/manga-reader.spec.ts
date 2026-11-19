@@ -755,7 +755,7 @@ test.describe('personal annotations never leave the browser',()=>{
     await expect(page.getByText('10 / 10')).toBeVisible();
     await page.getByRole('textbox',{name:'Personal notes'}).fill('A brilliant, quiet story');
     await page.getByRole('button',{name:'Save notes'}).click();
-    await page.getByRole('textbox',{name:'Add a personal tag'}).fill('  rOmAnCe  ');
+    await page.getByLabel('Add a personal tag').fill('  rOmAnCe  ');
     await page.getByRole('button',{name:'Add tag'}).click();
     await expect(page.getByRole('button',{name:'Remove tag Romance'})).toBeVisible();
     await page.reload();
@@ -768,7 +768,7 @@ test.describe('personal annotations never leave the browser',()=>{
   });
   test('personal tag removal uses application confirmation, never a browser confirm',async({page})=>{
     await page.goto('/manga/mng_lanternarchive');
-    await page.getByRole('textbox',{name:'Add a personal tag'}).fill('Keep This');
+    await page.getByLabel('Add a personal tag').fill('Keep This');
     await page.getByRole('button',{name:'Add tag'}).click();
     await page.getByRole('button',{name:'Remove tag Keep This'}).click();
     await expect(page.getByRole('dialog',{name:'Remove personal tag?'})).toBeVisible();
