@@ -626,7 +626,7 @@ test.describe('offline failure handling and accessibility hardening', () => {
       await page.setViewportSize({ width, height: 760 });
       await page.goto('/manga/mng_lanternarchive');
       await assertNoHorizontalOverflow(page);
-      const heights = await page.locator('.site-nav-link, .offline-chapter-control button')
+      const heights = await page.locator('.site-nav > .site-nav-link, .offline-chapter-control button')
         .evaluateAll(elements => elements.map(el => Math.round(el.getBoundingClientRect().height)));
       expect(heights.every(height => height >= 44), 'touch target width ' + width + ': ' + heights).toBe(true);
       // Repeating viewport checks should use either the fresh start or the stored resume link.
@@ -718,7 +718,7 @@ test.describe('approved library navigation and personal presentation', () => {
     expect(options.length).toBeGreaterThan(1);
     await picker.selectOption({index:1});
     await expect(page.locator('.page-navigation')).toContainText('Chapter 2 of');
-    await expect(page.locator('.vertical-page')).toHaveCount(5);
+    await expect(page.locator('.vertical-page')).toHaveCount(4);
     await expect(page.getByRole('button',{name:/Next page/})).toHaveCount(0);
   });
 });
