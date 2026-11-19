@@ -1,3 +1,22 @@
+# Final reliability checkpoint, 18 November 2026 (authoritative)
+
+**Canonical public repository:** https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library, production `master` remains at `6a6e3375611c94213d7f73757d9dc0abd872f463`. **No merge or Cloudflare production deployment was performed.**
+
+Stacked draft PRs:
+1. [#10 Mobile reader](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/pull/10), branch `feature/mobile-reader-continuous-vertical-20261118`, green 19 Vitest + 17 Playwright tests, CI run `44356089849`.
+2. [#11 Browser routes](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/pull/11), branch `feature/browser-routes-deep-links-20261118`, green 23 + 22, CI run `44357819382`.
+3. [#12 Local persistence](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/pull/12), branch `feature/local-reader-persistence-20261118`, green 29 + 27, CI run `44359535976`.
+4. [#13 Genuine synthetic offline reading](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/pull/13), branch `feature/offline-shell-synthetic-chapters-20261118`, green 29 + 32 **on production Vite preview**, CI run `44363425900`.
+5. **PR E reliability hardening**, branch `feature/reader-reliability-hardening-20261118`, based on #13: stricter receipt validation, interruption/quota/update/mobile accessibility tests, bundle budgets, and removal of obsolete GitHub Pages publication. **Verified:** 34 Vitest tests, 37 Playwright Chromium production tests, TypeScript, build and bundle budgets passed in [run 44366411933](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/actions/runs/44366411933).
+
+Use `npm ci` with Node 22. Local and GH Actions TypeScript/Vitest/build/Playwright. For production E2E: `npm run build` then `E2E_PRODUCTION=1 npm run test:e2e`.
+
+No real manga imagery, Hugging Face private data, sign-in, cloud sync or source acquisition is connected. Offline support concerns **synthetic** image copies only. Next steps after PR E: owner-approved merge/deploy in PR order, Cloudflare live smoke tests, real-device gesture/landscape/memory checks, and separate authorisation/storage design approval.
+
+Old handover entries below that describe repository as private, PR #2 as open, missing lockfile, CI unavailability or offline/persistence absence refer to the initial scaffold and are superseded.
+
+---
+
 # Offline milestone checkpoint, 18 November 2026
 
 - PR #10 mobile reader, verified 19 unit/17 browser tests.

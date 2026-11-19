@@ -6,14 +6,14 @@
 
 The production build includes `public/sw.js`. It is registered only in production, not the Vite development server. On successful install it fetches the local app's production HTML and its hashed JS/CSS bundle into a **new release-specific cache**. It records a ready marker only after every resource completes. If installation fails, the old release remains available.
 
-Service worker navigation is network-first, falling back to the latest verified application shell for offline direct URL access. Hashed assets are cache-first and kept across at least the previous release. Cache cleanup excludes all media caches. This implementation does not promise offline access before a successful online visit.
+Service worker navigation is network-first, falling back to a **self-contained offline HTML document** generated from the same verified first-party production JavaScript and CSS. This provides reliable cold starts even if Chromium fails to load separately cached assets. No third-party code or user data is embedded. A future strict CSP must explicitly account for this inline fallback or replace it with a compatible strategy. Hashed assets are cache-first and kept across at least the previous release. Cache cleanup excludes all media caches. This implementation does not promise offline access before a successful online visit.
 
 ## Per-chapter media
 
 A chapter can be explicitly downloaded from its series details. The app generates its own **synthetic** PNG pages, verifies each binary's PNG magic bytes, stores it in Cache Storage and records SHA-256 checksums and sizes in a separate versioned `localStorage` receipt.
 
 - Sequential download: bounded memory, byte budget 75 MiB per chapter, per-page progress and cancellation.
-- Two-phase completion: the receipt is committed only **after every cached page has passed integrity checks**.
+- Two-phase completion: the receipt is committed only **after every cached page has passed integrity checks**. Version 1 receipts require strict UTC completion timestamps, complete page IDs and a maximum total of 75 MiB.
 - Interrupted/failed new downloads clean up only pages written by that attempt. Existing valid copies are never overwritten silently.
 - Corrupt, missing or incomplete copies show an explicit recovery state; remove the damaged copy before a new download.
 - The reader retrieves cached bytes and verifies their checksums before decoding. There is no silent fallback to newly generated pages for a recorded offline chapter.

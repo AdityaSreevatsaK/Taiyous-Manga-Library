@@ -1,3 +1,18 @@
+# Current reader architecture checkpoint (feature branches, 18 November 2026)
+
+Verified but not deployed:
+- `src/components/VerticalReader.tsx`: continuous scroll, bounded nearby images, stable page anchors.
+- `src/domain/routes.ts`: immutable manga/chapter IDs, History API and real browser links.
+- `src/domain/localReaderStorage.ts`: versioned isolated per-series progress and local reader preferences, no cloud sync.
+- `src/data/offlineChapters.ts`: explicit synthetic chapter CacheStorage, checksum receipts, cancellation and deletion.
+- `src/data/pageSource.ts`: verified offline-first binary resolution, safe object URL cleanup.
+- `public/sw.js`: revisioned app shell caching and a self-contained offline fallback.
+- No server-side auth, private asset adapter, Hugging Face datasets or cross-device synchronisation. Final integrated hardening PR not yet deployed.
+
+The original scaffold architecture text below is historical and describes unimplemented features as of repository creation. Do not treat its "current" statements as the latest branch state.
+
+---
+
 # Architecture and Ownership Boundaries
 
 ## System context

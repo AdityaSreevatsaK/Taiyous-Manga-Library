@@ -241,7 +241,7 @@ a.book-card:focus-visible,a.chapter-row:focus-visible,a.back:focus-visible,a.pri
 .chapter-entry{border-top:1px solid #3f4f56;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:6px 10px}
 .chapter-entry .chapter-row{border:0;flex:1 1 250px;padding:14px 0}
 .offline-chapter-control{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:8px;max-width:100%}
-.offline-chapter-control .secondary{font-size:11px;min-height:43px;padding:9px 12px}
+.offline-chapter-control .secondary{font-size:11px;min-height:48px;padding:9px 12px}
 .offline-chapter-state{font-size:11px;color:#bcd0cb}
 .offline-download-progress{width:120px;accent-color:#ddbd84}
 .offline-chapter-feedback{flex-basis:100%;font-size:11px;text-align:right;color:#edd6a9}
@@ -272,3 +272,14 @@ a.book-card:focus-visible,a.chapter-row:focus-visible,a.back:focus-visible,a.pri
 }
 @media(max-width:390px){.site-nav-link{padding:8px;font-size:11px}.offline-chapter-control{gap:6px}}
 @media(prefers-reduced-motion:reduce){.offline-series-link{transition:none;transform:none!important}}
+
+/* Reliability pass: accessible touch targets and visible keyboard focus. */
+.reader-options button,.reader-options select,.reader-selectors select,
+.reader-topline a,.reader-topline button,.page-navigation button,
+.site-nav-link,.offline-chapter-control button{min-height:44px}
+.offline-chapter-control button:focus-visible,.reader-options button:focus-visible,
+.reader-options select:focus-visible,.reader-selectors select:focus-visible,
+.page-navigation button:focus-visible,.site-nav-link:focus-visible{
+  outline:3px solid #efd09a;outline-offset:3px
+}
+.reader-shell[tabindex]:focus-visible{outline:3px solid #efd09a;outline-offset:4px}

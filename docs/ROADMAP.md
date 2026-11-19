@@ -1,11 +1,13 @@
-# Current milestone execution (18 November 2026)
+# Reader reliability milestones, 18 November 2026
 
-- PR A, mobile reader/responsive UX: **feature branch, awaiting CI**. Genuine vertical document scroll, bounded synthetic image window and focus view. Do not mark as deployed.
-- PR B, deep links and browser navigation: pending.
-- PR C, schema-versioned local progress and preferences: pending.
-- PR D, true opt-in offline chapter storage and cold-start app shell: pending.
-- PR E, accessibility, performance, security and integrated browser verification: pending.
-- Private media and Hugging Face integration must not begin until the reader acceptance gates pass.
+All milestones are implemented on **stacked draft PRs**, not merged or deployed to production.
+
+- **PR A #10:** responsive reader, genuine continuous vertical mode, bounded images and focus view. 19/19 unit, 17/17 Chromium tests passed.
+- **PR B #11:** stable URLs, native hyperlinks, direct chapters/pages, Back/Forward. 23/23 unit, 22/22 Chromium tests passed.
+- **PR C #12:** isolated persisted exact progress, reader mode, fit/theme and scroll anchors. 29/29 unit, 27/27 Chromium tests passed.
+- **PR D #13:** verified synthetic chapter downloads, offline shell, cold launch, corruption detection, safe deletion. 29/29 unit, 32/32 production-browser tests passed.
+- **PR E #14:** final audit, quota/cancellation/update regression tests, 44px touch targets, bundle budgets, redundant GitHub Pages removal. **Verified:** 34/34 unit, 37/37 production-browser tests passed. Still draft/unmerged.
+- **Remaining after PR E:** owner-approved Cloudflare deployment and live smoke, real-device mobile tests, and separately reviewed private media/auth storage. No real manga data uploaded.
 
 ---
 

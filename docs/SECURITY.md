@@ -1,3 +1,17 @@
+# Reader security checkpoint (18 November 2026, draft features)
+
+- Only original synthetic manga samples are used; no real manga, private asset URL, storage token or OAuth login is included.
+- `src/domain/localReaderStorage.ts` preserves malformed records rather than deleting unrelated progress and rejects older timestamps.
+- `src/data/offlineChapters.ts` validates per-page SHA-256 checksums, complete manifest identities, MIME types and chapter byte limits; media caches are isolated from shell caches.
+- `public/sw.js` stages a complete revisioned app shell and retains a known-good fallback; the offline fallback currently inlines **trusted first-party compiled JS/CSS**. Do not introduce a strict CSP without retesting this path or designing a CSP-compatible fallback.
+- Offline content and reading history are locally accessible to anyone with that browser profile; no device encryption claim.
+- Real private media storage and owner deletion remain blocked on server-side authorisation, approved rights, backups, quotas and conflict resolution.
+- No production merge or deployment has occurred in this session.
+
+The original threat model below remains relevant; statements assuming the scaffold is private or browser persistence absent are historical.
+
+---
+
 # Security, Privacy and Content Rights
 
 ## Threat model

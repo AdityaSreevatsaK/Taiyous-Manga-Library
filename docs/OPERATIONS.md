@@ -1,3 +1,16 @@
+# Authoritative operations checkpoint, 18 November 2026
+
+- Public GitHub repository, production branch `master`. Do **not** merge stacked PRs without owner approval because Cloudflare may automatically deploy `master`.
+- Preferred production host: **Cloudflare Pages**, Node 22, `npm ci && npm run build`, output `dist`; live URL and current deployment status not verified in this session.
+- GitHub Actions validates TypeScript, Vitest, production build and Chromium Playwright. The redundant GitHub Pages publish job is removed in final hardening PR to avoid the earlier enablement failure and duplicate hosting.
+- Current verified draft PRs: #10, #11, #12, #13, stacked in order. #13: 29 unit and 32 browser tests passed, including production cold offline launch.
+- Local setup: `npm ci`, `npm run typecheck`, `npm test`, `npm run build`, `npm run test:e2e`. Production browser tests: `npm run build`, then `E2E_PRODUCTION=1 npm run test:e2e` (Bash; PowerShell: `$env:E2E_PRODUCTION='1'; npm run test:e2e`).
+- Rollback: restore last working Cloudflare deployment and keep browser media caches/progress intact. Avoid site-data clearing, cache key changes or major schema migration without recovery planning.
+
+The section below records the original scaffold plan and contains outdated statements about private repository access, missing lockfiles, CI, hosting and offline support. Treat this checkpoint and current code as authoritative.
+
+---
+
 # Local Development, CI, Release and Recovery Runbook
 
 ## Prerequisites
