@@ -3,6 +3,7 @@ import { entries as realEntries } from './data/catalogue';
 import { demoEntries, demoManifests, fixtureStatement } from './data/fixtures';
 import { verifyOfflineChapter } from './data/offlineChapters';
 import { OfflineChapterControl } from './components/OfflineChapterControl';
+import { LocalBackupControl } from './components/LocalBackupControl';
 import { VerticalReader } from './components/VerticalReader';
 import { parseAppRoute, routeHref, type AppRoute } from './domain/routes';
 import { defaultReaderPreferences, laterProgress, loadAllProgress, loadPreferences, loadProgress,
@@ -350,6 +351,12 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
             <button type="button" aria-pressed={!demo} className={!demo ? 'chip active' : 'chip'} onClick={() => changeDemo(false)}>My library (empty)</button>
           </div>
         </div>
+        <LocalBackupControl entries={catalogue} manifests={manifests}
+          onRestored={()=>{
+            setProgress(loadAllProgress(catalogue, manifests).progress);
+            const saved = loadPreferences();
+            if (saved.status === 'ok') setPreferences(saved.value);
+          }} />
         <section className="shelf" aria-label="Manga catalogue">
           <div className="shelf-heading"><div><p className="eyebrow">DISCOVER / THE SHELF</p><h2>{demo ? 'The sample collection' : 'Your collection'}</h2></div>
             <p>{filtered.length} {filtered.length === 1 ? 'series' : 'series'} shown</p></div>
