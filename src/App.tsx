@@ -85,6 +85,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
     if (!import.meta.env.PROD || !('serviceWorker' in navigator)) return;
     void navigator.serviceWorker.register(import.meta.env.BASE_URL + 'sw.js', {
       scope: import.meta.env.BASE_URL,
+      updateViaCache: 'none',
     }).catch(() => setStorageNotice('The offline app shell could not be installed on this browser.'));
   }, []);
   useEffect(() => {

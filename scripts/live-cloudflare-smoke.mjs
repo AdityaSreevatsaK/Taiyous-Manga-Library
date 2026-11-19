@@ -64,10 +64,25 @@ async function main() {
     }
   });
 
-  await check('Offline service worker', async () => {
+  await check('Offline service worker matches current application release', async () => {
     const worker = await (await get('/sw.js')).text();
     if (!worker.includes('addEventListener') || worker.trimStart().startsWith('<')) {
       throw new Error('Missing service worker or HTML fallback');
+    }
+    const local = readFileSync('dist/sw.js', 'utf8');
+    const fingerprint = local.match(/Taiyou offline shell release: ([a-f0-9]{24})/);
+    if (!fingerprint || !worker.includes('Taiyou offline shell release: ' + fingerprint[1])) {
+      throw new Error('The deployed offline app shell is from an older build');
+    }
+  });
+
+  await check('Cloudflare production security headers', async () => {
+    const response = await get('/');
+    const headers = response.headers;
+    if (headers.get('x-content-type-options')?.toLowerCase() !== 'nosniff' ||
+        headers.get('x-frame-options')?.toUpperCase() !== 'DENY' ||
+        !headers.get('content-security-policy')?.includes("default-src 'none'")) {
+      throw new Error('Expected no-sniff, frame protection and content security policy headers');
     }
   });
 

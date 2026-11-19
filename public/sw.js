@@ -1,4 +1,6 @@
-/* Offline shell only. No private media, authentication or remote providers. */
+/* Offline shell only. No private media, authentication or remote providers.
+   The production build stamps this script with an asset fingerprint, so each
+   changed app version triggers browser service-worker installation. */
 const SHELL_PREFIX = 'taiyou-manga-shell-v1-';
 const SCOPE_URL = self.registration.scope;
 const SCOPE = new URL(SCOPE_URL);

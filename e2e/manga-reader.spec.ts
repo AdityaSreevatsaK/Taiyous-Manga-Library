@@ -443,6 +443,20 @@ test.describe('manual local reading backup and restore', () => {
 });
 
 test.describe('explicit offline chapter storage and application shell', () => {
+  test('production service worker has a unique application build fingerprint', async ({page}) => {
+    await page.goto('/');
+    const script = await page.request.get('/sw.js');
+    expect(script.ok()).toBe(true);
+    expect(await script.text()).toMatch(/Taiyou offline shell release: [a-f0-9]{24}/);
+    await page.evaluate(async () => { await navigator.serviceWorker.ready; });
+    const registration = await page.evaluate(async () => {
+      const active = await navigator.serviceWorker.getRegistration('/');
+      return { url: active?.active?.scriptURL, updateViaCache: active?.updateViaCache };
+    });
+    expect(registration.url).toContain('/sw.js');
+    expect(registration.updateViaCache).toBe('none');
+  });
+
   test('downloads only the chosen synthetic chapter, serves verified offline blobs and removes it independently', async ({ page }) => {
     await page.goto('/manga/mng_lanternarchive');
     await expect(page.getByRole('button', { name: 'Download chapter' })).toHaveCount(3);
