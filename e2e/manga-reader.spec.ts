@@ -1040,7 +1040,7 @@ test('mock authenticated empty HF dataset replaces sample catalogue with a truth
   await expect(page.getByRole('heading',{name:'Your private library is empty'})).toBeVisible();
   await expect(page.locator('.book-card')).toHaveCount(0);
   await expect(page.getByRole('button',{name:'Use Sepia theme'})).toBeVisible();
-  await page.locator('.manga-cloud-menu > summary').click();
+  await expect(page.locator('.manga-cloud-menu')).toHaveAttribute('open','');
   await page.getByRole('button',{name:'Sign out of Hugging Face'}).click();
   await expect(page.getByRole('button',{name:'My library (0)'})).toBeVisible();
   await expect(page.locator('.book-card')).toHaveCount(4);
