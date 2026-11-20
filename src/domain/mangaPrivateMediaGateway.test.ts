@@ -35,7 +35,7 @@ async function setup(overrides?:{hash?:string,missing?:boolean,private?:boolean}
  return spy;
 }
 const request=async(kind:string,query:string,auth=true,method='GET')=>{
- const headers=auth?{Cookie:await cookie()}:{};
+ const headers:Record<string,string>=auth?{Cookie:await cookie()}:{};
  return onRequest({request:new Request(ORIGIN+'/api/media/'+kind+'?'+query,{method,headers}),env});
 };
 const params=new URLSearchParams({mangaId:id,chapterId});
