@@ -86,6 +86,32 @@ describe('owner-only verified private manga image gateway',()=>{
    expect(spy.mock.calls.map(call=>String(call[0])).filter(url=>
      url.includes('/assets/'+file))).toHaveLength(2);
  });
+ it('downloads canonical imported chapter pages without redundant HF metadata calls',async()=>{
+   clearPrivateMediaMetadataCacheForTests();
+   const query=new URLSearchParams({
+     mangaId:id,chapterId,pageId,revision:sha,
+     sha256:await digest(),mimeType:'image/png',
+     byteSize:String(png.byteLength),extension:'png',
+   });
+   const spy=vi.spyOn(globalThis,'fetch').mockImplementation(async input=>{
+     const url=String(input);
+     if(url.includes('/resolve/'+sha+'/data/'+file))
+       return new Response(png.slice().buffer,{status:200});
+     throw Error('Unexpected metadata lookup on canonical page: '+url);
+   });
+   expect((await request('page',String(query),false)).status).toBe(401);
+   expect(spy).not.toHaveBeenCalled();
+   const image=await request('page',String(query));
+   expect(image.status).toBe(200);
+   expect(image.headers.get('Cache-Control')).toContain('no-store');
+   expect(new Uint8Array(await image.arrayBuffer())).toEqual(png);
+   expect(spy.mock.calls).toHaveLength(1);
+   const bad=new URLSearchParams(query);
+   bad.set('sha256','f'.repeat(64));
+   expect((await request('page',String(bad))).status).toBe(409);
+   bad.set('extension','../secret');
+   expect((await request('page',String(bad))).status).toBe(400);
+ });
  it('rejects a wrong revision, image identity or tampered image',async()=>{
    await setup();
    const wrong=new URLSearchParams(pageParams);wrong.set('revision','a'.repeat(40));
