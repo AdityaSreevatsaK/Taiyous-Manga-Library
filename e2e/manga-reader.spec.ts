@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
+import {createHash} from 'node:crypto';
 
 async function assertNoHorizontalOverflow(page: Page) {
   const snapshot = await page.evaluate(() => {
@@ -1446,4 +1447,66 @@ test('mobile rating uses Novel Library compact selector and retains saved value'
   await page.reload();
   await expect(page.getByRole('combobox',{name:'Rate this manga'})).toHaveValue('9');
   await expect(page.locator('.manga-mobile-rating')).toContainText('9/10');
+});
+
+/** Regression: the Novel Library uses IndexedDB rather than repeating provider
+ * downloads on every refresh. Twenty private Manga covers must do the same.
+ */
+test('twenty verified private covers load from IndexedDB on refresh and clear at logout',async({page})=>{
+  const image=Buffer.from(
+    'UklGRjYAAABXRUJQVlA4ICoAAACQAQCdASoCAAMAAUAmJaACdLoAA5gA/vDEC/8pX7svSTqy/zs9lsayAAA=',
+    'base64');
+  const sha256=createHash('sha256').update(image).digest('hex');
+  const items=Array.from({length:20},(_,i)=>{
+    const id='mng_cachecover'+String(i+1).padStart(4,'0');
+    return {kind:'manga',id,title:'Artwork '+String(i+1),aliases:[],creators:[],
+      tags:[],publicationStatus:'completed',direction:'vertical',chapters:[],
+      cover:{assetPath:'covers/'+id+'.webp',mimeType:'image/webp',
+        width:2,height:3,byteSize:image.length,sha256}};
+  });
+  const cloud={connected:true,owner:'AdityaSreevatsaK',
+    repo:'AdityaSreevatsaK/Taiyous-Manga',entries:items};
+  let requested=0;
+  await page.route('**/api/library',route=>route.fulfill({
+    status:200,contentType:'application/json',body:JSON.stringify(cloud),
+  }));
+  await page.route('**/api/media/cover?*',route=>{
+    requested++;
+    return route.fulfill({status:200,contentType:'image/webp',body:image});
+  });
+  await page.route('**/api/auth/logout',route=>route.fulfill({
+    status:200,contentType:'application/json',body:'{"ok":true}',
+  }));
+  const countCached=()=>page.evaluate(async()=>{
+    return await new Promise<number>((resolve,reject)=>{
+      const req=indexedDB.open('taiyou-manga-private-covers-v1');
+      req.onerror=()=>reject(req.error);
+      req.onsuccess=()=>{
+        const tx=req.result.transaction('covers','readonly');
+        const count=tx.objectStore('covers').count();
+        count.onsuccess=()=>{resolve(count.result);req.result.close();};
+        count.onerror=()=>reject(count.error);
+      };
+    });
+  });
+  await page.goto('/library');
+  await expect(page.locator('.book-card')).toHaveCount(20);
+  for(let i=0;i<20;i++){
+    const card=page.locator('.book-card').nth(i);
+    await card.scrollIntoViewIfNeeded();
+    await expect(card.locator('.manga-cover-image')).toHaveJSProperty('naturalWidth',2);
+  }
+  expect(requested).toBe(20);
+  await expect.poll(countCached,{timeout:15000}).toBe(20);
+  await page.reload();
+  await expect(page.locator('.book-card')).toHaveCount(20);
+  for(let i=0;i<20;i++){
+    const card=page.locator('.book-card').nth(i);
+    await card.scrollIntoViewIfNeeded();
+    await expect(card.locator('.manga-cover-image')).toHaveJSProperty('naturalWidth',2);
+  }
+  expect(requested).toBe(20);
+  await page.locator('.manga-cloud-menu > summary').click();
+  await page.getByRole('button',{name:'Sign out of Hugging Face'}).click();
+  await expect.poll(countCached,{timeout:15000}).toBe(0);
 });
