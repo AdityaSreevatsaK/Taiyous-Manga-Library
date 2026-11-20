@@ -836,7 +836,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
             onClick={()=>{setAdvancedOpen(value=>!value);goCatalogue('library');}}>
             <SearchIcon size={17}/>
           </button>
-          <MangaThemeSwatches value={preferences.theme}
+          <MangaThemeSwatches value={preferences.theme} compact={screen.kind==='details'}
             onChange={theme=>updatePreferences({...preferences,theme})}/>
         </div>
       </div>
