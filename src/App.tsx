@@ -662,7 +662,10 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
               aria-current={selectedSection===section?'page':undefined}
               href={routeHref({kind:section},import.meta.env.BASE_URL)}
               onClick={event=>followLink(event,()=>goCatalogue(section))}>
-              {labels[section]} {['reading','trying','offline','finished','to-read'].includes(section)&&
+              <span className="manga-nav-desktop">{labels[section]}</span>
+              <span className="manga-nav-mobile">{section==='reading'?'Reading':section==='trying'?'Trying':
+                section==='offline'?'Offline':labels[section]}</span>
+              {['reading','trying','offline','finished','to-read'].includes(section)&&
                 <span className="nav-count">{counts[section]}</span>}
             </a>)}
           {compactNav&&<details className="nav-more"><summary>More</summary>
