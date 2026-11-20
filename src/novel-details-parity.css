@@ -210,7 +210,6 @@
 .manga-collection-option{height:auto;min-height:50px;cursor:pointer}
 .manga-collection-option input{width:18px;height:18px;flex:none;accent-color:#214d73}
 .manga-collection-footer{display:flex;justify-content:space-between;gap:10px}
-.manga-collection-footer button{min-height:40px}
 
 
 /* The same editorial hero photo treatment as Novel details-palettes.css.
@@ -246,7 +245,6 @@
  padding:5px 9px;border:1px solid #ffffff80;border-radius:5px;
  background:#0c233b77;font-size:11px;font-weight:650
 }
-.app-shell .manga-details-hero .manga-publication-pill>span{color:#8bdfab;font-size:9px}
 .app-shell .manga-details-hero .details-hero-memberships{
  grid-column:1/-1;display:flex;align-items:center;flex-wrap:wrap;gap:7px;
  font-size:10px;font-weight:700;letter-spacing:.06em
@@ -265,13 +263,10 @@
 }
 .app-shell .manga-tags-card .details-tag-form button{min-height:43px}
 .app-shell .manga-tags-card .details-tag-row{gap:7px}
-.app-shell .manga-tags-card .details-tag-row>.tag{padding:7px 9px}
 .app-shell .manga-tags-card .tag-draft-actions{
  display:flex;justify-content:space-between;align-items:center;
  gap:9px;flex-wrap:wrap;margin-top:16px;font-size:11px
 }
-.app-shell .manga-tags-card .tag-draft-actions span{color:var(--md-muted)}
-.app-shell .manga-tags-card .tag-draft-actions button{min-height:37px}
 .app-shell .manga-details-sidebar .personal-annotations{display:block}
 .app-shell .personal-annotations .personal-review-form{
  display:flex;flex-direction:column;gap:13px;width:100%;margin-top:14px
