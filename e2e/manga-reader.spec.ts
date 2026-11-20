@@ -1345,3 +1345,21 @@ test('failed authenticated cover request leaves readable placeholder and metadat
   await expect(page.locator('.manga-synopsis-card')).toContainText('A synopsis has not been added yet.');
   await assertNoHorizontalOverflow(page);
 });
+
+test('Novel Library details keep source and personal tags together, separate from comments',async({page})=>{
+  for(const width of [320,390,768,1280]){
+    await page.setViewportSize({width,height:850});
+    await page.goto('/manga/mng_lanternarchive');
+    const classes=await page.locator('.manga-details-sidebar > section')
+      .evaluateAll(nodes=>nodes.map(node=>node.className));
+    expect(classes).toHaveLength(6);
+    for(const [index,name] of [
+      [0,'manga-journey-card'],[1,'manga-info-card'],[2,'manga-tags-card'],
+      [3,'personal-annotations'],[4,'manga-collections-card'],[5,'manga-management-card'],
+    ] as const)expect(classes[index]).toContain(name);
+    await expect(page.locator('.manga-tags-card .personal-tag-editor')).toBeVisible();
+    await expect(page.locator('.personal-annotations .personal-tag-editor')).toHaveCount(0);
+    await expect(page.locator('.personal-annotations .personal-notes-editor')).toBeVisible();
+    await assertNoHorizontalOverflow(page);
+  }
+});
