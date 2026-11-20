@@ -86,6 +86,32 @@ describe('owner-only verified private manga image gateway',()=>{
    expect(spy.mock.calls.map(call=>String(call[0])).filter(url=>
      url.includes('/assets/'+file))).toHaveLength(2);
  });
+ it('downloads canonical imported chapter pages without redundant HF metadata calls',async()=>{
+   clearPrivateMediaMetadataCacheForTests();
+   const query=new URLSearchParams({
+     mangaId:id,chapterId,pageId,revision:sha,
+     sha256:await digest(),mimeType:'image/png',
+     byteSize:String(png.byteLength),extension:'png',
+   });
+   const spy=vi.spyOn(globalThis,'fetch').mockImplementation(async input=>{
+     const url=String(input);
+     if(url.includes('/resolve/'+sha+'/data/'+file))
+       return new Response(png.slice().buffer,{status:200});
+     throw Error('Unexpected metadata lookup on canonical page: '+url);
+   });
+   expect((await request('page',String(query),false)).status).toBe(401);
+   expect(spy).not.toHaveBeenCalled();
+   const image=await request('page',String(query));
+   expect(image.status).toBe(200);
+   expect(image.headers.get('Cache-Control')).toContain('no-store');
+   expect(new Uint8Array(await image.arrayBuffer())).toEqual(png);
+   expect(spy.mock.calls).toHaveLength(1);
+   const bad=new URLSearchParams(query);
+   bad.set('sha256','f'.repeat(64));
+   expect((await request('page',String(bad))).status).toBe(409);
+   bad.set('extension','../secret');
+   expect((await request('page',String(bad))).status).toBe(400);
+ });
  it('rejects a wrong revision, image identity or tampered image',async()=>{
    await setup();
    const wrong=new URLSearchParams(pageParams);wrong.set('revision','a'.repeat(40));
@@ -147,6 +173,37 @@ describe('owner-only verified private manga image gateway',()=>{
      vi.restoreAllMocks();
    }
    expect((await request('cover','mangaId=..%2Fprivate')).status).toBe(400);
+ });
+ it('loads immutable catalogue-pinned covers in one private HF round trip',async()=>{
+   clearPrivateMediaMetadataCacheForTests();
+   const image=Uint8Array.from([137,80,78,71,13,10,26,10,0,1,2,3]);
+   const expected=[...new Uint8Array(await crypto.subtle.digest('SHA-256',image.buffer))]
+     .map(x=>x.toString(16).padStart(2,'0')).join('');
+   const query=new URLSearchParams({
+     mangaId:id,revision:sha,sha256:expected,mimeType:'image/png',
+     byteSize:String(image.length),extension:'png',
+   });
+   const spy=vi.spyOn(globalThis,'fetch').mockImplementation(async input=>{
+     const url=String(input);
+     if(url.includes('/resolve/'+sha+'/data/covers/'+id+'.png'))
+       return new Response(image.slice().buffer,{status:200});
+     throw Error('Redundant Hugging Face request on pinned cover: '+url);
+   });
+   expect((await request('cover',String(query),false)).status).toBe(401);
+   expect(spy).not.toHaveBeenCalled();
+   const first=await request('cover',String(query));
+   expect(first.status).toBe(200);
+   expect(first.headers.get('Cache-Control')).toContain('no-store');
+   expect(new Uint8Array(await first.arrayBuffer())).toEqual(image);
+   expect((await request('cover',String(query))).status).toBe(200);
+   expect(spy.mock.calls).toHaveLength(1);
+   expect(spy.mock.calls.every(call=>!String(call[0]).includes('/api/datasets/'))).toBe(true);
+   const tampered=new URLSearchParams(query);
+   tampered.set('sha256','f'.repeat(64));
+   expect((await request('cover',String(tampered))).status).toBe(409);
+   const invalid=new URLSearchParams(query);
+   invalid.set('extension','../secret');
+   expect((await request('cover',String(invalid))).status).toBe(400);
  });
  it('rejects missing and tampered private cover artwork',async()=>{
    const image=coverSamples[0]!.bytes,hash='f'.repeat(64);
