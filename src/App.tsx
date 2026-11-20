@@ -34,9 +34,12 @@ import './novel-parity.css';
 import './novel-details-parity.css';
 
 /** These ribbons describe publication status, never the reader's Finished shelf. */
+function roleNames(item:MangaEntry,role:'author'|'artist'):string[]{
+ return item.creatorRoles?.filter(person=>person.role===role).map(person=>person.name) ?? [];
+}
 function creditLine(item:MangaEntry):string{
- const authors=item.authors?.join(', ')||'';
- const artists=item.artists?.join(', ')||'';
+ const authors=roleNames(item,'author').join(', ');
+ const artists=roleNames(item,'artist').join(', ');
  if(authors&&artists&&authors!==artists)return authors+' · Art: '+artists;
  return authors||artists||item.creators.join(', ')||'Creator unknown';
 }
@@ -851,10 +854,10 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
             {catalogue.length ? <div className="editorial-book-stack">
               {catalogue.slice(0,3).map((item,index)=>
                 <div className={'editorial-display-book book-'+index} key={item.id}>
-                  {!demo && <MangaCoverArtwork key={item.coverAsset?.sha256??'none'} entry={item}/>}
+                  {!demo && <MangaCoverArtwork key={item.cover?.sha256??'none'} entry={item}/>}
                   <span className="editorial-book-glyph">✦</span>
                   <span className="editorial-book-title">{item.title}</span>
-                  <span className="editorial-book-maker">{item.authors?.[0] || item.creators[0] || 'TAIYOU LIBRARY'}</span>
+                  <span className="editorial-book-maker">{roleNames(item,'author')[0] || item.creators[0] || 'TAIYOU LIBRARY'}</span>
                 </div>)}
             </div> : <div className="editorial-empty-plate">
               <span className="editorial-plate-icon">✦</span>
@@ -1046,7 +1049,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
             <a className="book-card" key={item.id} href={routeHref({kind:'details',mangaId:item.id},import.meta.env.BASE_URL)}
               onClick={event=>followLink(event,()=>navigateTo({kind:'details',mangaId:item.id}))}>
               <span className={'book-cover cover-'+(demoEntries.findIndex(d=>d.id===item.id)%3+1)}>
-                {!demo && <MangaCoverArtwork key={item.coverAsset?.sha256??'none'} entry={item}/>}
+                {!demo && <MangaCoverArtwork key={item.cover?.sha256??'none'} entry={item}/>}
                 {item.publicationStatus !== 'unknown' &&
                   <span className={'status-ribbon status-'+item.publicationStatus}
                     aria-label={'Publication: '+publicationCaption[item.publicationStatus]}>
@@ -1054,7 +1057,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
                 <span className="cover-number">TAIYOU / {String(index+1).padStart(2,'0')}</span>
                 <span className="cover-illustration" aria-hidden="true"><i /><b /></span>
                 <span className="cover-title">{item.title}</span>
-                <span className="cover-creator">{item.authors?.[0] || item.creators[0] || 'CREATOR UNKNOWN'}</span>
+                <span className="cover-creator">{roleNames(item,'author')[0] || item.creators[0] || 'CREATOR UNKNOWN'}</span>
                 <span className="cover-foot">{demo?'READER DEMONSTRATION':'YOUR PRIVATE ARCHIVE'}</span>
               </span>
               <span className="book-details"><strong>{item.title}</strong>
@@ -1094,7 +1097,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
           onClick={event=>followLink(event,()=>goCatalogue())}>← Back to the shelf</a>
         <section className="series-detail manga-details-hero">
           <div className={'detail-cover cover-'+(demoEntries.findIndex(d=>d.id===entry.id)%3+1)} aria-hidden="true">
-            {!demo && <MangaCoverArtwork key={entry.coverAsset?.sha256??'none'} entry={entry}/>}
+            {!demo && <MangaCoverArtwork key={entry.cover?.sha256??'none'} entry={entry}/>}
             {entry.publicationStatus !== 'unknown' &&
               <span className={'status-ribbon status-'+entry.publicationStatus}>
                 {publicationCaption[entry.publicationStatus]}</span>}
@@ -1178,9 +1181,11 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
             <section className="manga-detail-card manga-info-card">
               <p className="manga-card-overline">MANGA INFORMATION</p><h2>Details</h2>
               <dl>
-                {entry.authors?.length ? <div><dt>Author{entry.authors.length>1?'s':''}</dt><dd>{entry.authors.join(', ')}</dd></div> : null}
-                {entry.artists?.length ? <div><dt>Artist{entry.artists.length>1?'s':''}</dt><dd>{entry.artists.join(', ')}</dd></div> : null}
-                {!entry.authors?.length&&!entry.artists?.length&&
+                {roleNames(entry,'author').length>0 &&
+                  <div><dt>Author{roleNames(entry,'author').length>1?'s':''}</dt><dd>{roleNames(entry,'author').join(', ')}</dd></div>}
+                {roleNames(entry,'artist').length>0 &&
+                  <div><dt>Artist{roleNames(entry,'artist').length>1?'s':''}</dt><dd>{roleNames(entry,'artist').join(', ')}</dd></div>}
+                {!entry.creatorRoles?.length &&
                   <div><dt>Creators</dt><dd>{entry.creators.join(', ')||'Not supplied'}</dd></div>}
                 {entry.aliases.length>0&&<div><dt>Also known as</dt><dd>{entry.aliases.join('; ')}</dd></div>}
                 <div><dt>Chapters</dt><dd>{chapters.length}</dd></div>
