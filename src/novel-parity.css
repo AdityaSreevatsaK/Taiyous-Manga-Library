@@ -372,3 +372,22 @@
   .app-shell .manga-theme-swatch{width:21px;height:21px;flex-basis:21px;padding:1px}
   .app-shell .manga-theme-dot{width:17px;height:17px}
 }
+
+/* Fixed three-column bookplate: no off-canvas jackets at split-screen widths.
+   A grid enforces available widths even for very long, unbreakable titles. */
+.app-shell .editorial-hero .editorial-book-stack{
+  box-sizing:border-box;display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  align-items:end;justify-items:stretch;
+  min-width:0;max-width:100%;overflow:hidden;
+}
+.app-shell .editorial-hero .editorial-book-stack .editorial-display-book,
+.app-shell .editorial-hero .editorial-book-stack .editorial-display-book.book-1,
+.app-shell .editorial-hero .editorial-book-stack .editorial-display-book.book-2{
+  position:relative;left:auto;right:auto;top:auto;
+  width:100%;min-width:0;max-width:100%;flex:none;
+  transform:none;min-height:0;
+}
+.app-shell .editorial-hero .editorial-book-title{
+  max-width:100%;min-width:0;overflow-wrap:anywhere;font-size:clamp(10px,2vw,18px)
+}
