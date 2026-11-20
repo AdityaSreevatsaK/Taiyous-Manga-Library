@@ -157,6 +157,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
   const [notice, setNotice] = useState('');
   const [online, setOnline] = useState(() => typeof navigator === 'undefined' ? true : navigator.onLine);
   const [inventoryRevision, setInventoryRevision] = useState(0);
+  const [refreshingMetadata,setRefreshingMetadata]=useState(false);
   const [offlineChapterIds, setOfflineChapterIds] = useState<ReadonlySet<string>>(() => new Set());
   const readerRef = useRef<HTMLElement | null>(null);
   const catalogue = demo ? demoEntries : remoteEntries;
@@ -1044,7 +1045,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
             <a className="book-card" key={item.id} href={routeHref({kind:'details',mangaId:item.id},import.meta.env.BASE_URL)}
               onClick={event=>followLink(event,()=>navigateTo({kind:'details',mangaId:item.id}))}>
               <span className={'book-cover cover-'+(demoEntries.findIndex(d=>d.id===item.id)%3+1)}>
-                {!demo && <MangaCoverArtwork entry={item}/>}
+                {!demo && <MangaCoverArtwork key={item.coverAsset?.sha256??'none'} entry={item}/>}
                 {item.publicationStatus !== 'unknown' &&
                   <span className={'status-ribbon status-'+item.publicationStatus}
                     aria-label={'Publication: '+publicationCaption[item.publicationStatus]}>
@@ -1092,7 +1093,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
           onClick={event=>followLink(event,()=>goCatalogue())}>← Back to the shelf</a>
         <section className="series-detail manga-details-hero">
           <div className={'detail-cover cover-'+(demoEntries.findIndex(d=>d.id===entry.id)%3+1)} aria-hidden="true">
-            {!demo && <MangaCoverArtwork entry={entry}/>}
+            {!demo && <MangaCoverArtwork key={entry.coverAsset?.sha256??'none'} entry={entry}/>}
             {entry.publicationStatus !== 'unknown' &&
               <span className={'status-ribbon status-'+entry.publicationStatus}>
                 {publicationCaption[entry.publicationStatus]}</span>}
@@ -1280,6 +1281,17 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
             <section className="manga-detail-card manga-management-card">
               <p className="manga-card-overline">MANGA STORAGE</p><h2>Manage this manga</h2>
               <p>Private manga images are accessed securely from Hugging Face. Offline copies of private chapters are not yet supported.</p>
+              {!demo&&<button className="secondary manga-refresh-metadata" type="button"
+                disabled={refreshingMetadata} onClick={()=>{
+                  setRefreshingMetadata(true);
+                  void fetchPrivateLibrary().then(result=>{
+                    if(result.status!=='connected')throw Error(result.message);
+                    setRemoteEntries([...result.entries]);
+                    setCloud(result);
+                    setNotice('Manga publication metadata refreshed. Your saved reading data is unchanged.');
+                  }).catch(error=>setNotice(error instanceof Error?error.message:
+                    'Unable to refresh publication metadata.')).finally(()=>setRefreshingMetadata(false));
+                }}>{refreshingMetadata?'Refreshing metadata…':'Refresh publication metadata'}</button>}
               {!demo&&<a className="secondary manga-storage-link"
                 href="https://github.com/AdityaSreevatsaK/Taiyou-Manga-Storage-Controller/actions"
                 target="_blank" rel="noopener noreferrer">Open Manga Storage Controller ↗</a>}
