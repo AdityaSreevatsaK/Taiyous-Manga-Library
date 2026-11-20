@@ -851,6 +851,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
             {catalogue.length ? <div className="editorial-book-stack">
               {catalogue.slice(0,3).map((item,index)=>
                 <div className={'editorial-display-book book-'+index} key={item.id}>
+                  {!demo && <MangaCoverArtwork key={item.coverAsset?.sha256??'none'} entry={item}/>}
                   <span className="editorial-book-glyph">✦</span>
                   <span className="editorial-book-title">{item.title}</span>
                   <span className="editorial-book-maker">{item.authors?.[0] || item.creators[0] || 'TAIYOU LIBRARY'}</span>
