@@ -207,26 +207,67 @@
   background:#e6d0a0;border-color:#e6d0a0;color:#1c3150;
 }
 .app-shell .editorial-hero .editorial-secondary-action{color:#f2e8d3;border-color:#e9d6b06a}
+/* Restore the original Novel Library three-jacket composition.
+ * Each jacket is its own link, preserving the artistic stagger and rotation. */
 .app-shell .editorial-hero .editorial-hero-art{
   background:radial-gradient(circle at 52% 50%,#3d5b8191,transparent 65%);
-  border:0;box-shadow:none;overflow:hidden;
+  border:0;box-shadow:none;overflow:visible
 }
 .app-shell .editorial-hero .editorial-hero-art:after{display:none}
 .app-shell .editorial-hero .editorial-book-stack{
-  position:relative;display:flex;align-items:flex-end;justify-content:center;
-  gap:10px;padding:13px 20px 25px;height:100%;overflow:visible
+  position:relative;display:block;width:100%;height:100%;
+  padding:0;overflow:visible
 }
-.app-shell .editorial-hero .editorial-display-book{
-  position:relative;left:auto;right:auto;top:auto;flex:0 1 31%;width:31%;
-  min-width:0;max-width:155px;height:75%;padding:15px 8px;
-  border-radius:4px 8px 8px 4px;box-shadow:10px 18px 23px #0a152f86;
+.app-shell .editorial-hero .editorial-book-link{
+  position:absolute;display:block;left:8%;top:14%;width:30%;height:72%;
+  box-sizing:border-box;color:inherit;text-decoration:none;z-index:2;
+  transform:rotate(-10deg);
+  transition:scale .22s ease,translate .22s ease,filter .22s ease
+}
+.app-shell .editorial-hero .editorial-book-link.book-1{
+  left:35%;top:6%;height:81%;transform:rotate(4deg);z-index:4
+}
+.app-shell .editorial-hero .editorial-book-link.book-2{
+  left:auto;right:8%;top:18%;height:72%;transform:rotate(11deg)
+}
+.app-shell .editorial-hero .editorial-book-link:is(:hover,:focus-visible){
+  z-index:8;scale:1.09;translate:0 -8px;filter:brightness(1.09)
+}
+.app-shell .editorial-hero .editorial-book-link:focus-visible{
+  outline:3px solid #e7cb95;outline-offset:5px;border-radius:6px
+}
+.app-shell .editorial-hero .editorial-book-link .editorial-display-book{
+  position:relative;display:flex;flex-direction:column;width:100%;height:100%;
+  min-width:0;max-width:none;margin:0;padding:16px 9px;
+  border:1px solid #fff5;border-radius:4px 8px 8px 4px;
+  box-shadow:10px 18px 23px #0a152f86;overflow:hidden;
   transform:none;box-sizing:border-box
 }
-.app-shell .editorial-hero .editorial-display-book.book-1{
-  left:auto;top:auto;height:82%;transform:none;z-index:2
+.app-shell .editorial-hero .editorial-book-title{
+  max-width:100%;min-width:0;overflow-wrap:anywhere;font-size:clamp(10px,1.45vw,20px)
 }
-.app-shell .editorial-hero .editorial-display-book.book-2{
-  left:auto;right:auto;top:auto;height:73%;transform:none
+/* The Novel Library's full-title label, shown on both hover and keyboard focus. */
+.app-shell .editorial-hero .editorial-art-hover-label{
+  position:absolute;left:50%;top:calc(100% + 7px);z-index:10;
+  display:block;width:max-content;max-width:min(250px,52vw);
+  min-width:min(115px,44vw);padding:7px 10px;
+  border:1px solid #e7d2a1a6;border-radius:7px;
+  background:#101c30f2;color:#fff8e9;text-shadow:0 1px 3px #000;
+  box-shadow:0 7px 22px #0009;
+  font:650 11px/1.4 Inter,"Segoe UI",sans-serif;
+  white-space:normal;overflow-wrap:anywhere;text-align:center;
+  opacity:0;visibility:hidden;pointer-events:none;
+  transform:translateX(-50%) rotate(10deg);
+  transition:opacity .16s ease,visibility .16s
+}
+.app-shell .editorial-hero .editorial-book-link.book-1 .editorial-art-hover-label{
+  transform:translateX(-50%) rotate(-4deg)
+}
+.app-shell .editorial-hero .editorial-book-link.book-2 .editorial-art-hover-label{
+  transform:translateX(-50%) rotate(-11deg)
+}
+.app-shell .editorial-hero .editorial-book-link:is(:hover,:focus-visible) .editorial-art-hover-label{
+  opacity:1;visibility:visible
 }
 .app-shell .editorial-hero .editorial-empty-plate{
   background:#172a489c;color:#f6e9d4;border-color:#cfb98888;
@@ -373,21 +414,18 @@
   .app-shell .manga-theme-dot{width:17px;height:17px}
 }
 
-/* Fixed three-column bookplate: no off-canvas jackets at split-screen widths.
-   A grid enforces available widths even for very long, unbreakable titles. */
-.app-shell .editorial-hero .editorial-book-stack{
-  box-sizing:border-box;display:grid;
-  grid-template-columns:repeat(3,minmax(0,1fr));
-  align-items:end;justify-items:stretch;
-  min-width:0;max-width:100%;overflow:hidden;
+@media(max-width:740px){
+  .app-shell .editorial-hero .editorial-book-link{left:9%;width:29%}
+  .app-shell .editorial-hero .editorial-book-link.book-1{left:35%}
+  .app-shell .editorial-hero .editorial-book-link.book-2{left:auto;right:9%}
+  .app-shell .editorial-hero .editorial-art-hover-label{
+    max-width:min(175px,49vw);font-size:10px;padding:5px 7px
+  }
 }
-.app-shell .editorial-hero .editorial-book-stack .editorial-display-book,
-.app-shell .editorial-hero .editorial-book-stack .editorial-display-book.book-1,
-.app-shell .editorial-hero .editorial-book-stack .editorial-display-book.book-2{
-  position:relative;left:auto;right:auto;top:auto;
-  width:100%;min-width:0;max-width:100%;flex:none;
-  transform:none;min-height:0;
-}
-.app-shell .editorial-hero .editorial-book-title{
-  max-width:100%;min-width:0;overflow-wrap:anywhere;font-size:clamp(10px,2vw,18px)
+@media(prefers-reduced-motion:reduce){
+  .app-shell .editorial-hero .editorial-book-link,
+  .app-shell .editorial-hero .editorial-art-hover-label{transition:none}
+  .app-shell .editorial-hero .editorial-book-link:is(:hover,:focus-visible){
+    scale:1;translate:none
+  }
 }
