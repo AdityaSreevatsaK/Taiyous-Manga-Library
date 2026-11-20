@@ -828,7 +828,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
           <div className="shelf-heading"><div><p className="eyebrow">DISCOVER / THE SHELF</p>
               <h2>{screen.section === 'home' ? (demo ? 'The sample collection' : 'Your collection') : labels[screen.section]}</h2>
             </div><p>{displayed.length} {displayed.length === 1 ? 'series' : 'series'} shown</p></div>
-          <div className="toolbar">
+          {screen.section!=='home' && <div className="toolbar">
             <label className="search-label">Search series or aliases
               <input id="catalogue-search" type="search" autoComplete="off" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Find a story..." /></label>
             <label>Publication
@@ -854,7 +854,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
               <select value={sort} onChange={e=>setSort(e.target.value as SortMode)}>
                 <option value="title">Title A to Z</option><option value="rating">Rating</option><option value="chapters">Chapter count</option>
               </select></label>
-          </div>
+          </div>}
           {screen.section==='library' && <>
             {advancedOpen && <section className="advanced-search" aria-label="Advanced manga search">
               <div className="shelf-heading"><h3>Advanced Search</h3>
