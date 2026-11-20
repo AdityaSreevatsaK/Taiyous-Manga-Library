@@ -14,9 +14,19 @@ const options:readonly {id:Theme;label:string;swatch:string;ink:string}[]=[
   {id:'ocean',label:'Ocean',swatch:'#dcecf6',ink:'#244464'},
   {id:'plum',label:'Plum',swatch:'#332638',ink:'#f5e7f2'},
 ];
-export function MangaThemeSwatches({value,onChange}:{
-  value:Theme;onChange:(theme:Theme)=>void;
+export function MangaThemeSwatches({value,onChange,compact=false}:{
+  value:Theme;onChange:(theme:Theme)=>void;compact?:boolean;
 }){
+  if(compact){
+    const selected=options.find(option=>option.id===value)??options[0]!;
+    return <label className="manga-theme-compact">
+      <span className="manga-theme-compact-dot" style={{background:selected.swatch}} aria-hidden="true"/>
+      <select aria-label="Colour theme" value={value}
+        onChange={event=>onChange(event.target.value as Theme)}>
+        {options.map(option=><option key={option.id} value={option.id}>{option.label}</option>)}
+      </select>
+    </label>;
+  }
   return <div className="manga-theme-swatches" role="group" aria-label="App theme">
     {options.map(option=><button type="button" key={option.id}
       className={'manga-theme-swatch'+(value===option.id?' is-selected':'')}
