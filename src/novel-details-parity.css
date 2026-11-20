@@ -105,13 +105,11 @@
 }
 .app-shell .manga-detail-card :is(input,textarea)::placeholder{color:var(--md-muted)}
 .app-shell .manga-detail-card .detail-description{margin:0;max-height:210px;overflow:auto;color:var(--md-ink);font:400 13px/1.7 Georgia,serif}
-.app-shell .manga-detail-card .collection-membership{margin:0}
 .app-shell .manga-details-main .chapter-section{max-width:none;padding:22px}
-.app-shell .manga-detail-card :is(.primary,.secondary),.app-shell .manga-details-main .chapter-load-more{
+.app-shell .manga-detail-card :is(.primary,.secondary){
   background:#315f86;color:#fff;border:1px solid #315f86;
 }
-.app-shell .manga-detail-card :is(.primary,.secondary):hover,
-.app-shell .manga-details-main .chapter-load-more:hover{
+.app-shell .manga-detail-card :is(.primary,.secondary):hover{
   background:#173e62;color:#fff;border-color:#173e62;
 }
 .app-shell .manga-detail-card :is(.primary,.secondary):disabled{opacity:.55;filter:none}
@@ -180,7 +178,6 @@
   /* 2 cards side-by-side cause text and select overflow on 375-430px phones.
      Follow the Novel Library's single readable sidebar stack. */
   .app-shell .manga-details-sidebar{display:flex;flex-direction:column;min-width:0}
-  .app-shell .manga-collections-card{grid-column:auto}
   .app-shell .manga-detail-card{min-width:0;max-width:100%}
   .app-shell .manga-detail-card :is(input,select,textarea){max-width:100%;min-width:0;box-sizing:border-box}
   .app-shell .manga-details-hero .detail-cover{min-width:0;max-width:100%}
@@ -192,8 +189,6 @@
   .app-shell .manga-details-hero .stat-strip{flex-direction:column;align-items:flex-start;gap:5px}
   .app-shell .manga-details-hero .detail-content h1{font-size:28px}
   .app-shell .manga-detail-card{padding:17px}
-  .app-shell .manga-details-main .chapter-entry{flex-wrap:wrap}
-  .app-shell .manga-details-main .chapter-completion-toggle{margin:0 7px 7px auto}
 }
 /* Borrow Novel Library cloud toggle sizing, colours and placement. */
 .app-shell .manga-cloud-menu{width:42px;height:42px;min-width:42px}
