@@ -15,6 +15,7 @@ import { MangaThemeSwatches } from './components/MangaThemeSwatches';
 import { VerticalReader } from './components/VerticalReader';
 import { MangaChapterPicker } from './components/MangaChapterPicker';
 import { MangaChapterBrowser } from './components/MangaChapterBrowser';
+import { MangaHeroBackdrop } from './components/MangaHeroBackdrop';
 import { MangaCollectionPicker } from './components/MangaCollectionPicker';
 import { MangaCoverArtwork } from './components/MangaCoverArtwork';
 import {ratingLabel,ratingSummary,ratingToneClass} from './domain/ratings';
@@ -35,6 +36,7 @@ import './styles.css';
 import './editorial.css';
 import './novel-parity.css';
 import './novel-details-parity.css';
+import './ported-novel-chapters.css';
 
 /** These ribbons describe publication status, never the reader's Finished shelf. */
 function roleNames(item:MangaEntry,role:'author'|'artist'):string[]{
@@ -775,7 +777,8 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
   const progressForEntry = entry ? restoreProgress(entry, manifests, progress[entry.id]) : null;
 
   return <div className={'app-shell theme-' + preferences.theme +
-    (immersive && screen.kind === 'reader' ? ' reading-immersive' : '')}>
+    (immersive && screen.kind === 'reader' ? ' reading-immersive' : '') +
+    (screen.kind==='details'?' is-manga-details':'')}>
     <a className="skip" href="#content">Skip to content</a>
     <header className="site-header">
       <div className="manga-topbar">
@@ -1132,21 +1135,25 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
       <div className="manga-detail-page">
         <a className="back manga-detail-back" href={routeHref({kind:'library'},import.meta.env.BASE_URL,catalogue)}
           onClick={event=>followLink(event,()=>goCatalogue())}>← Back to the shelf</a>
-        <section className="series-detail manga-details-hero">
+        <section className="series-detail manga-details-hero novel-photographic-hero">
+          <MangaHeroBackdrop key={entry.id} mangaId={entry.id}/>
           <div className={'detail-cover cover-'+(demoEntries.findIndex(d=>d.id===entry.id)%3+1)} aria-hidden="true">
             {!demo && <MangaCoverArtwork key={entry.cover?.sha256??'none'} entry={entry} priority/>}
-            {entry.publicationStatus !== 'unknown' &&
-              <span className={'status-ribbon status-'+entry.publicationStatus}>
-                {publicationCaption[entry.publicationStatus]}</span>}
             <span className="cover-illustration"><i /><b /></span><span className="cover-title">{entry.title}</span>
           </div>
           <div className="detail-content"><p className="eyebrow">THE STORY / {demo?'READER DEMONSTRATION':'PRIVATE LIBRARY'}</p>
             <h1>{entry.title}</h1><p className="detail-sub">{creditLine(entry)} <span aria-hidden="true">·</span> {publicationCaption[entry.publicationStatus]}</p>
-            <div className="tag-row">{entry.tags.map(value=><button type="button" className="tag" key={value}
-              onClick={()=>jumpToFilter('tag',value)} title={'Filter All Manga by ' + value}>{value}</button>)}</div>
-            <div className="stat-strip"><span><strong>{entry.chapters.length}</strong> chapters</span>
-
-</div>
+            <div className="stat-strip details-meta-row">
+              <span>▤ {entry.chapters.length.toLocaleString()} chapters</span>
+              {entry.publicationStatus!=='unknown'&&
+                <span className={'manga-publication-pill status-'+entry.publicationStatus}>
+                  <span aria-hidden="true">●</span> {publicationCaption[entry.publicationStatus]}
+                </span>}
+            </div>
+            <div className="tag-row details-hero-tags">
+              {entry.tags.map(value=><button type="button" className="tag" key={value}
+                onClick={()=>jumpToFilter('tag',value)} title={'Filter All Manga by '+value}>{value}</button>)}
+            </div>
             <form className="hero-rating manga-hero-rating" aria-label="Personal manga rating"
               onSubmit={event=>{
                 event.preventDefault();
