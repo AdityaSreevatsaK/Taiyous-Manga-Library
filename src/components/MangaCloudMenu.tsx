@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import type { CloudRead } from '../data/privateLibrary';
 
 type Cloud = CloudRead | {status:'checking';message:string};
@@ -12,7 +12,25 @@ export function MangaCloudMenu({cloud,online,demo,count,onSample,onPrivate,onLog
 }) {
   const connected=cloud.status==='connected';
   const healthy=connected&&online;
-  return <details className="manga-cloud-menu">
+  const root=useRef<HTMLDetailsElement>(null);
+  useEffect(()=>{
+    const onOutside=(event:PointerEvent)=>{
+      if(root.current?.open&&!root.current.contains(event.target as Node))root.current.open=false;
+    };
+    const onEscape=(event:KeyboardEvent)=>{
+      if(event.key==='Escape'&&root.current?.open){
+        root.current.open=false;
+        root.current.querySelector('summary')?.focus();
+      }
+    };
+    document.addEventListener('pointerdown',onOutside);
+    document.addEventListener('keydown',onEscape);
+    return ()=>{
+      document.removeEventListener('pointerdown',onOutside);
+      document.removeEventListener('keydown',onEscape);
+    };
+  },[]);
+  return <details className="manga-cloud-menu" ref={root}>
     <summary aria-label={'Cloud settings, '+(healthy?'connected':'disconnected')}
       title={connected?'Private Hugging Face library connected':'Private Hugging Face library'}>
       <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true" fill="none"
