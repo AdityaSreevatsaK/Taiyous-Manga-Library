@@ -273,3 +273,134 @@
 @media(prefers-reduced-motion:reduce){
  .app-shell .manga-cloud-menu,.app-shell .manga-theme-swatch{transition:none}
 }
+
+/* EXACT Novel Library visual assets and chrome treatment.
+ * Reference: Personal Library BrandMark, ThemeSwitcher, interface-refinements.
+ * All imagery is the approved shared sun asset, never a duplicated logo icon tile.
+ */
+.app-shell .manga-logo-frame{
+  width:40px;height:40px;flex:0 0 40px;
+  display:grid;place-items:center;
+  border:0;border-radius:0;padding:0;background:transparent;overflow:visible;
+}
+.app-shell .manga-logo-frame .taiyou-brand-mark{
+  display:block;width:36px;height:36px;object-fit:contain;filter:none;
+}
+.app-shell .manga-wordmark-text small{letter-spacing:.2em}
+.app-shell .manga-cloud-menu>summary{
+  width:42px;height:42px;min-width:42px;min-height:42px;
+  background:transparent;border:1px solid var(--editorial-line);border-radius:12px;
+}
+.app-shell .manga-cloud-menu>summary:hover,
+.app-shell .manga-cloud-menu[open]>summary{
+  background:color-mix(in srgb,var(--editorial-ink) 9%,var(--editorial-surface));
+}
+.app-shell .manga-cloud-icon{
+  position:relative;display:grid;place-items:center;width:27px;height:27px;
+}
+.app-shell .manga-cloud-icon>svg{
+  width:27px;height:27px;display:block;color:var(--editorial-ink);opacity:1;
+}
+.app-shell .manga-cloud-dot{
+  position:absolute;left:51%;top:56%;right:auto;bottom:auto;
+  transform:translate(-50%,-50%);pointer-events:none;
+  width:6px;height:6px;min-width:6px;min-height:6px;
+  box-sizing:border-box;border:1px solid var(--editorial-surface);
+  background:#f05e66;box-shadow:0 0 0 1px #7d2530;
+}
+.app-shell .manga-cloud-dot.is-connected{
+  background:#26d878;box-shadow:0 0 0 1px #065c35;
+}
+.app-shell .manga-theme-swatches{
+  min-height:37px;box-sizing:border-box;
+  justify-content:flex-end;gap:3px;padding:3px 4px;
+  border-radius:999px;background:var(--editorial-surface);
+}
+.app-shell .manga-theme-swatch{width:28px;height:28px;flex-basis:28px}
+.app-shell .manga-theme-dot{
+  width:21px;height:21px;
+  border:1px solid #8090a644;box-shadow:inset 0 0 0 1px #ffffff18;
+}
+.app-shell .manga-theme-swatch.is-selected{
+  outline:2px solid var(--editorial-accent);outline-offset:0;
+}
+.app-shell .manga-nav-tools{gap:8px}
+.app-shell .manga-nav-tools .header-menu>summary{
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  border-radius:8px;min-height:37px;
+}
+.app-shell .manga-nav-tools .header-menu>summary svg{flex:none}
+.app-shell .manga-master-menu{position:relative;flex:0 0 auto}
+.app-shell .manga-master-menu>summary{
+  display:inline-flex;align-items:center;gap:7px;justify-content:center;
+  min-height:37px;padding:7px 9px;border:1px solid var(--editorial-line);
+  border-radius:8px;list-style:none;cursor:pointer;
+  background:var(--editorial-soft);color:var(--editorial-ink);
+  font-size:11px;font-weight:750;white-space:nowrap;
+}
+.app-shell .manga-master-menu>summary::-webkit-details-marker{display:none}
+.app-shell .manga-master-menu>summary:hover,
+.app-shell .manga-master-menu[open]>summary{
+  background:var(--editorial-paper);border-color:var(--editorial-accent);
+}
+.app-shell .manga-master-menu>summary:focus-visible,
+.app-shell .manga-nav-manage:focus-visible{
+  outline:2px solid var(--editorial-accent);outline-offset:2px;
+}
+.app-shell .manga-master-panel{
+  position:absolute;z-index:150;right:0;top:calc(100% + 8px);
+  width:min(330px,calc(100vw - 24px));max-height:min(60dvh,450px);
+  overflow-y:auto;display:flex;flex-direction:column;gap:8px;
+  padding:15px;border-radius:9px;
+  background:var(--editorial-surface);color:var(--editorial-ink);
+  border:1px solid var(--editorial-line);box-shadow:0 18px 54px #191b194a;
+}
+.app-shell .manga-master-panel>strong{font-size:14px;color:var(--editorial-ink)}
+.app-shell .manga-master-panel p{margin:0;font-size:11px;color:var(--editorial-muted);line-height:1.5}
+.app-shell .manga-master-panel a,.app-shell .manga-master-panel button{
+  display:flex;align-items:center;text-align:left;min-height:40px;width:100%;
+  padding:9px 10px;border:1px solid var(--editorial-line);
+  border-radius:6px;color:var(--editorial-ink);background:var(--editorial-paper);
+  text-decoration:none;font-size:12px;font-weight:650;
+}
+.app-shell .manga-master-panel a:hover,.app-shell .manga-master-panel button:hover{
+  border-color:var(--editorial-accent);
+}
+.app-shell .manga-master-panel .manga-master-note{margin-top:4px;font-size:10px}
+.app-shell .manga-nav-manage{
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  min-height:37px;padding:9px 13px;
+  border:1px solid #203956;border-radius:8px;
+  background:#203956;color:#fff;
+  text-decoration:none;font-size:12px;font-weight:650;white-space:nowrap;
+}
+.app-shell .manga-nav-manage:hover{background:#2b4d70;color:#fff}
+@media(max-width:900px){
+  .app-shell .manga-nav-tools{gap:4px}
+  .app-shell .manga-nav-tools .header-menu>summary{gap:4px;padding:8px 6px}
+  .app-shell .manga-master-menu>summary{gap:5px;padding:7px 6px}
+  .app-shell .manga-nav-manage{gap:5px;padding:9px 8px}
+}
+@media(max-width:740px){
+  .app-shell .manga-logo-frame{width:34px;height:34px;flex-basis:34px}
+  .app-shell .manga-logo-frame .taiyou-brand-mark{width:32px;height:32px}
+  .app-shell .manga-theme-swatches{gap:1px;padding:2px}
+  .app-shell .manga-theme-swatch{width:25px;height:25px;flex-basis:25px}
+  .app-shell .manga-theme-dot{width:19px;height:19px}
+  .app-shell .manga-master-menu{position:static}
+  .app-shell .manga-master-panel{
+    position:absolute;left:12px;right:12px;top:calc(100% + 2px);
+    width:auto;max-width:none;
+  }
+}
+@media(max-width:520px){
+  .app-shell .manga-master-menu>summary span,
+  .app-shell .manga-nav-manage span{display:none}
+  .app-shell .manga-master-menu>summary{min-width:36px;padding:7px}
+  .app-shell .manga-nav-manage{min-width:36px;padding:8px}
+}
+@media(max-width:390px){
+  .app-shell .manga-theme-swatches{gap:0}
+  .app-shell .manga-theme-swatch{width:21px;height:21px;flex-basis:21px;padding:1px}
+  .app-shell .manga-theme-dot{width:17px;height:17px}
+}
