@@ -7,9 +7,9 @@ type Cloud = CloudRead | {status:'checking';message:string};
 /** The private storage tools belong beside the brand, not in the reading area.
  * This control never implies connectivity merely because the device is online.
  */
-export function MangaCloudMenu({cloud,online,demo,count,onSample,onPrivate,onLogout,children}:{
+export function MangaCloudMenu({cloud,online,demo,count,onSample,onPrivate,onLogout,onRefresh,refreshing,children}:{
   cloud:Cloud;online:boolean;demo:boolean;count:number;
-  onSample:()=>void;onPrivate:()=>void;onLogout:()=>void;children?:ReactNode;
+  onSample:()=>void;onPrivate:()=>void;onLogout:()=>void;onRefresh?:()=>void;refreshing?:boolean;children?:ReactNode;
 }) {
   const connected=cloud.status==='connected';
   const healthy=connected&&online;
@@ -31,17 +31,17 @@ export function MangaCloudMenu({cloud,online,demo,count,onSample,onPrivate,onLog
       document.removeEventListener('keydown',onEscape);
     };
   },[]);
-  return <details className="manga-cloud-menu" ref={root}>
-    <summary aria-label={'Cloud settings, '+(healthy?'connected':'disconnected')}
-      title={connected?'Private Hugging Face library connected':'Private Hugging Face library'}>
-      <span className="manga-cloud-icon" aria-hidden="true">
-        <CloudIcon size={27}/>
-        <span className={'manga-cloud-dot'+(healthy?' is-connected':'')}/>
+  return <details className="manga-cloud-menu cloud-connect" ref={root}>
+    <summary className="cloud-status-toggle" aria-label={'Cloud settings, '+(healthy?'connected':'disconnected')}
+      title={healthy?'Cloud connected · Open settings':'Cloud disconnected · Open settings'}>
+      <span className="cloud-status-icon" aria-hidden="true">
+        <CloudIcon size={25}/>
+        <span className={'cloud-status-dot '+(healthy?'is-connected':'is-disconnected')}/>
       </span>
     </summary>
-    <div className="manga-cloud-panel">
-      <p className="manga-cloud-overline">YOUR LIBRARY / STORAGE</p>
-      <h2>Private manga library</h2>
+    <div className="manga-cloud-panel cloud-connect-body">
+      <h2 className="cloud-settings-heading">Cloud library settings</h2>
+      <p className="cloud-settings-state">Connection: {healthy?'Connected':'Disconnected'}</p>
       <p className="manga-cloud-state" role="status">{connected
         ? online?'Connected securely with Hugging Face':'Signed in. Device offline.'
         :cloud.status==='checking'?'Checking your connection…':'Not connected'}</p>
@@ -49,8 +49,12 @@ export function MangaCloudMenu({cloud,online,demo,count,onSample,onPrivate,onLog
         ? count+' '+(count===1?'manga':'manga')+' in your private catalogue. No chapter images are exposed publicly.'
         :cloud.message}</p>
       <div className="manga-cloud-actions">
-        {connected ? <button type="button" className="secondary"
-          onClick={onLogout}>Sign out of Hugging Face</button>
+        {connected ? <>
+          {onRefresh&&<button type="button" className="secondary" disabled={refreshing}
+            onClick={onRefresh}>{refreshing?'Refreshing…':'Refresh cloud'}</button>}
+          <button type="button" className="secondary"
+            onClick={onLogout}>Sign out of Hugging Face</button>
+        </>
           :<a className="primary manga-oauth-link" href="/api/auth/login">Sign in with Hugging Face</a>}
       </div>
       <div className="manga-cloud-divider"/>
