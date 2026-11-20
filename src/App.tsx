@@ -660,7 +660,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
     exitImmersive();
     setDemo(value); setLocation(null); setNotice(''); goCatalogue('home');
     if(value){setPrivateManifests(new Map());setPrivateRevision('');}
-    setChapterLimit(25);setChapterQuery('');
+
     setPersonalShelves(loadShelves(value ? demoEntries : remoteEntries).shelves);
     setAnnotations(loadAnnotations(value ? demoEntries : remoteEntries).annotations);
     setQuery(''); setTag(''); setCollection(''); setStatus('all');
