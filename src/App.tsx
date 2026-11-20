@@ -1102,7 +1102,8 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
               {Array.from({length:10},(_,index)=>index+1).map(value=>
                 <button key={value} type="button" aria-label={'Rate ' + value + ' out of 10'}
                   aria-pressed={annotations[entry.id]?.rating === value}
-                  style={{opacity: annotations[entry.id]?.rating && value <= annotations[entry.id]!.rating! ? 1 : 0.72}}
+                  style={{opacity: annotations[entry.id]?.rating && value <= annotations[entry.id]!.rating!
+                    ? Math.min(1,0.74+annotations[entry.id]!.rating!*0.026) : 0.72}}
                   onClick={()=>changeAnnotation(entry,{rating:value},'Rating saved')}>★</button>)}
               <span aria-live="polite">{annotations[entry.id]?.rating ? annotations[entry.id]!.rating + ' / 10' : 'No personal rating'}</span>
             </div>
