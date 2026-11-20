@@ -1156,7 +1156,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
         <a className="back manga-detail-back" href={routeHref({kind:'library'},import.meta.env.BASE_URL,catalogue)}
           onClick={event=>followLink(event,()=>goCatalogue())}>← Back to the shelf</a>
         <section className="series-detail manga-details-hero novel-photographic-hero">
-          <MangaHeroBackdrop key={entry.id} mangaId={entry.id}/>
+          {!demo&&<MangaHeroBackdrop key={entry.id} mangaId={entry.id}/>}
           {collections.items.some(folder=>folder.mangaIds.includes(entry.id))&&
             <nav className="details-hero-memberships" aria-label="Collections containing this manga">
               <span>IN COLLECTIONS</span>
