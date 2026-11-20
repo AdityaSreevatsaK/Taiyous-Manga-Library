@@ -1208,7 +1208,7 @@ test('split-screen hero displays three complete covers, with enhanced border and
   await page.goto('/');
   const heroLink=page.locator('.editorial-hero .editorial-book-link').first();
   const label=heroLink.locator('.editorial-art-hover-label');
-  await expect(heroLink).toHaveAttribute('href', /\\/manga\\//);
+  await expect(heroLink).toHaveAttribute('href', /\/manga\//);
   await expect(label).toHaveText('Five Chapter Scroll Trial');
   await expect(label).toBeHidden();
   const originalHeroScale=await heroLink.evaluate(el=>getComputedStyle(el).scale);
@@ -1220,6 +1220,7 @@ test('split-screen hero displays three complete covers, with enhanced border and
   await expect(label).toBeVisible();
   await heroLink.click();
   await expect(page.getByRole('heading',{name:'Five Chapter Scroll Trial'})).toBeVisible();
+  await page.goto('/');
   const card=page.locator('.book-card').first();
   const cover=card.locator('.book-cover');
   const border=await cover.evaluate(el=>getComputedStyle(el).borderTopWidth);
