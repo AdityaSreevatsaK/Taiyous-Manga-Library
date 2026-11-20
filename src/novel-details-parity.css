@@ -25,10 +25,7 @@
 .app-shell .manga-details-hero .detail-cover .cover-title{font-size:clamp(25px,3vw,43px);max-width:100%;color:#fff4df}
 .app-shell .manga-details-hero .detail-content{padding:0;min-width:0}
 .app-shell .manga-details-hero .detail-content .eyebrow{color:#f1d49e}
-.app-shell .manga-details-hero .detail-content h1{
-  font-size:clamp(36px,4.5vw,63px);font-weight:600;line-height:1.1;
-  color:#fff9ef;text-shadow:0 3px 12px #0009;margin:0 0 9px;
-}
+.app-shell .manga-details-hero .detail-content h1{font-size:clamp(36px,4.5vw,63px);color:#fff9ef;margin:0 0 9px}
 .app-shell .manga-details-hero .detail-sub{color:#e7ecf5;font:italic 14px/1.5 Georgia,serif;text-transform:none}
 .app-shell .manga-details-hero .tag-row{margin:0 0 12px;gap:7px}
 .app-shell .manga-details-hero .tag{
@@ -57,12 +54,8 @@
  .app-shell .manga-mobile-rating-controls select{flex:1 1 150px;min-height:43px}
  .app-shell .manga-mobile-rating-controls button{min-height:43px}
 }
-.app-shell .manga-details-hero .detail-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.app-shell .manga-details-hero .detail-actions :is(.primary,.secondary){
-  display:inline-flex;align-items:center;justify-content:center;min-height:43px;
-  padding:9px 13px;font-size:12px;font-weight:750;line-height:1.35;
-  border-radius:8px;text-decoration:none;
-}
+.app-shell .manga-details-hero .detail-actions{gap:8px}
+.app-shell .manga-details-hero .detail-actions :is(.primary,.secondary){min-height:43px;padding:9px 13px}
 .app-shell .manga-details-hero .detail-actions .primary{color:#10283f;background:#f5e4bd;border-color:#f5e4bd}
 .app-shell .manga-details-hero .detail-actions .primary:hover{background:#fff;color:#10283f;border-color:#fff}
 .app-shell .manga-details-hero .detail-actions .secondary{background:#0b213ad9;color:#fff;border:1px solid #ecf1f9c7}
