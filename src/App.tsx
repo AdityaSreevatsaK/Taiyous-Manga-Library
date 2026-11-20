@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { entries as realEntries } from './data/catalogue';
 import { fetchPrivateLibrary, type CloudRead } from './data/privateLibrary';
-import { fetchPrivateChapter } from './data/privateMedia';
+import { fetchPrivateChapter, privateResumeChapter } from './data/privateMedia';
 import { demoEntries, demoManifests, fixtureStatement } from './data/fixtures';
 import { verifyOfflineChapter } from './data/offlineChapters';
 import { OfflineChapterControl } from './components/OfflineChapterControl';
@@ -460,7 +460,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
       navigateTo({kind:'reader',mangaId:item.id,chapterId:target.chapterId,pageIndex:target.pageIndex});
       return;
     }
-    const selected=chapterId ?? (resume ? progress[item.id]?.chapterId : undefined) ?? orderedChapters(item)[0]?.id ?? '';
+    const selected=chapterId ?? (resume ? progress[item.id]?.chapterId??privateResumeChapter(item)??undefined : undefined) ?? orderedChapters(item)[0]?.id ?? '';
     if (!item.chapters.some(chapter=>chapter.id===selected)) {
       setNotice('This chapter is not in your private library.');
       return;
@@ -476,9 +476,20 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
       if(operation!==chapterOpenRequest.current)return;
       const next=new Map(privateRevision===loaded.revision?privateManifests:new Map());
       next.set(selected,loaded.manifest);
+      // Verify the prior saved chapter too. Otherwise an unrelated saved chapter
+      // would look corrupt when the reader saves progress in the new chapter.
+      const previousChapter=privateResumeChapter(item);
+      if(previousChapter&&previousChapter!==selected&&!next.has(previousChapter)){
+        try{
+          const previous=await fetchPrivateChapter(item.id,previousChapter);
+          if(previous.revision===loaded.revision)next.set(previousChapter,previous.manifest);
+        }catch{ /* Preserve the previous progress record. Never overwrite unverifiable state. */ }
+      }
+      if(operation!==chapterOpenRequest.current)return;
       setPrivateManifests(next);
       setPrivateRevision(loaded.revision);
       const local=loadProgress(item,next);
+      if(local.status==='ok')setProgress(previous=>({...previous,[item.id]:local.value}));
       const saved=laterProgress(progress[item.id],local.status==='ok'?local.value:undefined);
       const index=resume && saved?.chapterId===selected ?
         Math.max(0,loaded.manifest.pages.findIndex(page=>page.id===saved.pageId)) : 0;
@@ -1107,8 +1118,8 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
                 onClick={event=>followLink(event,()=>openChapter(entry,chapters[0]?.id))}>Start from chapter one</a>}
               </> : <>
                 <button type="button" className="primary" disabled={chapterLoading!==null||!chapters.length}
-                  onClick={()=>{void openChapter(entry,undefined,!!progress[entry.id]);}}>
-                  {chapterLoading?'Loading chapter…':progress[entry.id]?'Continue reading':'Read from beginning'} <span aria-hidden="true">↗</span>
+                  onClick={()=>{void openChapter(entry,undefined,!!(progress[entry.id]||privateResumeChapter(entry)));}}>
+                  {chapterLoading?'Loading chapter…':progress[entry.id]||privateResumeChapter(entry)?'Continue reading':'Read from beginning'} <span aria-hidden="true">↗</span>
                 </button>
                 <p className="fine-print">Private manga pages load securely while you are signed in. Offline downloads are not enabled for private chapters yet.</p>
               </>}
