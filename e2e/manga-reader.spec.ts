@@ -838,7 +838,7 @@ test.describe('compatible private manga library backups',()=>{
     await expect(page.getByRole('combobox',{name:'Personal reading shelf'})).toHaveValue('trying');
     await expect(page.getByRole('textbox',{name:'My comments / reading notes'})).toHaveValue('My export test note');
     await expect(page.getByRole('button',{name:'Remove tag Adventure Favourite'})).toBeVisible();
-    await expect(page.getByText('9 / 10')).toBeVisible();
+    await expect(page.locator('.manga-hero-rating')).toContainText('9/10');
   });
 });
 
@@ -1369,7 +1369,7 @@ test('Novel Library details keep source and personal tags together, separate fro
       [0,'manga-journey-card'],[1,'manga-info-card'],[2,'manga-tags-card'],
       [3,'personal-annotations'],[4,'manga-collections-card'],[5,'manga-management-card'],
     ] as const)expect(classes[index]).toContain(name);
-    await expect(page.locator('.manga-tags-card .personal-tag-editor')).toBeVisible();
+    await expect(page.locator('.manga-tags-card .details-tag-form')).toBeVisible();
     await expect(page.locator('.personal-annotations .personal-tag-editor')).toHaveCount(0);
     await expect(page.locator('.personal-annotations .personal-notes-editor')).toBeVisible();
     await assertNoHorizontalOverflow(page);
