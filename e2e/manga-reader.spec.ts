@@ -247,7 +247,7 @@ test.describe('browser history and deep links', () => {
   test('an actual new tab can open a series independently', async ({ page, context }) => {
     await page.goto('/');
     const card = page.locator('.book-card').filter({ hasText: 'The Lantern Archive' });
-    const href = await card.getAttribute('href');
+    const href = await card.locator('.book-card-cover-link').getAttribute('href');
     expect(href).toBe('/manga/the-lantern-archive');
     const newTab = await context.newPage();
     await newTab.goto(href!);
@@ -768,7 +768,7 @@ test.describe('personal annotations never leave the browser',()=>{
     await page.getByRole('textbox',{name:'My comments / reading notes'})
       .fill('A brilliant, quiet story');
     await page.getByRole('button',{name:'Save comments'}).click();
-    await page.getByLabel('Add a personal tag').fill('  Quiet Favourite  ');
+    await page.getByRole('textbox',{name:'Tag name'}).fill('  Quiet Favourite  ');
     await page.getByRole('button',{name:'Add tag'}).click();
     await expect(page.locator('.tag-draft-actions')).toContainText('Unsaved tag changes');
     await page.getByRole('button',{name:'Review & save tags'}).click();
@@ -785,14 +785,14 @@ test.describe('personal annotations never leave the browser',()=>{
   });
   test('Novel detail tags are add-only and saved in one reviewed batch',async({page})=>{
     await page.goto('/manga/mng_lanternarchive');
-    await page.getByLabel('Add a personal tag').fill('Keep This');
+    await page.getByRole('textbox',{name:'Tag name'}).fill('Keep This');
     await page.getByRole('button',{name:'Add tag'}).click();
     await page.getByRole('button',{name:'Review & save tags'}).click();
     await page.getByRole('dialog',{name:'Save tag changes?'})
       .getByRole('button',{name:'Save tags'}).click();
     await expect(page.locator('.manga-tags-card')).toContainText('Keep This');
     await expect(page.getByRole('button',{name:'Remove tag Keep This'})).toHaveCount(0);
-    await page.getByLabel('Add a personal tag').fill('Maybe Later');
+    await page.getByRole('textbox',{name:'Tag name'}).fill('Maybe Later');
     await page.getByRole('button',{name:'Add tag'}).click();
     await expect(page.locator('.tag-draft-actions')).toContainText('Unsaved tag changes');
     await page.getByRole('button',{name:'Discard changes'}).click();
@@ -812,7 +812,7 @@ test.describe('compatible private manga library backups',()=>{
     await page.getByRole('button',{name:'Save rating'}).first().click();
     await page.getByRole('textbox',{name:'My comments / reading notes'}).fill('My export test note');
     await page.getByRole('button',{name:'Save comments'}).click();
-    await page.getByLabel('Add a personal tag').fill('Adventure Favourite');
+    await page.getByRole('textbox',{name:'Tag name'}).fill('Adventure Favourite');
     await page.getByRole('button',{name:'Add tag'}).click();
     await page.getByRole('button',{name:'Review & save tags'}).click();
     await page.getByRole('dialog',{name:'Save tag changes?'}).getByRole('button',{name:'Save tags'}).click();
@@ -1153,6 +1153,64 @@ test('cloud icon consolidates sample, private connection and versioned backup to
   await assertNoHorizontalOverflow(page);
 });
 
+test('author links browse attributed manga without nested anchors or losing direct links',async({page})=>{
+  await page.goto('/library');
+  const first=page.locator('.book-card').filter({hasText:'The Lantern Archive'});
+  await expect(first.locator('.manga-author-link').first()).toHaveAttribute('href',/\/library\?creator=Taiyou/);
+  await first.locator('.manga-author-link').first().click();
+  await expect(page).toHaveURL(/\/library\?creator=Taiyou/);
+  await expect(page.locator('.book-card')).toHaveCount(4);
+  await expect(page.getByRole('searchbox',{name:'Creator'})).toHaveValue('Taiyou Studio (fictional)');
+  await page.locator('.book-card').filter({hasText:'The Lantern Archive'}).locator('.book-card-cover-link').click();
+  await expect(page.locator('.manga-info-card .manga-author-link')).toHaveCount(1);
+  await page.locator('.manga-info-card .manga-author-link').click();
+  await expect(page).toHaveURL(/\/library\?creator=Taiyou/);
+  await expect(page.locator('.book-card')).toHaveCount(4);
+});
+
+test('personal tag form is a simple text field without duplicate caption or dropdown',async({page})=>{
+  await page.goto('/manga/the-lantern-archive');
+  const form=page.locator('.manga-tags-card .details-tag-form');
+  await expect(form.getByRole('textbox',{name:'Tag name'})).toBeVisible();
+  await expect(form.getByText('Add a personal tag')).toHaveCount(0);
+  await expect(form.locator('datalist')).toHaveCount(0);
+  await expect(form.getByRole('textbox',{name:'Tag name'})).not.toHaveAttribute('list', /.+/);
+  await form.getByRole('textbox',{name:'Tag name'}).fill('Warm-hearted');
+  await form.getByRole('button',{name:'Add tag'}).click();
+  await expect(page.locator('.manga-tags-card')).toContainText(/Warm.Hearted/i);
+});
+
+test('split-screen hero displays three complete covers, with enhanced border and hover',async({page})=>{
+  for(const width of [430,650,790,900,1080]){
+    await page.setViewportSize({width,height:850});
+    await page.goto('/');
+    const hero=page.locator('.editorial-hero-art');
+    const bounds=await hero.boundingBox();
+    expect(bounds).toBeTruthy();
+    const books=await hero.locator('.editorial-display-book').evaluateAll(items=>items.map(el=>{
+      const r=el.getBoundingClientRect();
+      return {left:r.left,right:r.right,top:r.top,bottom:r.bottom};
+    }));
+    expect(books).toHaveLength(3);
+    for(const b of books){
+      expect(b.left).toBeGreaterThanOrEqual(bounds!.x-1);
+      expect(b.right).toBeLessThanOrEqual(bounds!.x+bounds!.width+1);
+      expect(b.top).toBeGreaterThanOrEqual(bounds!.y-1);
+      expect(b.bottom).toBeLessThanOrEqual(bounds!.y+bounds!.height+1);
+    }
+    await assertNoHorizontalOverflow(page);
+  }
+  const card=page.locator('.book-card').first();
+  const cover=card.locator('.book-cover');
+  const border=await cover.evaluate(el=>getComputedStyle(el).borderTopWidth);
+  expect(parseFloat(border)).toBeGreaterThanOrEqual(2);
+  const original=await card.evaluate(el=>getComputedStyle(el).transform);
+  await card.hover();
+  const hovered=await card.evaluate(el=>getComputedStyle(el).transform);
+  expect(hovered).not.toBe(original);
+  await expect(page.locator('.cloud-status-icon svg path')).toHaveCount(2);
+});
+
 test('Novel Library brand assets and chrome render without the invented logo tile',async({page})=>{
   for(const width of [320,390,768,1280]){
     await page.setViewportSize({width,height:820});
@@ -1393,7 +1451,7 @@ test('Novel Library details keep source and personal tags together, separate fro
 
 test('personal tag deletion requires management disclosure and explicit confirmation',async({page})=>{
   await page.goto('/manga/mng_lanternarchive');
-  await page.getByLabel('Add a personal tag').fill('Protected Favourite');
+  await page.getByRole('textbox',{name:'Tag name'}).fill('Protected Favourite');
   await page.getByRole('button',{name:'Add tag'}).click();
   await page.getByRole('button',{name:'Review & save tags'}).click();
   await page.getByRole('dialog',{name:'Save tag changes?'}).getByRole('button',{name:'Save tags'}).click();

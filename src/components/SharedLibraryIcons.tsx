@@ -10,7 +10,7 @@ function Icon({size=16,children,...props}:Props){
     aria-hidden="true" focusable="false" {...props}>{children}</svg>;
 }
 export function CloudIcon(props:Omit<Props,'children'>){
-  return <Icon {...props}><path d="M20 16.58A5 5 0 0 0 18 7h-1.26A8 8 0 1 0 4 16.25"/></Icon>;
+  return <Icon {...props}><path d="M20 16.58A5 5 0 0 0 18 7h-1.26A8 8 0 1 0 4 16.25"/><path d="M8 16h12"/></Icon>;
 }
 export function SearchIcon(props:Omit<Props,'children'>){
   return <Icon {...props}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></Icon>;
