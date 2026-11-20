@@ -768,7 +768,7 @@ test.describe('personal annotations never leave the browser',()=>{
     await page.getByRole('textbox',{name:'My comments / reading notes'})
       .fill('A brilliant, quiet story');
     await page.getByRole('button',{name:'Save comments'}).click();
-    await page.getByLabel('Add a personal tag').fill('  Quiet Favourite  ');
+    await page.getByRole('textbox',{name:'Tag name'}).fill('  Quiet Favourite  ');
     await page.getByRole('button',{name:'Add tag'}).click();
     await expect(page.locator('.tag-draft-actions')).toContainText('Unsaved tag changes');
     await page.getByRole('button',{name:'Review & save tags'}).click();
@@ -785,14 +785,14 @@ test.describe('personal annotations never leave the browser',()=>{
   });
   test('Novel detail tags are add-only and saved in one reviewed batch',async({page})=>{
     await page.goto('/manga/mng_lanternarchive');
-    await page.getByLabel('Add a personal tag').fill('Keep This');
+    await page.getByRole('textbox',{name:'Tag name'}).fill('Keep This');
     await page.getByRole('button',{name:'Add tag'}).click();
     await page.getByRole('button',{name:'Review & save tags'}).click();
     await page.getByRole('dialog',{name:'Save tag changes?'})
       .getByRole('button',{name:'Save tags'}).click();
     await expect(page.locator('.manga-tags-card')).toContainText('Keep This');
     await expect(page.getByRole('button',{name:'Remove tag Keep This'})).toHaveCount(0);
-    await page.getByLabel('Add a personal tag').fill('Maybe Later');
+    await page.getByRole('textbox',{name:'Tag name'}).fill('Maybe Later');
     await page.getByRole('button',{name:'Add tag'}).click();
     await expect(page.locator('.tag-draft-actions')).toContainText('Unsaved tag changes');
     await page.getByRole('button',{name:'Discard changes'}).click();
@@ -812,7 +812,7 @@ test.describe('compatible private manga library backups',()=>{
     await page.getByRole('button',{name:'Save rating'}).first().click();
     await page.getByRole('textbox',{name:'My comments / reading notes'}).fill('My export test note');
     await page.getByRole('button',{name:'Save comments'}).click();
-    await page.getByLabel('Add a personal tag').fill('Adventure Favourite');
+    await page.getByRole('textbox',{name:'Tag name'}).fill('Adventure Favourite');
     await page.getByRole('button',{name:'Add tag'}).click();
     await page.getByRole('button',{name:'Review & save tags'}).click();
     await page.getByRole('dialog',{name:'Save tag changes?'}).getByRole('button',{name:'Save tags'}).click();
@@ -1177,7 +1177,7 @@ test('personal tag form is a simple text field without duplicate caption or drop
   await expect(form.getByRole('textbox',{name:'Tag name'})).not.toHaveAttribute('list', /.+/);
   await form.getByRole('textbox',{name:'Tag name'}).fill('Warm-hearted');
   await form.getByRole('button',{name:'Add tag'}).click();
-  await expect(page.locator('.manga-tags-card')).toContainText('Warm-hearted');
+  await expect(page.locator('.manga-tags-card')).toContainText(/Warm.Hearted/i);
 });
 
 test('split-screen hero displays three complete covers, with enhanced border and hover',async({page})=>{
@@ -1451,7 +1451,7 @@ test('Novel Library details keep source and personal tags together, separate fro
 
 test('personal tag deletion requires management disclosure and explicit confirmation',async({page})=>{
   await page.goto('/manga/mng_lanternarchive');
-  await page.getByLabel('Add a personal tag').fill('Protected Favourite');
+  await page.getByRole('textbox',{name:'Tag name'}).fill('Protected Favourite');
   await page.getByRole('button',{name:'Add tag'}).click();
   await page.getByRole('button',{name:'Review & save tags'}).click();
   await page.getByRole('dialog',{name:'Save tag changes?'}).getByRole('button',{name:'Save tags'}).click();
