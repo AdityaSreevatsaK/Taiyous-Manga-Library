@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ChapterManifest, MangaEntry } from './types';
+import {parseChapterManifest,parseMangaEntry} from './validation';
 import { keyNavigation, nextPreloadIndex, orderedChapters, restoreProgress, stepChapter, stepReader, swipeNavigation } from './reader';
 const entry: MangaEntry = {
   kind: 'manga', id: 'mng_example001', title: 'Example', aliases: [], creators: [], tags: [],
@@ -18,6 +19,43 @@ const manifests = new Map([
   ['ch_second000',makeManifest('ch_second000',3)],
 ]);
 describe('reader traversal and exact resume', () => {
+  it('accepts Controller flat-numbered imports without sorting opaque image IDs',()=>{
+    // The Controller consumes 1_0.jpg, 1_1.jpg and 1_10.jpg. Only these
+    // canonical IDs and the original numerical manifest order reach the Library.
+    const imported=parseMangaEntry({
+      kind:'manga',id:'mng_flat00001',title:'Imported manga',
+      aliases:[],creators:[],tags:[],publicationStatus:'unknown',direction:'vertical',
+      chapters:[
+        {id:'ch_flat000002',label:'Chapter 2',sequence:2,pageCount:1},
+        {id:'ch_flat000001',label:'Chapter 1',sequence:1,pageCount:3},
+      ],
+    });
+    const chapterId='ch_flat000001';
+    const pageIds=['pg_z_order00','pg_a_order00','pg_m_order00'];
+    const canonical=parseChapterManifest({
+      schemaVersion:1,mediaKind:'manga',chapterId,
+      pages:pageIds.map(id=>({
+        id,assetPath:'manga/'+imported.id+'/'+chapterId+'/'+id+'.jpg',
+        width:800,height:1200,mimeType:'image/jpeg',byteSize:100,
+        sha256:'b'.repeat(64),
+      })),
+    });
+    const mapping=new Map([[chapterId,canonical]]);
+    expect(orderedChapters(imported).map(ch=>ch.label)).toEqual(['Chapter 1','Chapter 2']);
+    expect(canonical.pages.map(page=>page.id)).toEqual(pageIds);
+    expect(canonical.pages[0]!.id).toBe('pg_z_order00');
+    // Page 0 is displayed as page 1; pageId, not the original source filename,
+    // remains the durable reading-progress identity.
+    expect(stepReader(imported,mapping,{chapterId,pageIndex:0},1))
+      .toEqual({chapterId,pageIndex:1});
+    expect(restoreProgress(imported,mapping,{
+      mangaId:imported.id,chapterId,pageIndex:0,pageId:pageIds[0]!,
+      updatedAt:'2026-11-20T00:00:00Z',
+    })).toEqual({chapterId,pageIndex:0});
+    expect(imported.cover).toBeUndefined();
+    expect(imported.synopsis).toBeUndefined();
+    expect(imported.creators).toEqual([]);
+  });
   it('sorts chapters by sequence without mutating series', () => {
     expect(orderedChapters(entry).map(x=>x.label)).toEqual(['A','B']);
     expect(entry.chapters[0]?.label).toBe('B');
