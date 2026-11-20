@@ -111,7 +111,7 @@ export function MangaChapterBrowser({chapters,mangaId,currentChapterId,busy,
     </div>
   </nav>}
   {/* Preserve Manga's explicit completion feature without 50 prominent row buttons. */}
-  {chapters.length>0&&<details className="manga-chapter-completion">
+  {chapters.length>0&&<details className="manga-chapter-completion" open={!!renderOfflineControl}>
     <summary>Manage completed chapters</summary>
     <p>{completedChapterIds.length} of {chapters.length} chapters explicitly marked completed.</p>
     <div className="manga-completion-grid">
