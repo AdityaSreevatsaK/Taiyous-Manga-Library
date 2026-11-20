@@ -126,6 +126,8 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
       key!=='unused');
   });
   const [chapterQuery, setChapterQuery] = useState('');
+  const [chapterNumber,setChapterNumber]=useState('');
+  const [invalidChapterNumber,setInvalidChapterNumber]=useState(false);
   const [chapterPickerOpen,setChapterPickerOpen] = useState(false);
   const [collectionPickerOpen,setCollectionPickerOpen] = useState(false);
   useEffect(()=>{
@@ -176,8 +178,9 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
   const entry = screen.kind === 'reader' || screen.kind === 'details' ? catalogue.find(item => item.id === screen.id) : undefined;
   const manifest = location ? manifests.get(location.chapterId) : undefined;
   const chapters = entry ? orderedChapters(entry) : [];
-  const matchingChapters=chapters.filter(chapter=>
-    chapter.label.toLocaleLowerCase().includes(chapterQuery.toLocaleLowerCase()));
+  const matchingChapters=chapters.filter((chapter,index)=>
+    chapter.label.toLocaleLowerCase().includes(chapterQuery.toLocaleLowerCase())||
+    String(index+1)===chapterQuery.trim());
   const visibleChapters=matchingChapters.slice(0,chapterLimit);
   const activeChapter = chapters.find(chapter => chapter.id === location?.chapterId);
   const allTags = [...new Set(catalogue.flatMap(item =>
@@ -1365,56 +1368,107 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
               <p className="manga-card-overline">ABOUT THE STORY</p><h2>Synopsis</h2>
               <p className="detail-description">{entry.synopsis||'A synopsis has not been added yet.'}</p>
             </section>
-            <section className="chapter-section manga-detail-card"><div className="shelf-heading"><div><p className="eyebrow">CONTENTS / READING ORDER</p><h2>Chapters</h2></div></div>
-          <label className="chapter-search">Search chapters
-            <input type="search" value={chapterQuery} onChange={event=>{
-              setChapterQuery(event.target.value);setChapterLimit(25);
-            }} placeholder="Find a chapter..." />
-          </label>
-          <p className="chapter-list-count">Showing {visibleChapters.length} of {matchingChapters.length} chapters
-            {chapterQuery?' matching your search':''}. Choose any chapter to read.</p>
-          <p className="chapter-completion-summary">
-            {chapters.filter(chapter => annotations[entry.id]?.completedChapterIds?.includes(chapter.id)).length}
-            {' '}of {chapters.length} chapters explicitly marked completed on this device.
-          </p>
-          {visibleChapters.map(chapter=>{ const index = chapters.findIndex(value=>value.id === chapter.id); return <div className="chapter-entry" key={chapter.id}>
-            {demo ? <a className="chapter-row"
-              href={routeHref({kind:'reader',mangaId:entry.id,chapterId:chapter.id,pageIndex:0},import.meta.env.BASE_URL,catalogue)}
-              onClick={event=>followLink(event,()=>openChapter(entry,chapter.id))}>
-              <span className="chapter-number">{String(index+1).padStart(2,'0')}</span>
-              <span className="chapter-title"><strong>{chapter.label}</strong>
-                <small>{chapter.volume ?? 'No volume'} · {chapter.pageCount ?? 'Unknown'} sample pages</small></span>
-              <span className="chapter-open">Read ↗</span></a> :
-              <button type="button" className="chapter-row private-chapter-read"
-                disabled={chapterLoading!==null}
-                onClick={()=>{void openChapter(entry,chapter.id);}}>
-                <span className="chapter-number">{String(index+1).padStart(2,'0')}</span>
-                <span className="chapter-title"><strong>{chapter.label}</strong>
-                  <small>{chapter.volume ?? 'No volume'} · {chapter.pageCount ?? 'Unknown'} pages</small></span>
-                <span className="chapter-open">{chapterLoading===chapter.id?'Loading…':'Read ↗'}</span>
-              </button>}
-            <button type="button" className="secondary chapter-completion-toggle"
-              aria-label={annotations[entry.id]?.completedChapterIds?.includes(chapter.id) ?
-                'Mark chapter ' + (index + 1) + ' incomplete' :
-                'Mark chapter ' + (index + 1) + ' completed'}
-              aria-pressed={!!annotations[entry.id]?.completedChapterIds?.includes(chapter.id)}
-              onClick={()=>toggleChapterComplete(entry,chapter.id)}>
-              {annotations[entry.id]?.completedChapterIds?.includes(chapter.id) ?
-                '✓ Completed' : 'Mark completed'}
-            </button>
-            {demo && manifests.get(chapter.id) && <OfflineChapterControl manifest={manifests.get(chapter.id)!}
-              onChange={()=>setInventoryRevision(value=>value+1)} />}
-          </div>;})}
-          {matchingChapters.length>visibleChapters.length&&
-            <button className="secondary chapter-load-more" type="button"
-              onClick={()=>setChapterLimit(value=>value+25)}>
-              Show next {Math.min(25,matchingChapters.length-visibleChapters.length)} chapters
-            </button>}
-          {chapterLoading&&<p role="status" className="chapter-loading-note">Verifying chapter pages from your private library…</p>}
-        </section>
+            <section className="chapter-section manga-detail-card chapter-browser" aria-labelledby="manga-chapters-heading">
+              <div className="details-section-header">
+                <div><p className="manga-card-overline">PICK UP ANYWHERE</p>
+                  <h2 id="manga-chapters-heading">Chapters</h2></div>
+                <span className="manga-chapter-section-icon" aria-hidden="true">☷</span>
+              </div>
+              <div className="chapter-topline">
+                <strong>{chapters.length.toLocaleString()} chapters available</strong>
+                {progressForEntry&&<button type="button" className="chapter-current-link"
+                  onClick={()=>{
+                    setChapterQuery('');
+                    const index=chapters.findIndex(ch=>ch.id===progressForEntry.chapterId);
+                    setChapterLimit(Math.max(25,Math.ceil((index+1)/25)*25));
+                  }}>◈ Show my last chapter ({chapters.findIndex(ch=>ch.id===progressForEntry.chapterId)+1})</button>}
+              </div>
+              <div className="chapter-tools">
+                <label className="chapter-search"><span className="manga-search-glyph" aria-hidden="true">⌕</span>
+                  <span className="manga-sr-only">Search chapters</span>
+                  <input type="search" aria-label="Search chapters" value={chapterQuery}
+                    onChange={event=>{setChapterQuery(event.target.value);setChapterLimit(25);}}
+                    placeholder="Search chapter titles or numbers" />
+                </label>
+                <form className="chapter-jump" onSubmit={event=>{
+                  event.preventDefault();
+                  const n=Number(chapterNumber);
+                  if(!/^\d+$/.test(chapterNumber.trim())||!Number.isSafeInteger(n)||
+                    n<1||n>chapters.length){setInvalidChapterNumber(true);return;}
+                  setInvalidChapterNumber(false);
+                  void openChapter(entry,chapters[n-1]?.id);
+                }}>
+                  <label htmlFor="manga-chapter-number">Go to</label>
+                  <input id="manga-chapter-number" type="number" min={1} max={chapters.length}
+                    placeholder="#" value={chapterNumber} aria-invalid={invalidChapterNumber}
+                    onChange={event=>{setChapterNumber(event.target.value);setInvalidChapterNumber(false);}}/>
+                  <button type="submit" disabled={!chapterNumber.trim()||chapterLoading!==null}>Open ↗</button>
+                </form>
+              </div>
+              {invalidChapterNumber&&<p className="chapter-validation" role="alert">
+                Enter a chapter number between 1 and {chapters.length.toLocaleString()}.</p>}
+              <p className="chapter-completion-summary">
+                {chapters.filter(chapter=>annotations[entry.id]?.completedChapterIds?.includes(chapter.id)).length}
+                {' '}of {chapters.length} chapters explicitly marked completed on this device.
+              </p>
+              <div className="chapter-list" role="list" aria-label="Available chapters">
+                {visibleChapters.map(chapter=>{
+                  const index=chapters.findIndex(value=>value.id===chapter.id);
+                  const current=progressForEntry?.chapterId===chapter.id;
+                  return <div className="chapter-entry" role="listitem" key={chapter.id}>
+                    {demo?<a className={'chapter-row chapter-list-item'+(current?' chapter-list-current':'')}
+                      href={routeHref({kind:'reader',mangaId:entry.id,chapterId:chapter.id,pageIndex:0},
+                        import.meta.env.BASE_URL,catalogue)}
+                      onClick={event=>followLink(event,()=>openChapter(entry,chapter.id))}>
+                      <span className="chapter-number chapter-list-index">{index+1}</span>
+                      <span className="chapter-title chapter-list-label"><strong>{chapter.label}</strong>
+                        <small>{chapter.volume??'No volume'} · {chapter.pageCount??'Unknown'} sample pages</small></span>
+                      {current&&<span className="chapter-list-badge">Last read</span>}
+                      <span className="chapter-open chapter-list-arrow" aria-hidden="true">→</span>
+                    </a>:
+                    <button type="button" className={'chapter-row chapter-list-item private-chapter-read'+
+                      (current?' chapter-list-current':'')} disabled={chapterLoading!==null}
+                      onClick={()=>{void openChapter(entry,chapter.id);}}>
+                      <span className="chapter-number chapter-list-index">{index+1}</span>
+                      <span className="chapter-title chapter-list-label"><strong>{chapter.label}</strong>
+                        <small>{chapter.volume??'No volume'} · {chapter.pageCount??'Unknown'} pages</small></span>
+                      {current&&<span className="chapter-list-badge">Last read</span>}
+                      <span className="chapter-open chapter-list-arrow" aria-hidden="true">
+                        {chapterLoading===chapter.id?'Loading…':'→'}</span>
+                    </button>}
+                    <button type="button" className="secondary chapter-completion-toggle"
+                      aria-label={annotations[entry.id]?.completedChapterIds?.includes(chapter.id)?
+                        'Mark chapter '+(index+1)+' incomplete':'Mark chapter '+(index+1)+' completed'}
+                      aria-pressed={!!annotations[entry.id]?.completedChapterIds?.includes(chapter.id)}
+                      onClick={()=>toggleChapterComplete(entry,chapter.id)}>
+                      {annotations[entry.id]?.completedChapterIds?.includes(chapter.id)?
+                        '✓ Completed':'Mark completed'}
+                    </button>
+                    {demo&&manifests.get(chapter.id)&&<OfflineChapterControl
+                      manifest={manifests.get(chapter.id)!}
+                      onChange={()=>setInventoryRevision(value=>value+1)}/>}
+                  </div>;
+                })}
+                {!matchingChapters.length&&<div className="chapter-no-results">
+                  No chapters match your search.</div>}
+              </div>
+              <nav className="chapter-paging" aria-label="Chapter list pages">
+                <span>Showing {visibleChapters.length.toLocaleString()} of {matchingChapters.length.toLocaleString()}
+                  {chapterQuery?' matching chapters':' chapters'}</span>
+                <div className="chapter-page-actions">
+                  {chapterLimit>25&&<button type="button" className="secondary"
+                    onClick={()=>setChapterLimit(25)}>First 25</button>}
+                  {matchingChapters.length>visibleChapters.length&&
+                    <button className="secondary chapter-load-more" type="button"
+                      onClick={()=>setChapterLimit(value=>value+25)}>
+                      Show next {Math.min(25,matchingChapters.length-visibleChapters.length)} chapters →
+                    </button>}
+                </div>
+              </nav>
+              {chapterLoading&&<p role="status" className="chapter-loading-note">
+                Verifying chapter pages from your private library…</p>}
+            </section>
 
-
-        
           </div>
         </div>
       </div>
