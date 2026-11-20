@@ -1591,7 +1591,7 @@ test('twenty verified private covers load from IndexedDB on refresh and clear at
 });
 
 test('Novel status labels and book icon are distinct from publication ribbons',async({page})=>{
-  await page.goto('/manga/mng_lanternarchive');
+  await page.goto('/manga/mng_silvergarden');
   await expect(page.locator('.manga-publication-pill')).toHaveText('Completed');
   await expect(page.locator('.manga-info-card')).toContainText('Completed');
   await expect(page.locator('.detail-sub')).not.toContainText('Story Complete');
