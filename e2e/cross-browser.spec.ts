@@ -67,7 +67,7 @@ test('chapter navigation never advances an individual image', async ({page}) => 
 test('personal shelves persist without changing publication status',async({page})=>{
   await page.goto('/manga/mng_lanternarchive');
   const original=await page.locator('.detail-sub').textContent();
-  await page.getByRole('combobox',{name:'Personal reading shelf'}).selectOption('trying');
+  await page.getByRole('button',{name:'Add to Trying Out'}).click();
   await expect(page.locator('.success-toast')).toContainText('Trying Out');
   await page.goto('/trying');
   await expect(page.locator('.book-card')).toHaveCount(1);
