@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { parseAppRoute, routeHref } from './routes';
+import { parseAppRoute, resolveAppRoute, routeHref, publicSeriesSlug, slugify } from './routes';
+import {demoEntries} from '../data/fixtures';
 
 describe('stable browser routes', () => {
   it('routes all eight library sections without breaking old library bookmarks', () => {
@@ -37,5 +38,57 @@ describe('stable browser routes', () => {
   it('does not confuse sibling host paths with the app base', () => {
     expect(parseAppRoute('/other/library', '', '/Taiyous-Manga-Library/').kind).toBe('not-found');
     expect(parseAppRoute('/Taiyous-Manga-Library/library', '', '/Taiyous-Manga-Library/')).toEqual({ kind: 'library' });
+  });
+});
+
+describe('readable, canonical slugs backed by immutable manga identities',()=>{
+  const sample=demoEntries[0]!;
+  const chapter=sample.chapters[0]!;
+  const manga={...sample,title:'ReLIFE',slug:'relife',aliases:['ReLife Webcomic'],
+    chapters:[{...chapter,label:'Chapter 1',slug:'chapter-1'}]};
+  const book=[manga];
+  it('generates readable links with optional page number while retaining old IDs',()=>{
+    const details={kind:'details' as const,mangaId:manga.id};
+    const reader={kind:'reader' as const,mangaId:manga.id,chapterId:chapter.id,pageIndex:0};
+    expect(routeHref(details,'/',book)).toBe('/manga/relife');
+    expect(routeHref(reader,'/',book)).toBe('/manga/relife/chapters/chapter-1');
+    expect(routeHref({...reader,pageIndex:3},'/',book))
+      .toBe('/manga/relife/chapters/chapter-1?page=4');
+    expect(resolveAppRoute(parseAppRoute('/manga/relife/chapters/chapter-1'),book)).toEqual(reader);
+    expect(resolveAppRoute(parseAppRoute('/manga/relife/chapters/chapter-1','?page=4'),book))
+      .toEqual({...reader,pageIndex:3});
+    expect(resolveAppRoute(parseAppRoute('/manga/'+manga.id+'/chapters/'+chapter.id,'?page=1'),book))
+      .toEqual(reader);
+    expect(resolveAppRoute(parseAppRoute('/manga/'+manga.id),book)).toEqual(details);
+    expect(routeHref(reader,'/Taiyous-Manga-Library/',book))
+      .toBe('/Taiyous-Manga-Library/manga/relife/chapters/chapter-1');
+  });
+  it('keeps permalinks unchanged if title and chapter label are renamed',()=>{
+    const renamed={...manga,title:'Life After School',aliases:['ReLIFE'],
+      chapters:[{...manga.chapters[0]!,label:'Episode One'}]};
+    const old=routeHref({kind:'reader',mangaId:manga.id,chapterId:chapter.id,pageIndex:0},'/',book);
+    const newUrl=routeHref({kind:'reader',mangaId:manga.id,chapterId:chapter.id,pageIndex:0},'/',[renamed]);
+    expect(old).toBe(newUrl);
+    expect(resolveAppRoute(parseAppRoute(old),[renamed])).toMatchObject({mangaId:manga.id,chapterId:chapter.id});
+    expect(publicSeriesSlug(renamed,[renamed])).toBe('relife');
+  });
+  it('recognises old title aliases while rejecting ambiguous slug matches',()=>{
+    expect(resolveAppRoute(parseAppRoute('/manga/relife-webcomic'),book))
+      .toEqual({kind:'details',mangaId:manga.id});
+    const second={...manga,id:'mng_'+'f'.repeat(24),title:'ReLIFE Webcomic',slug:'another-relife'};
+    expect(resolveAppRoute(parseAppRoute('/manga/relife-webcomic'),[manga,second]).kind).toBe('not-found');
+    expect(resolveAppRoute(parseAppRoute('/manga/not-in-library'),book).kind).toBe('not-found');
+  });
+  it('disambiguates identical legacy titles with stable ID suffixes',()=>{
+    const second={...manga,id:'mng_'+'d'.repeat(24),slug:undefined};
+    const first={...manga,slug:undefined};
+    expect(publicSeriesSlug(first,[first,second])).toMatch(/^relife--[a-z0-9_-]{8}$/);
+    expect(routeHref({kind:'details',mangaId:first.id},'/',[first,second]))
+      .not.toBe(routeHref({kind:'details',mangaId:second.id},'/',[first,second]));
+  });
+  it('handles punctuation, accents and unexpected characters safely',()=>{
+    expect(slugify(' ReLIFE! ')).toBe('relife');
+    expect(slugify('Café & Créme')).toBe('cafe-creme');
+    expect(resolveAppRoute(parseAppRoute('/manga/%2Fetc'),book).kind).toBe('not-found');
   });
 });
