@@ -417,7 +417,7 @@ test.describe('manual local reading backup and restore', () => {
     await expect(page.locator('.backup-preview')).toContainText('1 potentially restorable');
     await expect(page.getByRole('button',{name:'Confirm restore'})).toBeEnabled();
     await page.getByRole('button',{name:'Confirm restore'}).click();
-    await expect(page.getByRole('status')).toContainText('1 newer progress records imported');
+    await expect(page.locator('.backup-message')).toContainText('1 newer progress records imported');
     await page.goto('/manga/mng_lanternarchive');
     await page.getByRole('link',{name:/Continue reading/}).click();
     await expect(page.locator('.page-navigation')).toContainText('Page 3 of 5');
@@ -631,7 +631,7 @@ test.describe('offline failure handling and accessibility hardening', () => {
       await page.setViewportSize({ width, height: 760 });
       await page.goto('/manga/mng_lanternarchive');
       await assertNoHorizontalOverflow(page);
-      const heights = await page.locator('.site-nav > .site-nav-link, .offline-chapter-control button')
+      const heights = await page.locator('.manga-nav-links > .site-nav-link, .offline-chapter-control button')
         .evaluateAll(elements => elements.map(el => Math.round(el.getBoundingClientRect().height)));
       expect(heights.every(height => height >= 44), 'touch target width ' + width + ': ' + heights).toBe(true);
       // Repeating viewport checks should use either the fresh start or the stored resume link.
@@ -685,7 +685,7 @@ test.describe('approved library navigation and personal presentation', () => {
     await page.setViewportSize({width:1280,height:900});
     await page.goto('/');
     await expect(page.locator('.manga-nav-links > .site-nav-link')).toHaveCount(8);
-    await page.getByRole('link',{name:/Currently Reading\s+0/}).click();
+    await page.getByRole('link',{name:'Currently Reading (0)'}).click();
     await expect(page).toHaveURL('/reading');
     await expect(page.locator('.site-nav-link[aria-current="page"]')).toHaveCount(1);
     await page.setViewportSize({width:320,height:800});
@@ -1034,8 +1034,9 @@ test('mock authenticated empty HF dataset replaces sample catalogue with a truth
     status:200,contentType:'application/json',body:'{"connected":false}',
   }));
   await page.goto('/');
-  await expect(page.getByRole('button',{name:'My library (0)'})).toHaveCount(1);
   await expect(page.getByText('Your private shelves are ready.',{exact:false})).toBeVisible();
+  await page.locator('.manga-cloud-menu > summary').click();
+  await expect(page.getByRole('button',{name:'My library (0)'})).toBeVisible();
   await expect(page.getByRole('heading',{name:'Your private library is empty'})).toBeVisible();
   await expect(page.locator('.book-card')).toHaveCount(0);
   await expect(page.getByRole('button',{name:'Use Sepia theme'})).toBeVisible();
@@ -1100,7 +1101,7 @@ test('novel-style masthead keeps logo, real cloud, search, themes and all manga 
   await page.getByRole('button',{name:'Use Paper theme'}).click();
   await expect(page.locator('.app-shell')).toHaveClass(/theme-paper/);
   await page.getByRole('searchbox',{name:'Search all manga'}).fill('Lantern');
-  await expect(page).toHaveURL('/library');
+  await expect(page).toHaveURL(/\/library\?q=Lantern$/);
   await expect(page.locator('.book-card')).toHaveCount(1);
   await expect(page.getByRole('searchbox',{name:'Search series or aliases'})).toHaveValue('Lantern');
 });
