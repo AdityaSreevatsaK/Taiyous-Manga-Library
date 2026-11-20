@@ -1330,6 +1330,27 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
                 target="_blank" rel="noopener noreferrer">Open Manga Storage Controller ↗</a>}
             </section>
           </aside>
+          <section className="manga-detail-card manga-mobile-rating" aria-label="Personal manga rating on mobile">
+            <div className="manga-mobile-rating-title"><span aria-hidden="true">★</span>
+              <strong>My rating</strong>
+              {ratingSummary(ratingDraft)&&<span aria-live="polite">{ratingSummary(ratingDraft)}</span>}
+            </div>
+            <form className="manga-mobile-rating-controls" onSubmit={event=>{
+              event.preventDefault();
+              changeAnnotation(entry,{rating:ratingDraft??null},
+                ratingDraft===undefined?'Personal rating cleared':'Rating saved');
+            }}>
+              <label htmlFor="manga-mobile-rating">Rate this manga</label>
+              <select id="manga-mobile-rating" value={ratingDraft??''}
+                onChange={event=>setRatingDraft(event.target.value?Number(event.target.value):undefined)}>
+                <option value="">Not rated</option>
+                {Array.from({length:10},(_,index)=>index+1).map(value=>
+                  <option key={value} value={value}>{ratingSummary(value)}</option>)}
+              </select>
+              <button className="primary" type="submit"
+                disabled={ratingDraft===annotations[entry.id]?.rating}>Save rating</button>
+            </form>
+          </section>
           <div className="manga-details-main">
             <section className="manga-detail-card manga-synopsis-card">
               <p className="manga-card-overline">ABOUT THE STORY</p><h2>Synopsis</h2>
