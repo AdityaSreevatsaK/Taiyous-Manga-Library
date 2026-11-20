@@ -1,13 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { resolveSyntheticPage, type PageSource } from '../data/pageSource';
 import { resolvePrivatePage } from '../data/privateMedia';
+import { preloadChapterPages } from '../data/chapterPreloader';
 import { anchoredPageIndex, pagePrefetchWindow } from '../domain/pageViewport';
 import type { ChapterManifest } from '../domain/types';
 
 /**
- * Continuous document scrolling with stable image-size placeholders.
- * Only the visible page and its immediate neighbours are decoded/generated.
- * Scroll observation never selects an unseen page as "read".
+ * Continuous chapter scrolling with stable image aspect ratios.
+ * Private chapters fetch ALL pages as soon as they open, in page order.
+ * Only nearby downloaded images are mounted/decoded to bound display memory.
+ * Demo chapters keep their verified nearby-page fixture behaviour.
+ * Scroll observation never counts an unseen page as read.
  */
 interface Props {
   manifest: ChapterManifest;
@@ -30,11 +33,55 @@ export function VerticalReader({ manifest, privateMangaId, privateRevision, fit 
   const anchorStamp = useRef({ index: -1, ratio: -1, at: 0 });
   const images = useRef(new Map<number, PageSource>());
   const loaded = useRef(new Set<number>());
+  const privateController = useRef<AbortController | null>(null);
+  const privateReady = useRef(new Set<number>());
+  const privateFailed = useRef(new Set<number>());
+  const retrying = useRef(new Set<number>());
+  const [preload, setPreload] = useState({ready:0,failed:0,attempted:0,done:false});
+  const [retryingPages, setRetryingPages] = useState<ReadonlySet<number>>(()=>new Set());
   const lastReported = useRef(-1);
   const [visibleIndex, setVisibleIndex] = useState(activeIndex);
   const [sources, setSources] = useState<Record<number, string>>({});
   const [errors, setErrors] = useState<Record<number, boolean>>({});
   const [retry, setRetry] = useState(0);
+
+  function publishPreload(done=false) {
+    setPreload({
+      ready:privateReady.current.size,
+      failed:privateFailed.current.size,
+      attempted:privateReady.current.size+privateFailed.current.size,
+      done,
+    });
+  }
+
+  async function retryPrivatePage(index:number){
+    if(!privateMangaId||!privateRevision||retrying.current.has(index))return;
+    const controller=privateController.current;
+    if(!controller||controller.signal.aborted)return;
+    retrying.current.add(index);
+    setRetryingPages(new Set(retrying.current));
+    try{
+      const source=await resolvePrivatePage(manifest,index,privateMangaId,privateRevision,controller.signal);
+      if(controller.signal.aborted){source.release();return;}
+      images.current.get(index)?.release();
+      images.current.set(index,source);
+      privateFailed.current.delete(index);
+      privateReady.current.add(index);
+      setErrors(previous=>{const next={...previous};delete next[index];return next;});
+      setSources(previous=>({...previous,[index]:source.src}));
+      publishPreload(preload.done);
+    }catch{
+      if(!controller.signal.aborted){
+        privateFailed.current.add(index);
+        privateReady.current.delete(index);
+        setErrors(previous=>({...previous,[index]:true}));
+        publishPreload(preload.done);
+      }
+    }finally{
+      retrying.current.delete(index);
+      if(!controller.signal.aborted)setRetryingPages(new Set(retrying.current));
+    }
+  }
 
   function reportViewed(index: number) {
     if (loaded.current.has(index) && index === visible.current && lastReported.current !== index) {
@@ -44,6 +91,9 @@ export function VerticalReader({ manifest, privateMangaId, privateRevision, fit 
   }
 
   useEffect(() => {
+    // The demo remains lightweight. Real pages are downloaded by a separate
+    // chapter-wide queue, independent of scroll position.
+    if(privateMangaId&&privateRevision)return;
     let cancelled = false;
     const wanted = pagePrefetchWindow(visibleIndex,manifest.pages.length);
     const prior = images.current;
@@ -78,7 +128,51 @@ export function VerticalReader({ manifest, privateMangaId, privateRevision, fit 
     return () => { cancelled = true; };
   }, [manifest, visibleIndex, retry, privateMangaId, privateRevision]);
 
+  useEffect(() => {
+    if(!privateMangaId||!privateRevision)return;
+    const controller=new AbortController();
+    privateController.current=controller;
+    for(const source of images.current.values())source.release();
+    images.current.clear();
+    privateReady.current.clear();privateFailed.current.clear();retrying.current.clear();
+    loaded.current.clear();lastReported.current=-1;
+    setSources({});setErrors({});setRetryingPages(new Set());
+    setPreload({ready:0,failed:0,attempted:0,done:false});
+    // Queue every page immediately. No scroll event is required to start,
+    // and a failed page does not stop the remaining downloads.
+    void preloadChapterPages(
+      manifest.pages.length,
+      (index,signal)=>resolvePrivatePage(manifest,index,privateMangaId,privateRevision,signal),
+      (index,source)=>{
+        images.current.set(index,source);
+        privateReady.current.add(index);
+        privateFailed.current.delete(index);
+        setSources(previous=>({...previous,[index]:source.src}));
+        publishPreload();
+      },
+      index=>{
+        privateFailed.current.add(index);
+        privateReady.current.delete(index);
+        setErrors(previous=>({...previous,[index]:true}));
+        publishPreload();
+      },
+      controller.signal,
+      3,
+    ).finally(()=>{
+      if(!controller.signal.aborted)publishPreload(true);
+    });
+    return ()=>{
+      controller.abort();
+      if(privateController.current===controller)privateController.current=null;
+      for(const source of images.current.values())source.release();
+      images.current.clear();
+    };
+  // Avoid restarting the whole chapter when a page becomes visible.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[manifest,privateMangaId,privateRevision]);
+
   useEffect(() => () => {
+    privateController.current?.abort();
     for (const source of images.current.values()) source.release();
     images.current.clear();
   }, []);
@@ -135,7 +229,22 @@ export function VerticalReader({ manifest, privateMangaId, privateRevision, fit 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [manifest.chapterId, jumpToken]);
 
-  return <div ref={root} className={"vertical-reader reader-fit-" + fit} aria-label="Complete manga chapter, continuous vertical scroll">
+  const displayedStart=Math.max(0,visibleIndex-3);
+  const displayedEnd=Math.min(manifest.pages.length-1,visibleIndex+5);
+  return <>
+    {privateMangaId&&<div className="chapter-preload-progress" role="status" aria-live="polite">
+      <div className="chapter-preload-heading">
+        <strong>{preload.done ? 'Chapter download attempted' : 'Loading the entire chapter…'}</strong>
+        <span>{preload.ready} of {manifest.pages.length} pages ready</span>
+      </div>
+      <progress value={preload.attempted} max={manifest.pages.length}
+        aria-label="Pages attempted in this chapter"/>
+      <p>{preload.done
+        ? preload.failed ? preload.failed+' page(s) failed. Use Retry page on any affected image.' : 'All pages are ready to read.'
+        : 'Downloading pages in order while you read. Scrolling does not trigger downloads.'}</p>
+    </div>}
+    <div ref={root} className={"vertical-reader reader-fit-" + fit}
+      aria-label="Complete manga chapter, continuous vertical scroll">
     {manifest.pages.map((page, index) =>
       <div key={page.id} data-vertical-page={index} className="vertical-page"
         style={{ aspectRatio: `${page.width} / ${page.height}` }}
@@ -143,15 +252,21 @@ export function VerticalReader({ manifest, privateMangaId, privateRevision, fit 
         {errors[index] ?
           <div className="vertical-page-error" role="alert">
             <p>Page {index + 1} could not be loaded.</p>
-            <button className="secondary" type="button" onClick={() => {
-              images.current.get(index)?.release();
-              images.current.delete(index);
-              loaded.current.delete(index);
-              lastReported.current = -1;
-              setRetry(value => value + 1);
-            }}>Retry page</button>
+            <button className="secondary" type="button" disabled={retryingPages.has(index)}
+              onClick={() => {
+                if(privateMangaId&&privateRevision){
+                  void retryPrivatePage(index);
+                  return;
+                }
+                images.current.get(index)?.release();
+                images.current.delete(index);
+                loaded.current.delete(index);
+                lastReported.current = -1;
+                setRetry(value => value + 1);
+              }}>{retryingPages.has(index)?'Retrying…':'Retry page'}</button>
           </div> :
-          sources[index] ?
+          sources[index] &&
+          (!privateMangaId || (index>=displayedStart && index<=displayedEnd)) ?
           <img className="vertical-page-image" src={sources[index]}
             alt={privateMangaId ? `Manga page ${index + 1} of ${manifest.pages.length}` :
               `Original synthetic manga illustration, page ${index + 1}`}
@@ -163,7 +278,10 @@ export function VerticalReader({ manifest, privateMangaId, privateRevision, fit 
               loaded.current.delete(index);
               setErrors(previous => ({ ...previous, [index]: true }));
             }} /> :
-          <div className="vertical-page-placeholder" aria-hidden="true">Page {index + 1}</div>}
+          <div className="vertical-page-placeholder" aria-hidden="true">
+            Page {index + 1}{privateMangaId&&sources[index]?' · ready':''}
+          </div>}
       </div>)}
-  </div>;
+    </div>
+  </>;
 }
