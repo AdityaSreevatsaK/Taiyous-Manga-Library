@@ -13,7 +13,7 @@ export function ratingToneClass(value: number | undefined): string {
 
 export function ratingLabel(value: number): string {
   return Number.isInteger(value) && value >= 1 && value <= 10
-    ? RATING_LABELS[value - 1]
+    ? (RATING_LABELS[value - 1] ?? 'Not rated')
     : 'Not rated';
 }
 
