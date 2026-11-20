@@ -1,4 +1,5 @@
 import {afterEach,describe,expect,it,vi} from 'vitest';
+import {demoEntries} from '../data/fixtures';
 import {onRequest as oauth} from '../../functions/api/auth/[action]';
 import {onRequest as library} from '../../functions/api/library';
 import {ORIGIN,REPO,SESSION,configured,sessionCookie,type Env} from '../../functions/_lib/mangaAuth';
@@ -62,7 +63,8 @@ describe('private Cloudflare OAuth read-only gateway',()=>{
      }
      if(url.endsWith('/api/whoami-v2'))return Response.json({name:'AdityaSreevatsaK'});
      if(url.endsWith('/api/datasets/'+REPO))return Response.json({sha,private:true});
-     if(url.includes('/data/library.json'))return new Response('',{status:404});
+     if(url.includes('/catalogue.json')||url.includes('/data/library.json'))return new Response('',{status:404});
+     if(url.includes('/tree/'+sha+'?'))return Response.json([{path:'README.md'}]);
      if(url.includes('/tree/'+sha+'/data'))return new Response('',{status:404});
      throw Error('Unexpected provider request '+url);
    });
@@ -87,19 +89,21 @@ describe('private Cloudflare OAuth read-only gateway',()=>{
    vi.spyOn(globalThis,'fetch').mockImplementation(async input=>{
      const url=String(input);
      if(url.endsWith('/api/datasets/'+REPO))return Response.json({private:true,sha});
-     if(url.includes('/data/library.json'))return new Response('',{status:404});
+     if(url.includes('/catalogue.json')||url.includes('/data/library.json'))return new Response('',{status:404});
+     if(url.includes('/tree/'+sha+'?'))return Response.json([{path:'README.md'}]);
      if(url.includes('/tree/'+sha+'/data'))return Response.json([{path:'data/manga/unindexed'}]);
      throw Error('unexpected '+url);
    });
    const result=await api('/api/library',cookie.split(';')[0]!);
    expect(result.status).toBe(409);
-   expect((await result.json()).error).toContain('Recovery required');
+   expect((await result.json()).error).toContain('unindexed');
  });
  it('rejects a corrupt or unsupported indexed catalogue instead of inventing content',async()=>{
    const cookie=await fakeSession();
    vi.spyOn(globalThis,'fetch').mockImplementation(async input=>{
      const url=String(input);
      if(url.endsWith('/api/datasets/'+REPO))return Response.json({private:true,sha});
+     if(url.includes('/catalogue.json'))return new Response('',{status:404});
      if(url.includes('/data/library.json'))
        return new Response(JSON.stringify({schemaVersion:2,mediaKind:'manga',entries:[]}),{status:200});
      throw Error('unexpected');
@@ -107,6 +111,52 @@ describe('private Cloudflare OAuth read-only gateway',()=>{
    const result=await api('/api/library',cookie.split(';')[0]!);
    expect(result.status).toBe(409);
    expect((await result.json()).error).toContain('unsupported');
+ });
+
+ it('reads the actual Manga Storage Controller root array without private tokens or media paths',async()=>{
+   const cookie=await fakeSession();
+   const spy=vi.spyOn(globalThis,'fetch').mockImplementation(async input=>{
+     const url=String(input);
+     if(url.endsWith('/api/datasets/'+REPO))return Response.json({private:true,sha});
+     if(url.includes('/resolve/'+sha+'/catalogue.json'))return Response.json([demoEntries[0]]);
+     throw Error('No legacy data or other private asset should be requested: '+url);
+   });
+   const result=await api('/api/library',cookie.split(';')[0]!);
+   expect(result.status).toBe(200);
+   expect(await result.json()).toMatchObject({
+     connected:true,repo:REPO,revision:sha,empty:false,
+     entries:[{kind:'manga',id:demoEntries[0]!.id,title:demoEntries[0]!.title}],
+   });
+   expect(result.headers.get('Cache-Control')).toContain('no-store');
+   expect(spy).toHaveBeenCalledTimes(2);
+   expect(JSON.stringify(await result.clone().json())).not.toContain(token);
+ });
+ it('rejects malformed controller catalogue without falling through to an empty library',async()=>{
+   const cookie=await fakeSession();
+   const spy=vi.spyOn(globalThis,'fetch').mockImplementation(async input=>{
+     const url=String(input);
+     if(url.endsWith('/api/datasets/'+REPO))return Response.json({private:true,sha});
+     if(url.includes('/resolve/'+sha+'/catalogue.json'))return Response.json({schemaVersion:1,mediaKind:'manga',entries:[]});
+     throw Error('Must not silently fall back to the old empty source');
+   });
+   const result=await api('/api/library',cookie.split(';')[0]!);
+   expect(result.status).toBe(409);
+   expect((await result.json()).error).toContain('invalid');
+   expect(spy).toHaveBeenCalledTimes(2);
+ });
+ it('does not call a staged controller upload empty before catalogue publication',async()=>{
+   const cookie=await fakeSession();
+   vi.spyOn(globalThis,'fetch').mockImplementation(async input=>{
+     const url=String(input);
+     if(url.endsWith('/api/datasets/'+REPO))return Response.json({private:true,sha});
+     if(url.includes('/catalogue.json')||url.includes('/data/library.json'))return new Response('',{status:404});
+     if(url.includes('/tree/'+sha+'/data'))return new Response('',{status:404});
+     if(url.includes('/tree/'+sha+'?'))return Response.json([{path:'README.md'},{path:'assets',type:'directory'}]);
+     throw Error('unexpected '+url);
+   });
+   const result=await api('/api/library',cookie.split(';')[0]!);
+   expect(result.status).toBe(409);
+   expect((await result.json()).error).toContain('staged');
  });
  it('never fetches private provider data before owner authentication',async()=>{
    const spy=vi.spyOn(globalThis,'fetch');
