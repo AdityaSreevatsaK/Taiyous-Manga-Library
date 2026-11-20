@@ -18,6 +18,8 @@ export function MangaChapterPicker({open,chapters,currentChapterId,disabled,onCl
   const [search,setSearch]=useState('');
   const [scrollIndex,setScrollIndex]=useState(0);
   const input=useRef<HTMLInputElement>(null);
+  const closeRef=useRef(onClose);
+  closeRef.current=onClose;
   const list=useRef<HTMLDivElement>(null);
   const current=chapters.findIndex(ch=>ch.id===currentChapterId);
   const matches=useMemo(()=>{
@@ -41,7 +43,7 @@ export function MangaChapterPicker({open,chapters,currentChapterId,disabled,onCl
       }
     });
     const key=(event:KeyboardEvent)=>{
-      if(event.key==='Escape'){event.preventDefault();event.stopPropagation();onClose();}
+      if(event.key==='Escape'){event.preventDefault();event.stopPropagation();closeRef.current();}
       if(event.key==='Tab'){
         const focusable=Array.from(document.querySelectorAll<HTMLElement>(
           '.manga-chapter-dialog button:not(:disabled),.manga-chapter-dialog input:not(:disabled)'));
@@ -53,7 +55,7 @@ export function MangaChapterPicker({open,chapters,currentChapterId,disabled,onCl
     };
     document.addEventListener('keydown',key,true);
     return ()=>{cancelAnimationFrame(timer);document.removeEventListener('keydown',key,true);previous?.focus();};
-  },[open,current,onClose]);
+  },[open,current]);
   if(!open)return null;
   return <div className="manga-picker-shade" onMouseDown={event=>{
     if(event.target===event.currentTarget)onClose();
