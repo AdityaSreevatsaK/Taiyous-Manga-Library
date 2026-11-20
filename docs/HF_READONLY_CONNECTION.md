@@ -1,90 +1,59 @@
-# Read-only private Hugging Face connection
+# Owner-authenticated private Hugging Face manga connection
 
-**Connection and online reading milestone, 20 November 2026.** The backend uses owner-only OAuth to read the private catalogue, chapter manifests and original page images. It never commits, uploads, deletes or modifies Hugging Face data.
+**Current as of 20 November 2026.** Cloudflare Pages Functions provide read-only access to the private HF catalogue, original covers, chapter manifests and pages. Data uploads, deletion, migration and backups are separate Storage Controller responsibilities. No private manga is committed to GitHub or embedded in the public app bundle.
 
-## Cloudflare Pages production configuration
+## Production configuration
 
-Configure the following as **Pages Functions runtime** variables under Production:
+Set these as Cloudflare **Pages Functions runtime** variables for Production, not `VITE_*` values:
 
 | Key | Value | Secret? |
 | --- | --- | --- |
 | `HF_REPO_ID` | `AdityaSreevatsaK/Taiyous-Manga` | No |
 | `HF_OWNER_USERNAME` | `AdityaSreevatsaK` | No |
-| `HF_CLIENT_ID` | ID of the dedicated confidential OAuth app | No |
-| `HF_CLIENT_SECRET` | Client secret of that OAuth app | Yes |
-| `SESSION_SECRET` | Base64 encoding of 32 cryptographically random bytes | Yes |
+| `HF_CLIENT_ID` | Dedicated confidential HF OAuth application ID | No |
+| `HF_CLIENT_SECRET` | OAuth client secret | Yes |
+| `SESSION_SECRET` | Base64-encoded 32 cryptographically random bytes | Yes |
 
-Do not add `VITE_*` variants, place credentials in GitHub or share them in chat.
-OAuth app registration must use **confidential** mode and scopes `openid profile read-repos`.
-Its callback must be precisely
-`https://taiyous-manga-library.pages.dev/api/auth/callback`.
+The confidential OAuth application must use `openid profile read-repos` and the exact callback
+`https://taiyous-manga-library.pages.dev/api/auth/callback`. A Novel Library OAuth cookie does not authorise the Manga Library.
 
-Production sign-in is deliberately restricted to this one hostname and exact HF owner. No
-cross-origin Novel Library cookies or public preview logins are accepted.
+## API routes
 
-## Route contract
+- `GET /api/auth/login`: CSRF-state and PKCE-protected sign-in.
+- `GET /api/auth/callback`: confidential OAuth exchange, exact owner identity and private dataset verification.
+- `GET /api/auth/session`: session-health diagnostic, no token returned.
+- `POST /api/auth/logout`: same-origin, authorised cookie expiration.
+- `GET /api/library`: owner-attested canonical catalogue, pinned to the immutable private dataset revision.
+- `GET /api/media/cover?mangaId=<id>`: securely retrieve a canonical cover, checking the owner, revision, declared image MIME, size and SHA-256.
+- `GET /api/media/manifest?mangaId=<id>&chapterId=<id>`: validate chapter membership and return a bounded manifest.
+- `GET /api/media/page?mangaId=<id>&chapterId=<id>&pageId=<id>&revision=<sha>`: return exact verified original page bytes after owner, revision, membership, MIME, length and checksum checks.
 
-- `GET /api/auth/login`: state-bound and PKCE-protected redirect to HF.
-- `GET /api/auth/callback`: verify flow/state/PKCE, exchange the code with confidential HTTP
-  Basic client authentication, verify owner and that the selected dataset is private.
-- `GET /api/auth/session`: authenticated session health, no token returned.
-- `POST /api/auth/logout`: same-origin + custom header required; expires both cookies.
-- `GET /api/library`: owner-only metadata read, pinned to immutable dataset revision.
-- `GET /api/media/manifest?mangaId=&chapterId=`: verify chapter membership and serve a bounded manifest.\n- `GET /api/media/page?mangaId=&chapterId=&pageId=&revision=`: verify owner, immutable revision, chapter membership, MIME signature, exact image size and SHA-256, then return the private image bytes.\n  No write routes exist.
+Private media and catalogue responses are `no-store` and are never cached by the service worker. The HF token is only held in the server-managed Secure, HttpOnly, SameSite=Lax, host-bound encrypted session cookie. The browser cannot request arbitrary private media paths or URLs.
 
-All private API responses have `no-store` headers. HF access token is encrypted into
-a Secure, HttpOnly, SameSite=Lax, host-bound AES-GCM session cookie. The token never reaches React.
-Sessions expire when the HF token expires; a new sign-in may be required after 8 hours.
-The service worker does not intercept or cache `/api/` requests or OAuth redirects.
+## Canonical dataset format
 
-## Empty dataset behaviour
+Private Hugging Face data use `data/library.json` with:
 
-The intended **future** private catalogue path is `data/library.json`.
-When absent, the gateway checks the authenticated dataset's immutable `data/` tree:
+```json
+{"schemaVersion":1,"mediaKind":"manga","entries":[]}
+```
 
-- No files under `data/`: return `{connected:true,empty:true,entries:[]}`.
-- Any files under `data/` but missing catalogue: return a recovery error (409).
-- An existing `data/library.json`: require a strict JSON v1 envelope
-  `{ "schemaVersion": 1, "mediaKind": "manga", "entries": [] }`, validated using
-  the Manga Library's existing `parseCatalogue` rules.
+The manga entries use immutable IDs and may include optional `cover`, `creatorRoles` and `metadataSources` fields, following the [Storage Controller reconciliation contract](https://github.com/AdityaSreevatsaK/Taiyou-Manga-Storage-Controller/blob/master/docs/METADATA_RECONCILIATION_CONTRACT.md). Cover paths are private `data/covers/<manga-id>.<ext>` files, chapter paths use `data/manga/<manga-id>/<chapter-id>/<page-id>.<ext>` and manifests use `data/manifests/<chapter-id>.json`.
 
-This is a **read-only compatibility proposal**, not authorisation to upload or a complete
-storage contract. The separate Storage Controller has not yet approved its production
-dataset layout. Never create an index automatically or infer content from unrelated paths.
+The reader preserves a safe read-only legacy fallback. If `data/` has any files but the canonical library index is missing, the endpoint returns a recovery error instead of inventing an empty catalogue. The Library never modifies private HF content.
 
-## Verification
+Following the Controller's read-only live integrity smoke on 20 November, the private dataset was independently confirmed to contain **five manga, five original covers with metadata, 587 chapters and 14,635 pages**. This is evidence of dataset completeness, not a signed-in browser rendering result.
 
-After GitHub PR CI and deployment:
-1. Open the production app in a fresh browser. Expect sample mode and a
-   **Sign in with Hugging Face** action.
-2. Sign in to the dedicated OAuth application as the exact owner.
-3. After callback, the private view should say
-   **Your private Hugging Face dataset is connected and empty**.
-4. Confirm signed-out /api endpoints refuse data (401); after signing out, repeat.
-5. For an unexpected 403, confirm the OAuth scope `read-repos`, repository visibility
-   and owner username. For 503, recheck Cloudflare runtime bindings (never expose their values).
-6. Do not claim production read access until step 3 is observed live.
+## Release verification
 
-## Private manga reader
+1. Run the Library's green PR and master checks, then the [live Cloudflare smoke](../.github/workflows/live-cloudflare-smoke.yml). Verify unauthenticated private API responses refuse access.
+2. As the dataset owner, sign in with the dedicated Hugging Face OAuth application.
+3. Open a known private manga. Verify its original cover, author/artist/synopsis, chapter selection and first page. Check actual chapter navigation, no broken images, and saved local progress after reload.
+4. Confirm the browser network panel contains only first-party `/api/media/*` URLs for private images, with no HF bearer token, secret or unrestricted provider URL.
+5. Sign out and confirm catalogue, covers, manifests and pages are no longer accessible.
 
-- The canonical data paths are `data/library.json`, `data/manifests/<chapter-id>.json`
-  and `data/manga/<manga-id>/<chapter-id>/<page-id>.<ext>`.
-- ReLIFE is currently in the **read-only legacy layout**: root `catalogue.json`,
-  `manifests/<chapter-id>.json` and `assets/manga/...`.
-- Both layouts are read at a pinned private Hugging Face revision. No migration,
-  re-upload or media copying is required just to read existing chapters.
-- Only the signed-in dataset owner may retrieve pages. Page images are verified by
-  SHA-256 on the server and in the reader, and are held as temporary browser blob URLs
-  for at most a few nearby images. The service worker bypasses all `/api/` requests.
-- The details page displays the first 25 chapter rows and supports searching and
-  incremental expansion, rather than drawing hundreds of chapters at once.
-- Private pages require network connectivity. Offline private media downloads and
-  cross-device progress synchronisation are not yet implemented.
-- Do not claim ReLIFE's original pages were tested live until the signed-in owner
-  opens a chapter successfully after deployment.
+The automated live smoke does **not** impersonate the owner. Do not call this manual authenticated check complete until it has genuinely been performed.
 
-## Not implemented in this milestone
+## Remaining limitations
 
-Offline private media caching, image cover management, cloud progress sync,
-browser uploads and dataset mutations. Synthetic chapters retain their separate offline demo.
-
+Private originals require a network connection. Private-media offline downloads and automatic cloud synchronisation of personal progress, ratings, notes and collections are not implemented. The synthetic sample reader retains a separate offline demonstration flow.
