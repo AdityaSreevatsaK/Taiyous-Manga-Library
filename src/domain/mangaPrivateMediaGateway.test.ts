@@ -85,6 +85,67 @@ describe('owner-only verified private manga image gateway',()=>{
    await setup({missing:true});
    expect((await request('page',String(pageParams))).status).toBe(502);
  });
+ const coverSamples=[
+   {suffix:'png',mime:'image/png',bytes:Uint8Array.from([137,80,78,71,13,10,26,10,0,1,2,3])},
+   {suffix:'jpg',mime:'image/jpeg',bytes:Uint8Array.from([255,216,255,224,0,16,0,1])},
+   {suffix:'webp',mime:'image/webp',bytes:Uint8Array.from([82,73,70,70,8,0,0,0,87,69,66,80,86,80,56,32])},
+   {suffix:'avif',mime:'image/avif',bytes:Uint8Array.from([0,0,0,16,102,116,121,112,97,118,105,102])},
+ ];
+ it('serves only verified original cover types from private immutable HF data',async()=>{
+   const query=new URLSearchParams({mangaId:id}).toString();
+   for(const sample of coverSamples){
+     const digest=[...new Uint8Array(await crypto.subtle.digest('SHA-256',sample.bytes.buffer))]
+       .map(x=>x.toString(16).padStart(2,'0')).join('');
+     const cover={assetPath:'covers/'+id+'.'+sample.suffix,mimeType:sample.mime,
+       width:20,height:20,byteSize:sample.bytes.length,sha256:digest};
+     const spy=vi.spyOn(globalThis,'fetch').mockImplementation(async input=>{
+       const url=String(input);
+       if(url.endsWith('/api/datasets/'+REPO))return Response.json({sha,private:true});
+       if(url.includes('/data/library.json'))
+         return Response.json({schemaVersion:1,mediaKind:'manga',entries:[{...entry,cover}]});
+       if(url.includes('/data/'+cover.assetPath))
+         return new Response(sample.bytes.slice().buffer,{status:200});
+       throw Error('Unexpected remote request '+url);
+     });
+     expect((await request('cover',query,false)).status).toBe(401);
+     const response=await request('cover',query);
+     expect(response.status).toBe(200);
+     expect(response.headers.get('Content-Type')).toBe(sample.mime);
+     expect(response.headers.get('Cache-Control')).toContain('no-store');
+     expect(response.headers.get('Cross-Origin-Resource-Policy')).toBe('same-origin');
+     expect(new Uint8Array(await response.arrayBuffer())).toEqual(sample.bytes);
+     expect(spy.mock.calls.some(call=>String(call[0]).includes('/data/'+cover.assetPath))).toBe(true);
+     expect(spy.mock.calls.every(call=>!String(call[0]).includes('token='+token))).toBe(true);
+     vi.restoreAllMocks();
+   }
+   expect((await request('cover','mangaId=..%2Fprivate')).status).toBe(400);
+ });
+ it('rejects missing and tampered private cover artwork',async()=>{
+   const image=coverSamples[0]!.bytes,hash='f'.repeat(64);
+   const cover={assetPath:'covers/'+id+'.png',mimeType:'image/png',
+     width:20,height:20,byteSize:image.length,sha256:hash};
+   const query=new URLSearchParams({mangaId:id}).toString();
+   vi.spyOn(globalThis,'fetch').mockImplementation(async input=>{
+     const url=String(input);
+     if(url.endsWith('/api/datasets/'+REPO))return Response.json({sha,private:true});
+     if(url.includes('/data/library.json'))return Response.json({
+       schemaVersion:1,mediaKind:'manga',entries:[{...entry,cover}]});
+     if(url.includes('/data/'+cover.assetPath))
+       return new Response(image.slice().buffer);
+     throw Error('Unexpected remote request '+url);
+   });
+   expect((await request('cover',query)).status).toBe(409);
+   vi.restoreAllMocks();
+   vi.spyOn(globalThis,'fetch').mockImplementation(async input=>{
+     const url=String(input);
+     if(url.endsWith('/api/datasets/'+REPO))return Response.json({sha,private:true});
+     if(url.includes('/data/library.json'))return Response.json({
+       schemaVersion:1,mediaKind:'manga',entries:[{...entry,cover}]});
+     if(url.includes('/data/'+cover.assetPath))return new Response('',{status:404});
+     throw Error('Unexpected remote request '+url);
+   });
+   expect((await request('cover',query)).status).toBe(502);
+ });
  it('denies media when the supposed dataset is public',async()=>{
    await setup({private:false});
    expect((await request('manifest',String(params))).status).toBe(403);

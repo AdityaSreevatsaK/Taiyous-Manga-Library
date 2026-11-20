@@ -71,7 +71,7 @@ async function readManifest(sha:string,token:string,layout:Layout,mangaId:string
    throw Error('Chapter metadata does not match the verified catalogue');
  return manifest;
 }
-function imageSignature(bytes:Uint8Array,page:MangaPage):boolean{
+function imageSignature(bytes:Uint8Array,page:Pick<MangaPage,'mimeType'>):boolean{
  const has=(...header:number[])=>header.every((byte,i)=>bytes[i]===byte);
  if(page.mimeType==='image/png')return has(137,80,78,71,13,10,26,10);
  if(page.mimeType==='image/jpeg')return has(255,216,255);
@@ -90,7 +90,31 @@ export async function onRequest({request,env}:Context):Promise<Response>{
  if(!session)return json({error:'Sign in to read private manga'},401);
  const url=new URL(request.url);
  const kind=url.pathname.split('/').at(-1);
- if(kind!=='manifest'&&kind!=='page')return json({error:'Not found'},404);
+ if(kind!=='manifest'&&kind!=='page'&&kind!=='cover')return json({error:'Not found'},404);
+ if(kind==='cover'){
+   const mangaId=url.searchParams.get('mangaId')||'';
+   if(!ID.manga.test(mangaId))return json({error:'Invalid manga identity'},400);
+   const snapshot=await privateRepo(session.access);
+   if(!snapshot)return json({error:'Private dataset access denied'},403);
+   try{
+     const {entries,layout}=await catalogueAt(snapshot.sha,session.access);
+     const cover=entries.find(item=>item.id===mangaId)?.cover;
+     if(layout!=='canonical'||!cover)return json({error:'No verified private cover available'},404);
+     const upstream=await hfFetch('/datasets/'+REPO+'/resolve/'+snapshot.sha+'/data/'+cover.assetPath,session.access);
+     if(!upstream.ok)return json({error:'Private cover is unavailable'},502);
+     const bytes=await bounded(upstream,Math.min(5_000_000,cover.byteSize));
+     const img=new Uint8Array(bytes);
+     if(img.byteLength!==cover.byteSize||!imageSignature(img,cover))
+       return json({error:'Private cover failed format or size verification'},409);
+     const digest=[...new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))]
+       .map(byte=>byte.toString(16).padStart(2,'0')).join('');
+     if(digest!==cover.sha256)return json({error:'Private cover failed checksum verification'},409);
+     return new Response(bytes,{status:200,headers:{
+       ...HEADERS,'Content-Type':cover.mimeType,'Content-Length':String(img.length),
+       'Cross-Origin-Resource-Policy':'same-origin',
+     }});
+   }catch{return json({error:'Private cover could not be verified or retrieved'},502);}
+ }
  const ids=identity(url);
  if(!ids||(kind==='page'&&(!ID.page.test(ids.pageId)||!/^[a-f0-9]{40}$/.test(ids.revision))))
    return json({error:'Invalid chapter or page identity'},400);

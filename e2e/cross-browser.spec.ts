@@ -52,11 +52,11 @@ test('chapter navigation never advances an individual image', async ({page}) => 
   await page.goto('/manga/mng_lanternarchive/chapters/ch_lanternopening');
   await expect(page.locator('.vertical-page')).toHaveCount(5);
   await page.getByRole('button',{name:/Next chapter/}).click();
-  await expect(page).toHaveURL(/ch_lanternrooftop/);
+  await expect(page).toHaveURL(/\/manga\/the-lantern-archive\/chapters\/02-above-the-rooftops/);
   await expect(page.locator('.vertical-page')).toHaveCount(4);
   await expect(page.locator('.page-navigation')).toContainText('Chapter 2 of 3');
   await page.getByRole('button',{name:/Previous chapter/}).click();
-  await expect(page).toHaveURL(/ch_lanternopening/);
+  await expect(page).toHaveURL(/\/manga\/the-lantern-archive\/chapters\/01-the-forgotten-key/);
   await expect(page.locator('.vertical-page')).toHaveCount(5);
   await page.getByRole('button',{name:'Jump to chapter'}).click();
   await expect(page.getByRole('dialog',{name:'Choose chapter'})).toBeVisible();
