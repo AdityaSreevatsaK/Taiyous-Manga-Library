@@ -131,7 +131,18 @@ describe('owner-only verified private manga image gateway',()=>{
      expect(response.headers.get('Cache-Control')).toContain('no-store');
      expect(response.headers.get('Cross-Origin-Resource-Policy')).toBe('same-origin');
      expect(new Uint8Array(await response.arrayBuffer())).toEqual(sample.bytes);
-     expect(spy.mock.calls.some(call=>String(call[0]).includes('/data/'+cover.assetPath))).toBe(true);
+     // A repeat request revalidates the signed-in owner and current private SHA,
+     // but need not download unchanged, checksum-verified cover bytes twice.
+     const second=await request('cover',query);
+     expect(second.status).toBe(200);
+     expect(second.headers.get('Cache-Control')).toContain('no-store');
+     expect(new Uint8Array(await second.arrayBuffer())).toEqual(sample.bytes);
+     const urls=spy.mock.calls.map(call=>String(call[0]));
+     expect(urls.filter(url=>url.includes('/data/'+cover.assetPath))).toHaveLength(1);
+     expect(urls.filter(url=>url.endsWith('/api/datasets/'+REPO))).toHaveLength(2);
+     expect((await request('cover',query,false)).status).toBe(401);
+     expect(spy.mock.calls.map(call=>String(call[0]))
+       .filter(url=>url.includes('/data/'+cover.assetPath))).toHaveLength(1);
      expect(spy.mock.calls.every(call=>!String(call[0]).includes('token='+token))).toBe(true);
      vi.restoreAllMocks();
    }
