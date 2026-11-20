@@ -13,7 +13,7 @@ describe('Novel Library-compatible manga chapter navigation',()=>{
     const html=renderToStaticMarkup(<MangaChapterPicker
       open chapters={chapters} currentChapterId={chapters[0]!.id}
       onClose={()=>{}} onSelect={()=>{}}/>);
-    expect((html.match(/class="manga-picker-result/g)||[])).toHaveLength(48);
+    expect((html.match(/<button[^>]*class="manga-picker-result/g)||[])).toHaveLength(48);
     expect(html).toContain('role="dialog"');
     expect(html).toContain('Search chapters by name or number');
     expect(html).toContain('237 chapters');
