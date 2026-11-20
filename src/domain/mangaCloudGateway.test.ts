@@ -2,6 +2,7 @@ import {afterEach,describe,expect,it,vi} from 'vitest';
 import {onRequest as oauth} from '../../functions/api/auth/[action]';
 import {onRequest as library} from '../../functions/api/library';
 import {ORIGIN,REPO,SESSION,configured,sessionCookie,type Env} from '../../functions/_lib/mangaAuth';
+import {demoEntries} from '../data/fixtures';
 
 const env:Env={
  HF_REPO_ID:REPO,HF_OWNER_USERNAME:'AdityaSreevatsaK',
@@ -64,6 +65,7 @@ describe('private Cloudflare OAuth read-only gateway',()=>{
      if(url.endsWith('/api/datasets/'+REPO))return Response.json({sha,private:true});
      if(url.includes('/data/library.json'))return new Response('',{status:404});
      if(url.includes('/tree/'+sha+'/data'))return new Response('',{status:404});
+     if(url.endsWith('/catalogue.json'))return new Response('',{status:404});
      throw Error('Unexpected provider request '+url);
    });
    const callback=await oauth({request:req('/api/auth/callback?code=demo-code&state='+state,{headers:{Cookie:flowCookie}}),env});
@@ -81,6 +83,38 @@ describe('private Cloudflare OAuth read-only gateway',()=>{
    expect(catalog.headers.get('Cache-Control')).toContain('no-store');
    expect(catalog.headers.get('Set-Cookie')).toBeNull();
    expect(fetcher).toHaveBeenCalled();
+ });
+ it('reads a root legacy ReLIFE catalogue only if canonical data/ is empty',async()=>{
+   const cookie=await fakeSession();
+   const calls:string[]=[];
+   vi.spyOn(globalThis,'fetch').mockImplementation(async input=>{
+     const url=String(input);calls.push(url);
+     if(url.endsWith('/api/datasets/'+REPO))return Response.json({private:true,sha});
+     if(url.includes('/data/library.json'))return new Response('',{status:404});
+     if(url.includes('/tree/'+sha+'/data'))return new Response('',{status:404});
+     if(url.endsWith('/catalogue.json'))return Response.json(demoEntries);
+     throw Error('unexpected '+url);
+   });
+   const result=await api('/api/library',cookie.split(';')[0]!);
+   expect(result.status).toBe(200);
+   expect(await result.json()).toMatchObject({
+     connected:true,legacyReadOnly:true,entries:demoEntries,empty:false,revision:sha
+   });
+   expect(calls.some(url=>url.endsWith('/catalogue.json'))).toBe(true);
+ });
+ it('refuses malformed root legacy data rather than claiming an empty dataset',async()=>{
+   const cookie=await fakeSession();
+   vi.spyOn(globalThis,'fetch').mockImplementation(async input=>{
+     const url=String(input);
+     if(url.endsWith('/api/datasets/'+REPO))return Response.json({private:true,sha});
+     if(url.includes('/data/library.json'))return new Response('',{status:404});
+     if(url.includes('/tree/'+sha+'/data'))return new Response('',{status:404});
+     if(url.endsWith('/catalogue.json'))return Response.json([{title:'incomplete'}]);
+     throw Error('unexpected '+url);
+   });
+   const result=await api('/api/library',cookie.split(';')[0]!);
+   expect(result.status).toBe(409);
+   expect((await result.json()).error).toContain('Legacy private catalogue is invalid');
  });
  it('does not report an orphaned dataset as an empty library',async()=>{
    const cookie=await fakeSession();
