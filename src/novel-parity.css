@@ -209,21 +209,24 @@
 .app-shell .editorial-hero .editorial-secondary-action{color:#f2e8d3;border-color:#e9d6b06a}
 .app-shell .editorial-hero .editorial-hero-art{
   background:radial-gradient(circle at 52% 50%,#3d5b8191,transparent 65%);
-  border:0;box-shadow:none;overflow:visible;
+  border:0;box-shadow:none;overflow:hidden;
 }
 .app-shell .editorial-hero .editorial-hero-art:after{display:none}
-.app-shell .editorial-hero .editorial-book-stack{position:relative;display:block;padding:0}
+.app-shell .editorial-hero .editorial-book-stack{
+  position:relative;display:flex;align-items:flex-end;justify-content:center;
+  gap:10px;padding:13px 20px 25px;height:100%;overflow:visible
+}
 .app-shell .editorial-hero .editorial-display-book{
-  position:absolute;width:31%;max-width:155px;height:75%;top:15%;
-  padding:20px 12px 15px;border-radius:4px 8px 8px 4px;
-  box-shadow:10px 18px 23px #0a152f86;
-  transform:rotate(-10deg);left:4%;
+  position:relative;left:auto;right:auto;top:auto;flex:0 1 31%;width:31%;
+  min-width:0;max-width:155px;height:75%;padding:15px 8px;
+  border-radius:4px 8px 8px 4px;box-shadow:10px 18px 23px #0a152f86;
+  transform:none;box-sizing:border-box
 }
 .app-shell .editorial-hero .editorial-display-book.book-1{
-  left:34%;top:7%;height:81%;transform:rotate(3deg);z-index:2;
+  left:auto;top:auto;height:82%;transform:none;z-index:2
 }
 .app-shell .editorial-hero .editorial-display-book.book-2{
-  left:auto;right:4%;top:17%;transform:rotate(11deg);
+  left:auto;right:auto;top:auto;height:73%;transform:none
 }
 .app-shell .editorial-hero .editorial-empty-plate{
   background:#172a489c;color:#f6e9d4;border-color:#cfb98888;
@@ -241,6 +244,12 @@
 .app-shell .editorial-overview strong{font-size:21px;color:#f6ddad}
 .app-shell .editorial-overview span{color:#c8d2e2;font-size:11px}
 .app-shell .empty-state{border-radius:8px}
+@media(max-width:1100px){
+  .app-shell .editorial-hero{grid-template-columns:minmax(0,1fr)}
+  .app-shell .editorial-hero .editorial-hero-art{
+    width:100%;max-width:540px;height:245px;justify-self:center
+  }
+}
 @media(max-width:740px){
   .app-shell .editorial-hero{padding:35px 21px 23px;gap:10px}
   .app-shell .editorial-hero h1{font-size:clamp(39px,10vw,64px)}
