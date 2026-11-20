@@ -702,8 +702,7 @@ test.describe('approved library navigation and personal presentation', () => {
 
   test('personal shelves persist locally and publication ribbons remain separate', async ({page}) => {
     await page.goto('/manga/mng_lanternarchive');
-    const selector=page.getByRole('combobox',{name:'Personal reading shelf'});
-    await selector.selectOption('trying');
+    await page.getByRole('button',{name:'Add to Trying Out'}).click();
     await expect(page.getByRole('status')).toContainText('Trying Out');
     await page.goto('/trying');
     await expect(page.locator('.book-card')).toHaveCount(1);
@@ -711,7 +710,7 @@ test.describe('approved library navigation and personal presentation', () => {
     await page.reload();
     await expect(page.locator('.book-card')).toHaveCount(1);
     await page.goto('/manga/mng_lanternarchive');
-    await page.getByRole('combobox',{name:'Personal reading shelf'}).selectOption('finished');
+    await page.getByRole('button',{name:/Mark as completed/}).click();
     await page.goto('/finished');
     await expect(page.locator('.book-card')).toHaveCount(1);
     await page.goto('/trying');
@@ -775,32 +774,31 @@ test.describe('personal annotations never leave the browser',()=>{
     await expect(page.locator('.book-card')).toHaveCount(1);
     await expect(page.locator('.book-card')).toContainText('10/10 · Mine');
   });
-  test('tag edits are drafted, reversible and confirmed together like Novel Library',async({page})=>{
+  test('Novel detail tags are add-only and saved in one reviewed batch',async({page})=>{
     await page.goto('/manga/mng_lanternarchive');
     await page.getByLabel('Add a personal tag').fill('Keep This');
     await page.getByRole('button',{name:'Add tag'}).click();
     await page.getByRole('button',{name:'Review & save tags'}).click();
     await page.getByRole('dialog',{name:'Save tag changes?'})
       .getByRole('button',{name:'Save tags'}).click();
-    await page.getByRole('button',{name:'Remove tag Keep This'}).click();
+    await expect(page.locator('.manga-tags-card')).toContainText('Keep This');
     await expect(page.getByRole('button',{name:'Remove tag Keep This'})).toHaveCount(0);
-    await page.getByRole('button',{name:'Discard changes'}).click();
-    await expect(page.getByRole('button',{name:'Remove tag Keep This'})).toBeVisible();
-    await page.getByRole('button',{name:'Remove tag Keep This'}).click();
-    await page.getByRole('button',{name:'Review & save tags'}).click();
-    await page.getByRole('dialog',{name:'Save tag changes?'}).getByRole('button',{name:'Cancel'}).click();
+    await page.getByLabel('Add a personal tag').fill('Maybe Later');
+    await page.getByRole('button',{name:'Add tag'}).click();
     await expect(page.locator('.tag-draft-actions')).toContainText('Unsaved tag changes');
-    await page.getByRole('button',{name:'Review & save tags'}).click();
-    await page.getByRole('dialog',{name:'Save tag changes?'}).getByRole('button',{name:'Save tags'}).click();
+    await page.getByRole('button',{name:'Discard changes'}).click();
+    await expect(page.locator('.manga-tags-card')).toContainText('Keep This');
+    await expect(page.locator('.manga-tags-card')).not.toContainText('Maybe Later');
     await page.reload();
-    await expect(page.getByRole('button',{name:'Remove tag Keep This'})).toHaveCount(0);
+    await expect(page.locator('.manga-tags-card')).toContainText('Keep This');
   });
+
 });
 
 test.describe('compatible private manga library backups',()=>{
   test('exports and restores notes, ratings, tags and reading shelves with explicit consent',async({page})=>{
     await page.goto('/manga/mng_lanternarchive');
-    await page.getByRole('combobox',{name:'Personal reading shelf'}).selectOption('trying');
+    await page.getByRole('button',{name:'Add to Trying Out'}).click();
     await page.getByRole('button',{name:/Rate 9 out of 10/}).click();
     await page.getByRole('button',{name:'Save rating'}).first().click();
     await page.getByRole('textbox',{name:'My comments / reading notes'}).fill('My export test note');
@@ -836,9 +834,9 @@ test.describe('compatible private manga library backups',()=>{
     await page.getByRole('button',{name:'Confirm restore'}).click();
     await expect(page.locator('.backup-message')).toContainText('1 personal shelves and 1 annotations restored');
     await page.goto('/manga/mng_lanternarchive');
-    await expect(page.getByRole('combobox',{name:'Personal reading shelf'})).toHaveValue('trying');
+    await expect(page.getByRole('button',{name:/Trying Out/})).toHaveAttribute('aria-pressed','true');
     await expect(page.getByRole('textbox',{name:'My comments / reading notes'})).toHaveValue('My export test note');
-    await expect(page.getByRole('button',{name:'Remove tag Adventure Favourite'})).toBeVisible();
+    await expect(page.locator('.manga-tags-card')).toContainText('Adventure Favourite');
     await expect(page.locator('.manga-hero-rating')).toContainText('9/10');
   });
 });
@@ -962,7 +960,7 @@ test.describe('advanced discovery and grounded personal analytics',()=>{
     await page.goto('/manga/mng_lanternarchive');
     await page.getByRole('button',{name:/Rate 10 out of 10/}).click();
     await page.getByRole('button',{name:'Save rating'}).first().click();
-    await page.getByRole('combobox',{name:'Personal reading shelf'}).selectOption('trying');
+    await page.getByRole('button',{name:'Add to Trying Out'}).click();
     await page.goto('/library?minRating=9&reading=trying');
     await expect(page.locator('.book-card')).toHaveCount(1);
     await expect(page.locator('.book-card')).toContainText('The Lantern Archive');
@@ -1238,12 +1236,12 @@ test('private ReLIFE-style chapter list opens verified images without endless sc
   await expect(page.getByRole('link',{name:/ReLIFE/}).first()).toBeVisible();
   await page.locator('.book-card').filter({hasText:'ReLIFE'}).click();
   await expect(page.getByRole('heading',{name:'ReLIFE'})).toBeVisible();
-  await expect(page.locator('.chapter-entry')).toHaveCount(25);
-  await expect(page.locator('.chapter-paging')).toContainText('Showing 25 of 90 chapters');
-  await page.getByRole('button',{name:'Show next 25 chapters'}).click();
-  await expect(page.locator('.chapter-entry')).toHaveCount(50);
+  await expect(page.locator('.novel-chapter-browser .chapter-list [role="listitem"]')).toHaveCount(50);
+  await expect(page.locator('.chapter-paging')).toContainText('Showing 1–50 of 90');
+  await page.getByRole('button',{name:'Next ›'}).click();
+  await expect(page.locator('.chapter-paging')).toContainText('Showing 51–90 of 90');
   await page.getByRole('searchbox',{name:'Search chapters'}).fill('Chapter 87');
-  await expect(page.locator('.chapter-entry')).toHaveCount(1);
+  await expect(page.locator('.novel-chapter-browser .chapter-list [role="listitem"]')).toHaveCount(1);
   await page.getByRole('button',{name:/Chapter 87/}).click();
   await expect(page.locator('.vertical-page-image')).toBeVisible();
   await expect(page.locator('.vertical-page-image')).toHaveAttribute('alt','Manga page 1 of 1');
@@ -1367,10 +1365,10 @@ test('Novel Library details keep source and personal tags together, separate fro
     await page.goto('/manga/mng_lanternarchive');
     const classes=await page.locator('.manga-details-sidebar > section')
       .evaluateAll(nodes=>nodes.map(node=>node.className));
-    expect(classes).toHaveLength(6);
+    expect(classes).toHaveLength(5);
     for(const [index,name] of [
       [0,'manga-journey-card'],[1,'manga-info-card'],[2,'manga-tags-card'],
-      [3,'personal-annotations'],[4,'manga-collections-card'],[5,'manga-management-card'],
+      [3,'personal-annotations'],[4,'manga-management-card'],
     ] as const)expect(classes[index]).toContain(name);
     await expect(page.locator('.manga-tags-card .details-tag-form')).toBeVisible();
     await expect(page.locator('.personal-annotations .personal-tag-editor')).toHaveCount(0);
