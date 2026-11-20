@@ -16,6 +16,7 @@ import { VerticalReader } from './components/VerticalReader';
 import { MangaChapterPicker } from './components/MangaChapterPicker';
 import { MangaChapterBrowser } from './components/MangaChapterBrowser';
 import { MangaHeroBackdrop } from './components/MangaHeroBackdrop';
+import { MangaDetailsQuickNav } from './components/MangaDetailsQuickNav';
 import { MangaCollectionPicker } from './components/MangaCollectionPicker';
 import { MangaCoverArtwork } from './components/MangaCoverArtwork';
 import {ratingLabel,ratingSummary,ratingToneClass} from './domain/ratings';
@@ -37,6 +38,7 @@ import './editorial.css';
 import './novel-parity.css';
 import './novel-details-parity.css';
 import './ported-novel-chapters.css';
+import './ported-novel-quick-navigation.css';
 
 /** These ribbons describe publication status, never the reader's Finished shelf. */
 function roleNames(item:MangaEntry,role:'author'|'artist'):string[]{
@@ -804,6 +806,20 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
               if(saved.status==='ok')setPreferences(saved.value);
             }} />
         </MangaCloudMenu>
+        {screen.kind==='details'&&
+          <MangaDetailsQuickNav
+            collections={sortedPersonalCollections.map(folder=>({
+              id:folder.id,name:folder.name,parentId:folder.parentId,
+              path:collectionBreadcrumb(collections,folder.id),count:folder.mangaIds.length,
+            }))}
+            readingHref={routeHref({kind:'reading'},import.meta.env.BASE_URL,catalogue)}
+            allHref={routeHref({kind:'library'},import.meta.env.BASE_URL,catalogue)}
+            searchHref={routeHref({kind:'library'},import.meta.env.BASE_URL,catalogue)}
+            collectionHref={id=>routeHref({kind:'library'},import.meta.env.BASE_URL,catalogue)+
+              '?collection='+encodeURIComponent('personal:'+id)}
+            onReading={()=>goCatalogue('reading')} onAll={()=>goCatalogue('library')}
+            onSearch={()=>{setAdvancedOpen(true);goCatalogue('library');}}
+            onCollection={filterPersonalCollection}/>}
         <div className="manga-top-actions">
           <label className="manga-global-search">
             <SearchIcon size={16}/>
