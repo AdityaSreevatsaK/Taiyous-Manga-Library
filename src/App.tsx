@@ -19,6 +19,7 @@ import { MangaHeroBackdrop } from './components/MangaHeroBackdrop';
 import { MangaDetailsQuickNav } from './components/MangaDetailsQuickNav';
 import { MangaCollectionPicker } from './components/MangaCollectionPicker';
 import { MangaCoverArtwork } from './components/MangaCoverArtwork';
+import {clearMangaCoverCache} from './data/coverCache';
 import {ratingLabel,ratingSummary,ratingToneClass} from './domain/ratings';
 import { CATALOGUE_SECTIONS, parseAppRoute, resolveAppRoute, routeHref, type AppRoute, type CatalogueSection } from './domain/routes';
 import { loadShelves, saveShelf, type PersonalShelf, type ShelfSelection } from './domain/personalShelves';
@@ -651,7 +652,9 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
         headers:{'X-Taiyou-Request':'logout'},
       });
       if(!result.ok)throw Error('logout failed');
+      const coversCleared=await clearMangaCoverCache();
       setCloud({status:'disconnected',message:'Signed out of your private Hugging Face library.'});
+      if(!coversCleared)setStorageNotice('Signed out, but this browser could not clear its locally saved cover images. Clear this site\'s storage on a shared device.');
       setRemoteEntries([]);
       setPrivateManifests(new Map());setPrivateRevision('');
       changeDemo(true);
