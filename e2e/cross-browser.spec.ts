@@ -58,8 +58,9 @@ test('chapter navigation never advances an individual image', async ({page}) => 
   await page.getByRole('button',{name:/Previous chapter/}).click();
   await expect(page).toHaveURL(/ch_lanternopening/);
   await expect(page.locator('.vertical-page')).toHaveCount(5);
-  const picker=page.getByRole('combobox',{name:'Bottom chapter selection'});
-  await picker.selectOption('ch_lanternafterglow');
+  await page.getByRole('button',{name:'Jump to chapter'}).click();
+  await expect(page.getByRole('dialog',{name:'Choose chapter'})).toBeVisible();
+  await page.locator('.manga-picker-result').filter({hasText:'Afterglow'}).click();
   await expect(page.locator('.vertical-page')).toHaveCount(6);
   await expect(page.getByRole('button',{name:/Next chapter/})).toBeDisabled();
 });

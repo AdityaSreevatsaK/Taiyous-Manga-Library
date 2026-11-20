@@ -41,7 +41,7 @@ test.describe('local manga catalogue and chapter reader', () => {
       await expect(page.locator('.book-card')).toHaveCount(4);
       await assertNoHorizontalOverflow(page);
       await page.locator('.book-card').first().click();
-      await expect(page.getByRole('heading', { name: 'Chapters & volumes' })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Chapters' })).toBeVisible();
       await assertNoHorizontalOverflow(page);
       await page.getByRole('link', { name: /Read from beginning/ }).click();
       // Alphabetical first series defaults to genuine vertical mode.
@@ -137,7 +137,8 @@ test.describe('local manga catalogue and chapter reader', () => {
     await page.getByRole('link', { name: /Series details/ }).click();
     await page.getByRole('link', { name: /Continue reading/ }).click();
     await expect(page.locator('.page-navigation')).toContainText('Page 5 of 5');
-    await page.getByRole('combobox', { name: 'Choose chapter' }).selectOption('ch_lanternrooftop');
+    await page.getByRole('button',{name:'Choose chapter'}).click();
+    await page.locator('.manga-picker-result').filter({hasText:'Above the rooftops'}).click();
     await expect(page.locator('.page-navigation')).toContainText('Page 1 of 4');
   });
   test('vertical scrolling does not change chapters or require tapping each page', async ({ page }) => {
@@ -218,7 +219,7 @@ test.describe('browser history and deep links', () => {
   test('direct chapter URL restores exact page after refresh', async ({ page }) => {
     await page.goto('/manga/mng_lanternarchive/chapters/ch_lanternrooftop?page=3');
     await expect(page.locator('.reader-heading')).toContainText('The Lantern Archive');
-    await expect(page.getByRole('combobox', { name: 'Choose chapter' })).toHaveValue('ch_lanternrooftop');
+    await expect(page.getByRole('button', { name: 'Choose chapter' })).toContainText('Above the rooftops');
     await expect(page.locator('.page-navigation')).toContainText('Page 3 of 4');
     await expect(page.locator('.vertical-page-image').first()).toBeVisible();
     await page.reload();
@@ -236,7 +237,7 @@ test.describe('browser history and deep links', () => {
     await page.goBack();
     await expect(page.locator('.reader-heading')).toContainText('The forgotten key');
     await page.goBack();
-    await expect(page.getByRole('heading', { name: 'Chapters & volumes' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Chapters' })).toBeVisible();
     await page.goForward();
     await expect(page.locator('.reader-heading')).toContainText('The forgotten key');
   });
@@ -718,10 +719,9 @@ test.describe('approved library navigation and personal presentation', () => {
 
   test('chapter footer selects whole chapters rather than advancing pages', async ({page}) => {
     await openSampleReader(page);
-    const picker=page.getByRole('combobox',{name:'Bottom chapter selection'});
-    const options=await picker.locator('option').all();
-    expect(options.length).toBeGreaterThan(1);
-    await picker.selectOption({index:1});
+    await page.getByRole('button',{name:'Jump to chapter'}).click();
+    await expect(page.getByRole('dialog',{name:'Choose chapter'})).toBeVisible();
+    await page.locator('.manga-picker-result').nth(1).click();
     await expect(page.locator('.page-navigation')).toContainText('Chapter 2 of');
     await expect(page.locator('.vertical-page')).toHaveCount(4);
     await expect(page.getByRole('button',{name:/Next page/})).toHaveCount(0);
@@ -751,9 +751,11 @@ test.describe('personal annotations never leave the browser',()=>{
   test('rating intensity, notes and personal tags survive reload and provide filtering',async({page})=>{
     await page.goto('/manga/mng_lanternarchive');
     await page.getByRole('button',{name:'Rate 1 out of 10'}).click();
+    await page.mouse.move(0,0);
     const one=Number(await page.getByRole('button',{name:'Rate 1 out of 10'}).evaluate(
       element=>getComputedStyle(element).opacity));
     await page.getByRole('button',{name:'Rate 10 out of 10'}).click();
+    await page.mouse.move(0,0);
     const ten=Number(await page.getByRole('button',{name:'Rate 10 out of 10'}).evaluate(
       element=>getComputedStyle(element).opacity));
     expect(ten).toBeGreaterThan(one);
@@ -1064,7 +1066,7 @@ test('editorial cover grid stays readable, accessible and unbroken across device
   await expect(page.locator('.status-ribbon').filter({hasText:'Updating'})).toHaveCount(1);
   await expect(page.locator('.status-ribbon').filter({hasText:'On Hiatus'})).toHaveCount(1);
   await page.getByRole('link',{name:/The Lantern Archive/}).first().click();
-  await expect(page.locator('.detail-synopsis')).toBeVisible();
+  await expect(page.locator('.manga-synopsis-card .detail-description')).toBeVisible();
   await expect(page.getByRole('link',{name:/Read from beginning/})).toBeVisible();
 });
 test('editorial theme tokens cover all six approved app palettes', async ({page}) => {
@@ -1239,4 +1241,35 @@ test('private ReLIFE-style chapter list opens verified images without endless sc
   await expect(page.locator('.reader-heading')).toContainText('Chapter 88');
   await expect(page.locator('.vertical-page-image')).toBeVisible();
   await expect(page.getByText('Offline copies of private chapters are not yet supported.')).toBeVisible();
+});
+
+test('Novel Library series layout, card order, chapter picker and clear button hover contrast',async({page})=>{
+  for(const width of [320,390,740,1280]){
+    await page.setViewportSize({width,height:850});
+    await page.goto('/manga/mng_lanternarchive');
+    await expect(page.locator('.manga-details-hero')).toBeVisible();
+    await expect(page.locator('.manga-details-columns .manga-journey-card')).toBeVisible();
+    await expect(page.locator('.manga-details-columns .manga-info-card')).toBeVisible();
+    await expect(page.locator('.manga-details-columns .manga-synopsis-card')).toBeVisible();
+    await expect(page.locator('.manga-details-main .chapter-section')).toBeVisible();
+    await expect(page.locator('.manga-details-main .personal-annotations')).toBeVisible();
+    await assertNoHorizontalOverflow(page);
+  }
+  const read=page.locator('.manga-details-hero .detail-actions .primary').first();
+  const before=await read.evaluate(node=>getComputedStyle(node).backgroundColor);
+  await read.hover();
+  const after=await read.evaluate(node=>getComputedStyle(node).backgroundColor);
+  expect(after).not.toBe(before);
+  await read.click();
+  await page.getByRole('button',{name:'Jump to chapter'}).click();
+  const modal=page.getByRole('dialog',{name:'Choose chapter'});
+  await expect(modal).toBeVisible();
+  await expect(modal.getByRole('searchbox',{name:'Search chapters by name or number'})).toBeFocused();
+  await modal.getByRole('searchbox',{name:'Search chapters by name or number'}).fill('rooftops');
+  await expect(page.locator('.manga-picker-result')).toHaveCount(1);
+  await page.keyboard.press('Escape');
+  await expect(modal).toHaveCount(0);
+  await page.getByRole('button',{name:'Jump to chapter'}).click();
+  await page.locator('.manga-picker-result').nth(1).click();
+  await expect(page.locator('.reader-heading')).toContainText('Above the rooftops');
 });

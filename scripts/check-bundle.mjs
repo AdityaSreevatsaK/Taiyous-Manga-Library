@@ -6,9 +6,9 @@ const root = 'dist/assets';
 const assets = readdirSync(root).filter(name => /\.(?:js|css)$/.test(name));
 const budgets = [
   { extension: '.js', limit: 300 * 1024 },
-  // Full Novel Library parity masthead remains only 14.7 KiB over the network.
-  // Track raw CSS and compressed transfer size, not raw size alone.
-  { extension: '.css', limit: 80 * 1024, gzipLimit: 18 * 1024 },
+  // Editorial details add visual components; bound the uncompressed source
+  // separately while preserving the same 18 KiB gzip network transfer gate.
+  { extension: '.css', limit: 96 * 1024, gzipLimit: 18 * 1024 },
 ];
 for (const { extension, limit, gzipLimit } of budgets) {
   const files = assets.filter(name => name.endsWith(extension));

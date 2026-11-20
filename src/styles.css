@@ -13,18 +13,10 @@ a{color:inherit}
 .site-header{max-width:1320px;margin:auto;min-height:84px;padding:20px clamp(18px,4.8vw,72px);display:flex;align-items:center;justify-content:space-between;gap:15px;border-bottom:1px solid #39454b}
 .wordmark{display:flex;align-items:center;gap:12px;border:0;background:none;color:#f1ebe2;font-weight:800;font-size:16px;letter-spacing:.19em;text-align:left;padding:8px 0}
 .wordmark small{display:block;margin-top:4px;font-size:9px;letter-spacing:.18em;color:#afc0c1}
-.sun-mark{display:grid;place-items:center;font-size:37px;font-weight:400;color:#dfbe8b;line-height:1}
-.header-right{display:flex;align-items:center;gap:16px;font-size:11px;color:#b5c5c7}
-.demo-pill{border:1px solid #b29766;border-radius:40px;padding:7px 12px;color:#e6d0a9;font-size:10px;letter-spacing:.1em;font-weight:700}
-.network-state{white-space:nowrap}
 .main-area{max-width:1320px;padding:0 clamp(18px,4.8vw,72px) 80px;margin:auto}
 .eyebrow{font-size:10px;letter-spacing:.23em;font-weight:800;color:#d9bb85;margin:0 0 15px}
 h1,h2,h3,p{margin-top:0}
 h1,h2,h3{font-family:Georgia,Cambria,serif;font-weight:500}
-.mode-bar{display:flex;align-items:center;justify-content:space-between;gap:25px;padding:25px 28px;background:#1b2b34;border:1px solid #43515a;border-radius:12px}
-.mode-bar strong{font-size:15px;font-weight:650}
-.mode-bar p{margin:7px 0 0;max-width:685px;color:#bdc9c8;font-size:12px;line-height:1.6}
-.mode-actions{display:flex;gap:8px;flex-wrap:wrap}
 .chip{min-height:43px;border:1px solid #56656a;border-radius:30px;padding:10px 16px;background:transparent;color:#deded4;white-space:nowrap;font-size:12px}
 .chip.active{background:#e5cca0;border-color:#e5cca0;color:#182431;font-weight:800}
 .shelf{padding-top:55px}
@@ -91,9 +83,6 @@ input::placeholder{color:#9baeb4}
 .reader-options label{width:min(100%,320px)}
 .reader-selectors{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap}
 .reader-selectors label{min-width:155px;flex:1}
-.reader-stage{position:relative;margin:25px auto 0;max-width:760px;min-height:340px;background:#293139;display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid #52606a;box-shadow:0 20px 70px #0005}
-.reader-page{width:100%;height:auto;display:block;max-height:80vh;object-fit:contain;background:#eddfc9}
-.page-stamp{position:absolute;bottom:10px;right:10px;background:#101922d9;padding:6px 9px;border-radius:5px;font-size:11px}
 .page-error{padding:55px 25px;text-align:center}
 .page-error p{color:#ced4d4;line-height:1.6}
 .page-navigation{display:flex;justify-content:space-between;align-items:center;gap:20px;max-width:760px;margin:20px auto 0}
@@ -124,8 +113,6 @@ button:disabled{opacity:.52;cursor:not-allowed}
 .reader-options{min-width:0;gap:10px}
 .reader-options fieldset{min-width:0}
 .reader-options legend{margin-bottom:5px}
-.reader-stage{width:100%;min-width:0;margin-top:14px}
-.reader-page{max-height:min(82dvh,1050px)}
 .page-navigation{min-width:0}
 .page-navigation .primary,.page-navigation .secondary{min-height:44px}
 .vertical-reader{display:flex;flex-direction:column;gap:14px;width:100%;max-width:760px;margin:14px auto 0;min-width:0}
@@ -352,7 +339,6 @@ a.book-card:focus-visible,a.chapter-row:focus-visible,a.back:focus-visible,a.pri
 .wordmark>span{font-size:16px;letter-spacing:.14em}
 .app-theme-label{display:flex;flex-direction:column;gap:3px;font-size:10px;color:inherit}
 .app-theme-label select{min-width:134px;width:134px;min-height:44px;font-size:12px;padding:8px}
-.header-right{margin-left:auto;gap:14px}
 .nav-more{position:relative;z-index:25}
 .nav-more summary{display:flex;align-items:center;min-height:44px;padding:10px;border:1px solid var(--line,#647480);border-radius:10px;cursor:pointer;font-size:12px}
 .nav-more summary:focus-visible{outline:3px solid #efd09a;outline-offset:3px}
