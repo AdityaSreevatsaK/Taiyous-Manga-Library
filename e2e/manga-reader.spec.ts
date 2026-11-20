@@ -186,18 +186,18 @@ test.describe('five-chapter continuous scroll trial', () => {
     await expect(page.getByRole('heading', { name: 'Five Chapter Scroll Trial' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Download chapter' })).toHaveCount(5);
     await page.getByRole('link', { name: /Read from beginning/ }).click();
-    const ids = ['ch_trialawakening', 'ch_trialcrossroad', 'ch_trialskybridge', 'ch_trialstarlight', 'ch_trialnewdawn'];
+    const slugs = ['01-the-awakening','02-the-crossroads','03-the-sky-bridge','04-a-spark-of-light','05-the-new-dawn'];
     const pages = [7,6,9,8,6];
-    for (let i = 0; i < ids.length; i++) {
-      expect(new URL(page.url()).pathname).toContain('/chapters/' + ids[i]);
-      expect(new URL(page.url()).searchParams.get('page')).toBe('1');
+    for (let i = 0; i < slugs.length; i++) {
+      expect(new URL(page.url()).pathname).toContain('/chapters/' + slugs[i]);
+      expect(new URL(page.url()).searchParams.has('page')).toBe(false);
       await expect(page.locator('.vertical-page')).toHaveCount(pages[i]!);
       await expect(page.locator('.page-navigation')).toContainText('Chapter ' + (i+1) + ' of 5');
       if (i === 0) {
         await page.locator('.vertical-page').nth(4).evaluate(el => el.scrollIntoView({block:'start'}));
         await expect(page.locator('.page-navigation')).toContainText('Page 5 of 7');
       }
-      if (i < ids.length - 1) await page.getByRole('button', { name: /Next chapter/ }).click();
+      if (i < slugs.length - 1) await page.getByRole('button', { name: /Next chapter/ }).click();
     }
     await expect(page.getByRole('button', { name: /Next chapter/ })).toBeDisabled();
     await page.getByRole('button', { name: /Previous chapter/ }).click();
@@ -229,11 +229,11 @@ test.describe('browser history and deep links', () => {
   test('native links preserve Back/Forward and page selection URLs', async ({ page }) => {
     await page.goto('/');
     await page.locator('.book-card').filter({ hasText: 'The Lantern Archive' }).click();
-    await expect(page).toHaveURL(/\/manga\/mng_lanternarchive$/);
+    await expect(page).toHaveURL(/\/manga\/the-lantern-archive$/);
     await page.getByRole('link', { name: /Read from beginning/ }).click();
-    await expect(page).toHaveURL(/\/chapters\/ch_lanternopening\?page=1$/);
+    await expect(page).toHaveURL(/\/chapters\/01-the-forgotten-key$/);
     await page.getByRole('button', { name: /Next chapter/ }).click();
-    await expect(page).toHaveURL(/\/chapters\/ch_lanternrooftop\?page=1$/);
+    await expect(page).toHaveURL(/\/chapters\/02-above-the-rooftops$/);
     await page.goBack();
     await expect(page.locator('.reader-heading')).toContainText('The forgotten key');
     await page.goBack();
@@ -246,7 +246,7 @@ test.describe('browser history and deep links', () => {
     await page.goto('/');
     const card = page.locator('.book-card').filter({ hasText: 'The Lantern Archive' });
     const href = await card.getAttribute('href');
-    expect(href).toBe('/manga/mng_lanternarchive');
+    expect(href).toBe('/manga/the-lantern-archive');
     const newTab = await context.newPage();
     await newTab.goto(href!);
     await expect(newTab.getByRole('heading', { name: 'The Lantern Archive' })).toBeVisible();
@@ -748,42 +748,49 @@ test('approved brand assets survive an offline cold launch', async ({page,contex
 });
 
 test.describe('personal annotations never leave the browser',()=>{
-  test('rating intensity, notes and personal tags survive reload and provide filtering',async({page})=>{
+  test('ten-point rating, comments and reviewed personal tags survive reload and filter',async({page})=>{
     await page.goto('/manga/mng_lanternarchive');
-    await page.getByRole('button',{name:'Rate 1 out of 10'}).click();
-    await page.mouse.move(0,0);
-    const one=Number(await page.getByRole('button',{name:'Rate 1 out of 10'}).evaluate(
-      element=>getComputedStyle(element).opacity));
-    await page.getByRole('button',{name:'Rate 10 out of 10'}).click();
-    await page.mouse.move(0,0);
-    const ten=Number(await page.getByRole('button',{name:'Rate 10 out of 10'}).evaluate(
-      element=>getComputedStyle(element).opacity));
-    expect(ten).toBeGreaterThan(one);
-    await expect(page.getByText('10 / 10')).toBeVisible();
-    await page.getByRole('textbox',{name:'Personal notes'}).fill('A brilliant, quiet story');
-    await page.getByRole('button',{name:'Save notes'}).click();
-    await page.getByLabel('Add a personal tag').fill('  rOmAnCe  ');
+    await page.getByRole('button',{name:/Rate 1 out of 10/}).click();
+    await expect(page.getByRole('button',{name:/Rate 1 out of 10/})).toHaveAttribute('aria-pressed','true');
+    await page.getByRole('button',{name:/Rate 10 out of 10/}).click();
+    await expect(page.getByRole('button',{name:/Rate 10 out of 10/})).toHaveAttribute('aria-pressed','true');
+    await page.getByRole('button',{name:'Save rating'}).first().click();
+    await expect(page.locator('.manga-hero-rating')).toContainText('10/10');
+    await page.getByRole('textbox',{name:'My comments / reading notes'})
+      .fill('A brilliant, quiet story');
+    await page.getByRole('button',{name:'Save comments'}).click();
+    await page.getByLabel('Add a personal tag').fill('  Quiet Favourite  ');
     await page.getByRole('button',{name:'Add tag'}).click();
-    await expect(page.getByRole('button',{name:'Remove tag Romance'})).toBeVisible();
+    await expect(page.locator('.tag-draft-actions')).toContainText('Unsaved tag changes');
+    await page.getByRole('button',{name:'Review & save tags'}).click();
+    await page.getByRole('dialog',{name:'Save tag changes?'})
+      .getByRole('button',{name:'Save tags'}).click();
     await page.reload();
-    await expect(page.getByRole('textbox',{name:'Personal notes'})).toHaveValue('A brilliant, quiet story');
-    await expect(page.getByText('10 / 10')).toBeVisible();
-    await page.getByRole('button',{name:'Romance',exact:true}).click();
-    await expect(page).toHaveURL(/\/library\?tag=Romance/);
+    await expect(page.getByRole('textbox',{name:'My comments / reading notes'}))
+      .toHaveValue('A brilliant, quiet story');
+    await expect(page.locator('.manga-hero-rating')).toContainText('10/10');
+    await page.getByRole('button',{name:'Quiet Favourite',exact:true}).click();
+    await expect(page).toHaveURL(/\/library\?tag=Quiet/);
     await expect(page.locator('.book-card')).toHaveCount(1);
     await expect(page.locator('.book-card')).toContainText('10/10 · Mine');
   });
-  test('personal tag removal uses application confirmation, never a browser confirm',async({page})=>{
+  test('tag edits are drafted, reversible and confirmed together like Novel Library',async({page})=>{
     await page.goto('/manga/mng_lanternarchive');
     await page.getByLabel('Add a personal tag').fill('Keep This');
     await page.getByRole('button',{name:'Add tag'}).click();
+    await page.getByRole('button',{name:'Review & save tags'}).click();
+    await page.getByRole('dialog',{name:'Save tag changes?'})
+      .getByRole('button',{name:'Save tags'}).click();
     await page.getByRole('button',{name:'Remove tag Keep This'}).click();
-    await expect(page.getByRole('dialog',{name:'Remove personal tag?'})).toBeVisible();
-    await page.getByRole('button',{name:'Cancel'}).click();
+    await expect(page.getByRole('button',{name:'Remove tag Keep This'})).toHaveCount(0);
+    await page.getByRole('button',{name:'Discard changes'}).click();
     await expect(page.getByRole('button',{name:'Remove tag Keep This'})).toBeVisible();
     await page.getByRole('button',{name:'Remove tag Keep This'}).click();
-    await page.getByRole('dialog').getByRole('button',{name:'Remove tag'}).click();
-    await expect(page.getByRole('button',{name:'Remove tag Keep This'})).toHaveCount(0);
+    await page.getByRole('button',{name:'Review & save tags'}).click();
+    await page.getByRole('dialog',{name:'Save tag changes?'}).getByRole('button',{name:'Cancel'}).click();
+    await expect(page.locator('.tag-draft-actions')).toContainText('Unsaved tag changes');
+    await page.getByRole('button',{name:'Review & save tags'}).click();
+    await page.getByRole('dialog',{name:'Save tag changes?'}).getByRole('button',{name:'Save tags'}).click();
     await page.reload();
     await expect(page.getByRole('button',{name:'Remove tag Keep This'})).toHaveCount(0);
   });
@@ -793,11 +800,14 @@ test.describe('compatible private manga library backups',()=>{
   test('exports and restores notes, ratings, tags and reading shelves with explicit consent',async({page})=>{
     await page.goto('/manga/mng_lanternarchive');
     await page.getByRole('combobox',{name:'Personal reading shelf'}).selectOption('trying');
-    await page.getByRole('button',{name:'Rate 9 out of 10'}).click();
-    await page.getByRole('textbox',{name:'Personal notes'}).fill('My export test note');
-    await page.getByRole('button',{name:'Save notes'}).click();
+    await page.getByRole('button',{name:/Rate 9 out of 10/}).click();
+    await page.getByRole('button',{name:'Save rating'}).first().click();
+    await page.getByRole('textbox',{name:'My comments / reading notes'}).fill('My export test note');
+    await page.getByRole('button',{name:'Save comments'}).click();
     await page.getByLabel('Add a personal tag').fill('Adventure Favourite');
     await page.getByRole('button',{name:'Add tag'}).click();
+    await page.getByRole('button',{name:'Review & save tags'}).click();
+    await page.getByRole('dialog',{name:'Save tag changes?'}).getByRole('button',{name:'Save tags'}).click();
     await page.goto('/library');
     await page.locator('.manga-cloud-menu > summary').click();
     await page.getByText('Transfer reading progress between devices').click();
@@ -826,7 +836,7 @@ test.describe('compatible private manga library backups',()=>{
     await expect(page.locator('.backup-message')).toContainText('1 personal shelves and 1 annotations restored');
     await page.goto('/manga/mng_lanternarchive');
     await expect(page.getByRole('combobox',{name:'Personal reading shelf'})).toHaveValue('trying');
-    await expect(page.getByRole('textbox',{name:'Personal notes'})).toHaveValue('My export test note');
+    await expect(page.getByRole('textbox',{name:'My comments / reading notes'})).toHaveValue('My export test note');
     await expect(page.getByRole('button',{name:'Remove tag Adventure Favourite'})).toBeVisible();
     await expect(page.getByText('9 / 10')).toBeVisible();
   });
@@ -949,7 +959,8 @@ test.describe('advanced discovery and grounded personal analytics',()=>{
   });
   test('personal ratings and shelves participate in advanced filters without changing published metadata',async({page})=>{
     await page.goto('/manga/mng_lanternarchive');
-    await page.getByRole('button',{name:'Rate 10 out of 10'}).click();
+    await page.getByRole('button',{name:/Rate 10 out of 10/}).click();
+    await page.getByRole('button',{name:'Save rating'}).first().click();
     await page.getByRole('combobox',{name:'Personal reading shelf'}).selectOption('trying');
     await page.goto('/library?minRating=9&reading=trying');
     await expect(page.locator('.book-card')).toHaveCount(1);
@@ -962,7 +973,8 @@ test.describe('advanced discovery and grounded personal analytics',()=>{
   });
   test('analytics reports exact saved positions and personal ratings, never fabricated durations',async({page})=>{
     await page.goto('/manga/mng_lanternarchive');
-    await page.getByRole('button',{name:'Rate 8 out of 10'}).click();
+    await page.getByRole('button',{name:/Rate 8 out of 10/}).click();
+    await page.getByRole('button',{name:'Save rating'}).first().click();
     await page.getByRole('link',{name:/Read from beginning/}).click();
     await expect(page.locator('.vertical-page-image').first()).toBeVisible();
     await page.goto('/analytics');
@@ -1146,7 +1158,7 @@ test('Novel Library brand assets and chrome render without the invented logo til
     expect(style.image).toBe('contain');
     const cloud=page.locator('.manga-cloud-icon');
     const svg=await cloud.locator('svg').boundingBox();
-    const dot=await cloud.locator('.manga-cloud-dot').boundingBox();
+    const dot=await cloud.locator('.cloud-status-dot').boundingBox();
     expect(svg&&dot).toBeTruthy();
     // Novel Library's indicator is inside the cloud, not bottom-right on the button.
     expect(dot!.x+dot!.width/2).toBeGreaterThan(svg!.x+svg!.width*.4);
@@ -1226,7 +1238,7 @@ test('private ReLIFE-style chapter list opens verified images without endless sc
   await page.locator('.book-card').filter({hasText:'ReLIFE'}).click();
   await expect(page.getByRole('heading',{name:'ReLIFE'})).toBeVisible();
   await expect(page.locator('.chapter-entry')).toHaveCount(25);
-  await expect(page.locator('.chapter-list-count')).toContainText('Showing 25 of 90 chapters');
+  await expect(page.locator('.chapter-paging')).toContainText('Showing 25 of 90 chapters');
   await page.getByRole('button',{name:'Show next 25 chapters'}).click();
   await expect(page.locator('.chapter-entry')).toHaveCount(50);
   await page.getByRole('searchbox',{name:'Search chapters'}).fill('Chapter 87');
