@@ -1208,11 +1208,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
                     onClick={()=>jumpToFilter('tag',value)}>{value}</button>):
                   <span className="manga-metadata-missing">No imported genres supplied yet.</span>}
               </div>
-              {annotations[entry.id]?.tags?.length ? <div className="tag-row" aria-label="Your personal tags">
-                {annotations[entry.id]!.tags!.map(value=>
-                  <button type="button" key={value} className="tag"
-                    onClick={()=>jumpToFilter('tag',value)}>{value}</button>)}
-              </div> : null}
+
             </section>
             <section className="manga-detail-card manga-collections-card">
               <p className="manga-card-overline">YOUR ORGANISATION</p><h2>Collections</h2>
