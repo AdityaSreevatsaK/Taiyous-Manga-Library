@@ -553,12 +553,16 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
       if(!result.ok)throw Error('logout failed');
       setCloud({status:'disconnected',message:'Signed out of your private Hugging Face library.'});
       setRemoteEntries([]);
+      setPrivateManifests(new Map());setPrivateRevision('');
       changeDemo(true);
     } catch {setStorageNotice('Could not sign out. Check your connection and try again.');}
   }
   function changeDemo(value: boolean) {
+    ++chapterOpenRequest.current;setChapterLoading(null);
     exitImmersive();
     setDemo(value); setLocation(null); setNotice(''); goCatalogue('home');
+    if(value){setPrivateManifests(new Map());setPrivateRevision('');}
+    setChapterLimit(25);setChapterQuery('');
     setPersonalShelves(loadShelves(value ? demoEntries : remoteEntries).shelves);
     setAnnotations(loadAnnotations(value ? demoEntries : remoteEntries).annotations);
     setQuery(''); setTag(''); setCollection(''); setStatus('all');
@@ -1051,7 +1055,13 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
               {progressForEntry && <a className="secondary"
                 href={routeHref({kind:'reader',mangaId:entry.id,chapterId:chapters[0]?.id ?? 'unavailable',pageIndex:0},import.meta.env.BASE_URL)}
                 onClick={event=>followLink(event,()=>openChapter(entry,chapters[0]?.id))}>Start from chapter one</a>}
-              </> : <p className="fine-print">Private catalogue reading is not yet enabled. Chapter images remain protected until the verified media gateway is available.</p>}
+              </> : <>
+                <button type="button" className="primary" disabled={chapterLoading!==null||!chapters.length}
+                  onClick={()=>{void openChapter(entry,undefined,!!progress[entry.id]);}}>
+                  {chapterLoading?'Loading chapter…':progress[entry.id]?'Continue reading':'Read from beginning'} <span aria-hidden="true">↗</span>
+                </button>
+                <p className="fine-print">Private manga pages load securely while you are signed in. Offline downloads are not enabled for private chapters yet.</p>
+              </>}
               <button type="button" className="secondary" aria-pressed={!!annotations[entry.id]?.favourite}
                 onClick={()=>changeAnnotation(entry,{favourite:!annotations[entry.id]?.favourite},
                   annotations[entry.id]?.favourite?'Removed from favourites':'Added to favourites')}>
@@ -1136,15 +1146,17 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
         </section>
         <section className="chapter-section"><div className="shelf-heading"><div><p className="eyebrow">CONTENTS / READING ORDER</p><h2>Chapters &amp; volumes</h2></div></div>
           <label className="chapter-search">Search chapters
-            <input type="search" value={chapterQuery} onChange={event=>setChapterQuery(event.target.value)}
-              placeholder="Find a chapter..." />
+            <input type="search" value={chapterQuery} onChange={event=>{
+              setChapterQuery(event.target.value);setChapterLimit(25);
+            }} placeholder="Find a chapter..." />
           </label>
+          <p className="chapter-list-count">Showing {visibleChapters.length} of {matchingChapters.length} chapters
+            {chapterQuery?' matching your search':''}. Choose any chapter to read.</p>
           <p className="chapter-completion-summary">
             {chapters.filter(chapter => annotations[entry.id]?.completedChapterIds?.includes(chapter.id)).length}
             {' '}of {chapters.length} chapters explicitly marked completed on this device.
           </p>
-          {chapters.filter(chapter => chapter.label.toLocaleLowerCase().includes(chapterQuery.toLocaleLowerCase()))
-            .map(chapter=>{ const index = chapters.findIndex(value=>value.id === chapter.id); return <div className="chapter-entry" key={chapter.id}>
+          {visibleChapters.map(chapter=>{ const index = chapters.findIndex(value=>value.id === chapter.id); return <div className="chapter-entry" key={chapter.id}>
             {demo ? <a className="chapter-row"
               href={routeHref({kind:'reader',mangaId:entry.id,chapterId:chapter.id,pageIndex:0},import.meta.env.BASE_URL)}
               onClick={event=>followLink(event,()=>openChapter(entry,chapter.id))}>
@@ -1152,10 +1164,14 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
               <span className="chapter-title"><strong>{chapter.label}</strong>
                 <small>{chapter.volume ?? 'No volume'} · {chapter.pageCount ?? 'Unknown'} sample pages</small></span>
               <span className="chapter-open">Read ↗</span></a> :
-              <div className="chapter-row"><span className="chapter-number">{String(index+1).padStart(2,'0')}</span>
+              <button type="button" className="chapter-row private-chapter-read"
+                disabled={chapterLoading!==null}
+                onClick={()=>{void openChapter(entry,chapter.id);}}>
+                <span className="chapter-number">{String(index+1).padStart(2,'0')}</span>
                 <span className="chapter-title"><strong>{chapter.label}</strong>
                   <small>{chapter.volume ?? 'No volume'} · {chapter.pageCount ?? 'Unknown'} pages</small></span>
-                <span className="chapter-open">Media pending</span></div>}
+                <span className="chapter-open">{chapterLoading===chapter.id?'Loading…':'Read ↗'}</span>
+              </button>}
             <button type="button" className="secondary chapter-completion-toggle"
               aria-label={annotations[entry.id]?.completedChapterIds?.includes(chapter.id) ?
                 'Mark chapter ' + (index + 1) + ' incomplete' :
@@ -1165,9 +1181,15 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
               {annotations[entry.id]?.completedChapterIds?.includes(chapter.id) ?
                 '✓ Completed' : 'Mark completed'}
             </button>
-            {manifests.get(chapter.id) && <OfflineChapterControl manifest={manifests.get(chapter.id)!}
+            {demo && manifests.get(chapter.id) && <OfflineChapterControl manifest={manifests.get(chapter.id)!}
               onChange={()=>setInventoryRevision(value=>value+1)} />}
           </div>;})}
+          {matchingChapters.length>visibleChapters.length&&
+            <button className="secondary chapter-load-more" type="button"
+              onClick={()=>setChapterLimit(value=>value+25)}>
+              Show next {Math.min(25,matchingChapters.length-visibleChapters.length)} chapters
+            </button>}
+          {chapterLoading&&<p role="status" className="chapter-loading-note">Verifying chapter pages from your private library…</p>}
         </section>
       </>}
       {screen.kind === 'reader' && entry && location && <section className="reader-shell" ref={readerRef} tabIndex={0}
@@ -1216,6 +1238,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
         </div>
         {manifest ?
           <VerticalReader key={manifest.chapterId + ':' + inventoryRevision} manifest={manifest}
+            privateMangaId={demo?undefined:entry.id} privateRevision={demo?undefined:privateRevision}
             fit={preferences.fit} activeIndex={location.pageIndex} jumpToken={jumpToken}
             initialOffsetRatio={progress[entry.id]?.chapterId === location.chapterId &&
               progress[entry.id]?.pageId === manifest.pages[location.pageIndex]?.id
@@ -1230,7 +1253,8 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
             onViewedPage={index => markPageViewed(entry, { chapterId: manifest.chapterId, pageIndex: index })} /> :
           <div className="page-error" role="alert">Chapter pages are not available.</div>}
         <div className="page-navigation">
-          <button className="secondary" type="button" disabled={!stepChapter(entry, manifests, location, -1)}
+          <button className="secondary" type="button" disabled={chapterLoading!==null||
+              (demo?!stepChapter(entry,manifests,location,-1):chapters[0]?.id===location.chapterId)}
             onClick={()=>move(-1)}>← Previous chapter</button>
           <div className="bottom-chapter-picker">
             <label>Chapter
@@ -1241,12 +1265,15 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
             <p aria-live="polite">Chapter {chapters.findIndex(chapter=>chapter.id===location.chapterId)+1} of {chapters.length}
               <span aria-hidden="true"> · </span> Page {location.pageIndex+1} of {manifest?.pages.length ?? '?'}</p>
           </div>
-          <button className="primary" type="button" disabled={!stepChapter(entry, manifests, location, 1)}
+          <button className="primary" type="button" disabled={chapterLoading!==null||
+              (demo?!stepChapter(entry,manifests,location,1):chapters.at(-1)?.id===location.chapterId)}
             onClick={()=>move(1)}>Next chapter →</button>
         </div>
         {notice && <p className="reader-notice" role="status">{notice}</p>}
         <p className="reader-hint">Scroll down to read every page in this chapter. Previous and Next move between chapters only. Nearby images load on demand.</p>
-        <p className="fine-print">Synthetic chapter copies can be saved from series details for genuine offline access. No real private media is connected.</p>
+        <p className="fine-print">{demo
+          ? 'You can download synthetic sample chapters for offline reading.'
+          : 'Private images are fetched securely as you scroll. Offline copies of private chapters are not yet supported.'}</p>
       </section>}
       {screen.kind === 'not-found' && <div className="empty-state" role="alert"><h2>Page unavailable</h2>
         <p>This link does not point to an available manga, chapter or page.</p>
