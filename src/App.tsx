@@ -958,15 +958,24 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
                   onClick={()=>changeDemo(false)}>Go to my private library</button>}
             </div>
           </div>
-          <div className={'editorial-hero-art' + (catalogue.length ? ' has-books' : ' is-empty')} aria-hidden="true">
+          <div className={'editorial-hero-art' + (catalogue.length ? ' has-books' : ' is-empty')}
+            role={catalogue.length ? 'group' : undefined}
+            aria-label={catalogue.length ? 'Featured manga covers' : undefined}
+            aria-hidden={catalogue.length === 0}>
             {catalogue.length ? <div className="editorial-book-stack">
               {catalogue.slice(0,3).map((item,index)=>
-                <div className={'editorial-display-book book-'+index} key={item.id}>
-                  {!demo && <MangaCoverArtwork key={item.cover?.sha256??'none'} entry={item}/>}
-                  <span className="editorial-book-glyph">✦</span>
-                  <span className="editorial-book-title">{item.title}</span>
-                  <span className="editorial-book-maker">{roleNames(item,'author')[0] || item.creators[0] || 'TAIYOU LIBRARY'}</span>
-                </div>)}
+                <a className={'editorial-book-link book-'+index} key={item.id}
+                  href={routeHref({kind:'details',mangaId:item.id},import.meta.env.BASE_URL,catalogue)}
+                  aria-label={'Featured cover for '+item.title}
+                  onClick={event=>followLink(event,()=>navigateTo({kind:'details',mangaId:item.id}))}>
+                  <span className={'editorial-display-book book-'+index}>
+                    {!demo && <MangaCoverArtwork key={item.cover?.sha256??'none'} entry={item}/>}
+                    <span className="editorial-book-glyph">✦</span>
+                    <span className="editorial-book-title">{item.title}</span>
+                    <span className="editorial-book-maker">{roleNames(item,'author')[0] || item.creators[0] || 'TAIYOU LIBRARY'}</span>
+                  </span>
+                  <span className="editorial-art-hover-label" aria-hidden="true">{item.title}</span>
+                </a>)}
             </div> : <div className="editorial-empty-plate">
               <span className="editorial-plate-icon">✦</span>
               <span>TAIYOU'S MANGA LIBRARY</span>
