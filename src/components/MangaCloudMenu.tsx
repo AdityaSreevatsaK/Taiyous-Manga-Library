@@ -1,6 +1,6 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import type { CloudRead } from '../data/privateLibrary';
-import { CloudIcon } from './SharedLibraryIcons';
+import { CloudConnectionIndicator } from './CloudConnectionIndicator';
 
 type Cloud = CloudRead | {status:'checking';message:string};
 
@@ -32,12 +32,9 @@ export function MangaCloudMenu({cloud,online,demo,count,onSample,onPrivate,onLog
     };
   },[]);
   return <details className="manga-cloud-menu cloud-connect" ref={root}>
-    <summary className="cloud-status-toggle" aria-label={'Cloud settings, '+(healthy?'connected':'disconnected')}
+    <summary className="cloud-status-toggle" aria-haspopup="true" aria-label={'Cloud settings, '+(healthy?'connected':'disconnected')}
       title={healthy?'Cloud connected · Open settings':'Cloud disconnected · Open settings'}>
-      <span className="cloud-status-icon" aria-hidden="true">
-        <CloudIcon size={25}/>
-        <span className={'cloud-status-dot '+(healthy?'is-connected':'is-disconnected')}/>
-      </span>
+      <CloudConnectionIndicator connected={healthy}/>
     </summary>
     <div className="manga-cloud-panel cloud-connect-body">
       <h2 className="cloud-settings-heading">Cloud library settings</h2>
