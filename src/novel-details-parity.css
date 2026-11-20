@@ -289,52 +289,40 @@
 .app-shell .manga-cloud-menu>summary::marker{content:''}
 .app-shell .manga-cloud-menu>summary:focus-visible{outline:2px solid var(--editorial-accent);outline-offset:3px}
 
-/* Novel details: status is understated text, with a single filled status dot. */
+/* Novel status styling is intentionally separate from cover ribbon wording. */
 .app-shell .manga-details-hero .manga-publication-pill{
- border:0;border-radius:0;background:transparent;padding:3px 0;
- color:#fff;font-weight:700;font-size:12px
+ border:0;background:transparent;padding:2px 0;color:#fff
 }
 .app-shell .manga-details-hero .manga-publication-pill::before{
- content:'';display:inline-block;vertical-align:middle;width:7px;height:7px;
- margin-right:6px;background:#b4b6c5;border-radius:50%
+ content:'';display:inline-block;width:7px;height:7px;margin-right:6px;
+ vertical-align:middle;border-radius:50%;background:#b4b6c5
 }
-.app-shell .manga-details-hero .manga-publication-pill.status-completed::before{background:#83dca8}
-.app-shell .manga-details-hero .manga-publication-pill.status-ongoing::before{background:#89bfff}
-.app-shell .manga-details-hero .manga-publication-pill.status-hiatus::before{background:#eac679}
+.app-shell .manga-publication-pill.status-completed::before{background:#83dca8}
+.app-shell .manga-publication-pill.status-ongoing::before{background:#89bfff}
+.app-shell .manga-publication-pill.status-hiatus::before{background:#eac679}
 .app-shell .manga-chapter-stat{display:inline-flex;align-items:center;gap:6px}
 .app-shell .manga-details-hero .detail-actions{display:flex;flex-wrap:wrap;gap:10px}
-.app-shell .manga-details-hero .detail-actions>button{flex:0 1 auto}
-.app-shell .manga-hero-rating .hero-rating-save:disabled{color:#293a4d;background:#e7ebf2;opacity:.8}
-/* Author-provided aliases can be long, multi-lingual and unsafe to truncate. */
+.app-shell .manga-hero-rating .hero-rating-save:disabled{color:#293a4d;opacity:.85}
 .app-shell .manga-info-card dd.manga-alias-value{max-width:70%;overflow-wrap:anywhere}
-.app-shell .manga-alias-list summary{cursor:pointer;list-style-position:inside}
-.app-shell .manga-alias-list summary span{color:var(--md-muted);font-size:10px}
-.app-shell .manga-alias-list ul{margin:7px 0 0;padding-left:17px;text-align:left}
-/* Synopsis editing is a personal override, never an implicit private dataset write. */
-.app-shell .manga-synopsis-heading{
- display:flex;align-items:start;justify-content:space-between;flex-wrap:wrap;gap:8px
-}
+.app-shell .manga-alias-list summary{cursor:pointer}
+.app-shell .manga-alias-list ul{padding-left:17px;text-align:left}
+.app-shell .manga-synopsis-heading{display:flex;align-items:start;justify-content:space-between;gap:8px}
 .app-shell .manga-synopsis-edit{
  border:1px solid var(--md-line);border-radius:7px;padding:7px 10px;
- background:var(--md-soft);color:var(--md-ink);font-size:11px;cursor:pointer
+ background:var(--md-soft);color:var(--md-ink);font-size:11px
 }
-.app-shell .manga-synopsis-edit:hover{background:var(--md-panel);border-color:var(--editorial-accent)}
-.app-shell .manga-synopsis-label{display:block;font-size:11px;margin-bottom:8px}
-.app-shell .manga-synopsis-card textarea{
- display:block;width:100%;min-height:135px;resize:vertical;box-sizing:border-box;
- background:var(--md-soft);color:var(--md-ink);padding:11px;border:1px solid var(--md-line);border-radius:7px
-}
-.app-shell .manga-synopsis-actions{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-top:10px}
+.app-shell .manga-synopsis-edit:hover{border-color:var(--editorial-accent)}
+.app-shell .manga-synopsis-label{display:block;font-size:11px;margin-bottom:7px}
+.app-shell .manga-synopsis-card textarea{width:100%;min-height:135px;resize:vertical;padding:10px}
+.app-shell .manga-synopsis-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px}
 .app-shell .manga-synopsis-actions>span{font-size:10px;color:var(--md-muted);margin-right:auto}
-.app-shell .manga-synopsis-actions button{min-height:39px;padding:8px 12px;border-radius:7px}
+.app-shell .manga-synopsis-actions button{min-height:39px;padding:7px 10px;border-radius:7px}
 .app-shell .manga-synopsis-card .manga-synopsis-hint{margin:10px 0 0;font-size:10px}
-.app-shell .manga-synopsis-hint button{margin-left:8px;color:var(--md-ink);background:none;text-decoration:underline}
-.app-shell .manga-synopsis-message{margin-top:10px}
-/* Correct the duplicate focus/border rectangle inside the chapter search. */
+.app-shell .manga-synopsis-hint button{margin-left:7px;color:var(--md-ink);text-decoration:underline}
 .app-shell .novel-chapter-browser .chapter-search input{
- background:transparent;border:0;box-shadow:none;outline:none;
- color:var(--md-ink);flex:1;min-width:0;width:100%
+ background:transparent;border:0;box-shadow:none;outline:none
 }
 .app-shell .novel-chapter-browser .chapter-search:focus-within{
  outline:2px solid var(--editorial-accent);outline-offset:2px
 }
+.app-shell .manga-tags-card .details-tag-row{margin-bottom:13px;row-gap:8px}
