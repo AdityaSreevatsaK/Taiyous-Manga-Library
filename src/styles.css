@@ -429,12 +429,7 @@ a.book-card:focus-visible,a.chapter-row:focus-visible,a.back:focus-visible,a.pri
 .personal-annotations h2{font-size:clamp(22px,3vw,30px);margin-bottom:9px}
 .personal-annotations>p,.personal-notes-editor label,.personal-tag-editor strong,.personal-rating>strong{font-size:12px;color:inherit}
 .personal-annotations>p{line-height:1.6;opacity:.8}
-.personal-rating,.personal-tag-editor,.personal-notes-editor{margin-top:22px}
-.rating-stars{display:flex;flex-wrap:wrap;align-items:center;gap:3px;margin:9px 0 11px}
-.rating-stars button{background:transparent;border:0;min-height:44px;min-width:33px;padding:3px;color:#d4a437;font-size:24px}
-.rating-stars button[aria-pressed="true"]{filter:drop-shadow(0 0 4px #e1c25d)}
-.rating-stars button:focus-visible{outline:3px solid #9f803f;outline-offset:1px}
-.rating-stars>span{font-size:12px;margin-left:9px}
+.personal-tag-editor,.personal-notes-editor{margin-top:12px}
 .personal-tag-editor .tag-row{margin:10px 0}
 .personal-tag{display:inline-flex;align-items:center;border-radius:30px;overflow:hidden;gap:0}
 .personal-tag .tag{border-top-right-radius:0;border-bottom-right-radius:0}
@@ -450,7 +445,7 @@ a.book-card:focus-visible,a.chapter-row:focus-visible,a.back:focus-visible,a.pri
 .app-dialog{background:var(--panel,#26343a);color:var(--ink,#f2e7d5);padding:28px;border:1px solid var(--line,#647480);border-radius:12px;width:min(100%,440px);box-shadow:0 30px 80px #0006}
 :is(.theme-charcoal,.theme-midnight,.theme-plum) .personal-annotations,:is(.theme-charcoal,.theme-midnight,.theme-plum) .app-dialog{background:var(--dark-panel);color:#f5f0e8;border-color:var(--dark-line)}
 :is(.theme-charcoal,.theme-midnight,.theme-plum) .personal-notes-editor textarea{background:var(--dark-paper);border-color:var(--dark-line);color:#f5f0e8}
-@media(max-width:520px){.personal-annotations{padding:19px}.rating-stars button{min-width:29px;font-size:21px}.tag-entry button{min-width:100px}}
+@media(max-width:520px){.personal-annotations{padding:19px}.tag-entry button{min-width:100px}}
 
 /* Personal collections and menu dropdowns */
 .header-explore{display:flex;gap:6px;align-items:center}
