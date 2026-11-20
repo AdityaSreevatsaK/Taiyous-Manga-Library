@@ -35,18 +35,19 @@ export async function fetchPrivateChapter(mangaId:string,chapterId:string,
    throw Error('Chapter pages do not belong to the selected manga');
  return {manifest,revision:doc.revision};
 }
-/** Returns an ephemeral blob URL. Each result must be released as soon as it leaves
- * the nearby-page viewport; no image is placed in the offline Cache Storage.
+/** Returns an ephemeral blob URL for the chapter-wide preload queue.
+ * The URL lives until the chapter closes; no bytes enter persistent/offline caches.
+ * Aborted requests are discarded before a blob URL is created.
  */
 export async function resolvePrivatePage(manifest:ChapterManifest,index:number,
- mangaId:string,revision:string):Promise<PageSource>{
+ mangaId:string,revision:string,signal?:AbortSignal):Promise<PageSource>{
  if(!id(mangaId)||!rev(revision)||!Number.isSafeInteger(index)||index<0||index>=manifest.pages.length)
    throw Error('Invalid private page request');
  const page=manifest.pages[index]!;
  if(!page.assetPath.startsWith('manga/'+mangaId+'/'+manifest.chapterId+'/'))
    throw Error('Page ownership does not match the manga');
  const params=new URLSearchParams({mangaId,chapterId:manifest.chapterId,pageId:page.id,revision});
- const response=await fetch('/api/media/page?'+params,NO_CACHE);
+ const response=await fetch('/api/media/page?'+params,{...NO_CACHE,signal});
  if(!response.ok)fail(response.status);
  if(response.headers.get('Content-Type')?.split(';')[0]!==page.mimeType)
    throw Error('The private page returned an unexpected media format');
@@ -59,6 +60,7 @@ export async function resolvePrivatePage(manifest:ChapterManifest,index:number,
  const hash=[...new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))]
    .map(byte=>byte.toString(16).padStart(2,'0')).join('');
  if(hash!==page.sha256)throw Error('Private image checksum mismatch');
+ if(signal?.aborted)throw new DOMException('Chapter loading cancelled','AbortError');
  const src=URL.createObjectURL(new Blob([bytes],{type:page.mimeType}));
  return {src,fromOfflineCopy:false,release:()=>URL.revokeObjectURL(src)};
 }
