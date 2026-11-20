@@ -9,9 +9,6 @@
 /* v0.7: Novel Details chapter catalogue. Even thousand-chapter books render
    only 50 navigation rows at a time, leaving the details page fast on phones. */
 .chapter-browser .details-section-header { margin-bottom: 10px; }
-.chapter-intro { margin: 4px 0 20px; }
-.chapter-loading, .chapter-error { padding: 22px 14px; border-radius: 10px; font-size: 13px; line-height: 1.6; background: var(--pale); color: var(--subtext); }
-.chapter-error { color: var(--text); }
 .chapter-topline { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 12px 0 14px; flex-wrap: wrap; }
 .chapter-topline strong { font-size: 12px; color: var(--text); }
 .chapter-current-link { display: inline-flex; gap: 7px; align-items: center; border: 0; background: none; padding: 8px 0; color: var(--accent, #42496c); font-size: 12px; font-weight: 650; cursor: pointer; }
