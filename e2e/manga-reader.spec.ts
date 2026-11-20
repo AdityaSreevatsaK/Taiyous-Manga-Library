@@ -188,7 +188,7 @@ test.describe('five-chapter continuous scroll trial', () => {
     await page.getByRole('link', { name: /Read from beginning/ }).click();
     const slugs = ['01-the-awakening','02-the-crossroads','03-the-sky-bridge','04-a-spark-of-light','05-the-new-dawn'];
     const pages = [7,6,9,8,6];
-    for (let i = 0; i < ids.length; i++) {
+    for (let i = 0; i < slugs.length; i++) {
       expect(new URL(page.url()).pathname).toContain('/chapters/' + slugs[i]);
       expect(new URL(page.url()).searchParams.has('page')).toBe(false);
       await expect(page.locator('.vertical-page')).toHaveCount(pages[i]!);
@@ -197,7 +197,7 @@ test.describe('five-chapter continuous scroll trial', () => {
         await page.locator('.vertical-page').nth(4).evaluate(el => el.scrollIntoView({block:'start'}));
         await expect(page.locator('.page-navigation')).toContainText('Page 5 of 7');
       }
-      if (i < ids.length - 1) await page.getByRole('button', { name: /Next chapter/ }).click();
+      if (i < slugs.length - 1) await page.getByRole('button', { name: /Next chapter/ }).click();
     }
     await expect(page.getByRole('button', { name: /Next chapter/ })).toBeDisabled();
     await page.getByRole('button', { name: /Previous chapter/ }).click();
