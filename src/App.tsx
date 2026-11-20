@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { entries as realEntries } from './data/catalogue';
 import { fetchPrivateLibrary, type CloudRead } from './data/privateLibrary';
+import { fetchPrivateChapter } from './data/privateMedia';
 import { demoEntries, demoManifests, fixtureStatement } from './data/fixtures';
 import { verifyOfflineChapter } from './data/offlineChapters';
 import { OfflineChapterControl } from './components/OfflineChapterControl';
@@ -76,6 +77,11 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
   const initialFilters = useMemo(readCatalogueQuery, []);
   const [demo, setDemo] = useState(initialDemo);
   const [remoteEntries, setRemoteEntries] = useState<MangaEntry[]>([]);
+  const [privateManifests, setPrivateManifests] = useState<ReadonlyMap<string,ChapterManifest>>(()=>new Map());
+  const [privateRevision, setPrivateRevision] = useState('');
+  const [chapterLoading, setChapterLoading] = useState<string | null>(null);
+  const [chapterLimit, setChapterLimit] = useState(25);
+  const chapterOpenRequest = useRef(0);
   const [cloud, setCloud] = useState<CloudRead | {status:'checking';message:string}>({
     status:'checking',message:'Checking private library connection…',
   });
@@ -144,10 +150,13 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
   const [offlineChapterIds, setOfflineChapterIds] = useState<ReadonlySet<string>>(() => new Set());
   const readerRef = useRef<HTMLElement | null>(null);
   const catalogue = demo ? demoEntries : remoteEntries;
-  const manifests: ReadonlyMap<string, ChapterManifest> = demo ? demoManifests : new Map<string, ChapterManifest>();
+  const manifests: ReadonlyMap<string, ChapterManifest> = demo ? demoManifests : privateManifests;
   const entry = screen.kind === 'reader' || screen.kind === 'details' ? catalogue.find(item => item.id === screen.id) : undefined;
   const manifest = location ? manifests.get(location.chapterId) : undefined;
   const chapters = entry ? orderedChapters(entry) : [];
+  const matchingChapters=chapters.filter(chapter=>
+    chapter.label.toLocaleLowerCase().includes(chapterQuery.toLocaleLowerCase()));
+  const visibleChapters=matchingChapters.slice(0,chapterLimit);
   const activeChapter = chapters.find(chapter => chapter.id === location?.chapterId);
   const allTags = [...new Set(catalogue.flatMap(item =>
     [...item.tags, ...(annotations[item.id]?.tags ?? [])]))].sort((a,b)=>a.localeCompare(b));
@@ -411,20 +420,63 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
       setStorageNotice('Reader settings could not be saved. Changes are only active in this session.');
     else setStorageNotice('');
   }
-  function openChapter(item: MangaEntry, chapterId?: string, resume = false) {
-    const target = resume ? restoreProgress(item, manifests, progress[item.id]) :
-      { chapterId: chapterId ?? orderedChapters(item)[0]?.id ?? '', pageIndex: 0 };
-    if (!target || !manifests.has(target.chapterId)) {
-      setNotice('No verified pages are available for this chapter yet.');
+  async function openChapter(item: MangaEntry, chapterId?: string, resume = false) {
+    if (demo) {
+      const target = resume ? restoreProgress(item,manifests,progress[item.id]) :
+        {chapterId:chapterId ?? orderedChapters(item)[0]?.id ?? '',pageIndex:0};
+      if (!target || !manifests.has(target.chapterId)) {
+        setNotice('No verified pages are available for this chapter yet.');
+        return;
+      }
+      navigateTo({kind:'reader',mangaId:item.id,chapterId:target.chapterId,pageIndex:target.pageIndex});
       return;
     }
-    navigateTo({ kind: 'reader', mangaId: item.id, chapterId: target.chapterId, pageIndex: target.pageIndex });
+    const selected=chapterId ?? (resume && progress[item.id]?.chapterId) ?? orderedChapters(item)[0]?.id ?? '';
+    if (!item.chapters.some(chapter=>chapter.id===selected)) {
+      setNotice('This chapter is not in your private library.');
+      return;
+    }
+    const operation=++chapterOpenRequest.current;
+    setChapterLoading(selected);
+    setNotice('');
+    try{
+      const existing=privateManifests.get(selected);
+      const loaded=existing && privateRevision ?
+        {manifest:existing,revision:privateRevision} :
+        await fetchPrivateChapter(item.id,selected);
+      if(operation!==chapterOpenRequest.current)return;
+      const next=new Map(privateRevision===loaded.revision?privateManifests:new Map());
+      next.set(selected,loaded.manifest);
+      setPrivateManifests(next);
+      setPrivateRevision(loaded.revision);
+      const local=loadProgress(item,next);
+      const saved=laterProgress(progress[item.id],local.status==='ok'?local.value:undefined);
+      const index=resume && saved?.chapterId===selected ?
+        Math.max(0,loaded.manifest.pages.findIndex(page=>page.id===saved.pageId)) : 0;
+      setLocation({chapterId:selected,pageIndex:index});
+      setJumpToken(value=>value+1);
+      setScreen({kind:'reader',id:item.id});
+      const url=routeHref({kind:'reader',mangaId:item.id,chapterId:selected,pageIndex:index},import.meta.env.BASE_URL);
+      if(window.location.pathname+window.location.search!==url)window.history.pushState(null,'',url);
+    }catch(error){
+      if(operation===chapterOpenRequest.current)
+        setNotice(error instanceof Error?error.message:'Could not load the private chapter.');
+    }finally{
+      if(operation===chapterOpenRequest.current)setChapterLoading(null);
+    }
   }
   function move(delta: -1 | 1) {
     if (!entry || !location || !manifest) return;
-    const next = stepChapter(entry, manifests, location, delta);
-    if (next) updateLocation(next);
-    else setNotice(delta === 1 ? 'You have reached the final chapter.' : 'You are at the first chapter.');
+    if(!demo){
+      const ordered=orderedChapters(entry);
+      const next=ordered[ordered.findIndex(ch=>ch.id===location.chapterId)+delta];
+      if(next)void openChapter(entry,next.id);
+      else setNotice(delta===1?'You have reached the final chapter.':'You are at the first chapter.');
+      return;
+    }
+    const next=stepChapter(entry,manifests,location,delta);
+    if(next)updateLocation(next);
+    else setNotice(delta===1?'You have reached the final chapter.':'You are at the first chapter.');
   }
   function exitImmersive() {
     if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
