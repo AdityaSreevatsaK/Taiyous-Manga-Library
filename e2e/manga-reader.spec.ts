@@ -1283,10 +1283,14 @@ test('private manga cover and metadata refresh preserve local reading records on
   const baseline={kind:'manga',id:mangaId,title:'Metadata Demo',aliases:[],creators:[],tags:[],
     publicationStatus:'unknown',direction:'vertical',chapters:[{id:chapterId,label:'Chapter 1',sequence:1,pageCount:1}]};
   const cover={assetPath:'covers/'+mangaId+'.webp',mimeType:'image/webp',
-    byteSize:62,sha256:'a'.repeat(64)};
-  const enriched={...baseline,authors:['Example Writer'],artists:['Example Illustrator'],
+    width:2,height:3,byteSize:62,sha256:'a'.repeat(64)};
+  const enriched={...baseline,creatorRoles:[
+    {name:'Example Writer',role:'author'},{name:'Example Illustrator',role:'artist'}],
+    creators:['Example Writer','Example Illustrator'],
     aliases:['Another Title'],tags:['Romance'],synopsis:'An accurate enriched synopsis.',
-    publicationStatus:'completed',coverAsset:cover};
+    publicationStatus:'completed',cover,
+    metadataSources:{cover:{provider:'mangadex',sourceId:'demo',
+      sourceUrl:'https://mangadex.org/title/demo',retrievedAt:'2026-11-20T08:30:00Z'}}};
   let enrichedNow=false;
   const cloud={connected:true,owner:'AdityaSreevatsaK',repo:'AdityaSreevatsaK/Taiyous-Manga'};
   await page.route('**/api/auth/session',route=>route.fulfill({
@@ -1322,9 +1326,9 @@ test('failed authenticated cover request leaves readable placeholder and metadat
   const mangaId='mng_coverfallback001';
   const cloud={connected:true,owner:'AdityaSreevatsaK',repo:'AdityaSreevatsaK/Taiyous-Manga'};
   const entry={kind:'manga',id:mangaId,title:'Missing Cover Demo',aliases:[],creators:[],
-    authors:['Example Author'],artists:[],tags:[],publicationStatus:'unknown',
-    direction:'vertical',chapters:[],coverAsset:{assetPath:'covers/'+mangaId+'.webp',
-      mimeType:'image/webp',byteSize:100,sha256:'b'.repeat(64)}};
+    creatorRoles:[{name:'Example Author',role:'author'}],tags:[],publicationStatus:'unknown',
+    direction:'vertical',chapters:[],cover:{assetPath:'covers/'+mangaId+'.webp',
+      mimeType:'image/webp',width:2,height:3,byteSize:100,sha256:'b'.repeat(64)}};
   await page.route('**/api/auth/session',route=>route.fulfill({
     status:200,contentType:'application/json',body:JSON.stringify(cloud),
   }));
