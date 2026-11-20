@@ -61,3 +61,25 @@
   position:fixed;left:10px;right:10px;top:65px;max-width:none;min-width:0
  }
 }
+
+/* Match the Novel Library's two-line compact header without 320px overflow.
+ * Keep cloud, themes and collection navigation accessible.
+ */
+.app-shell.is-manga-details .manga-cloud-menu:not([open])>.manga-cloud-panel{display:none}
+@media(max-width:740px){
+ .app-shell.is-manga-details .manga-topbar{
+  display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px 10px;
+  align-items:center;flex-wrap:initial;min-width:0
+ }
+ .app-shell.is-manga-details .wordmark{grid-column:1;grid-row:1;min-width:0}
+ .app-shell.is-manga-details .manga-cloud-menu{
+  grid-column:2;grid-row:1;justify-self:end;min-width:42px
+ }
+ .app-shell.is-manga-details .manga-detail-quick-nav{
+  grid-column:1;grid-row:2;min-width:0;justify-content:flex-start
+ }
+ .app-shell.is-manga-details .manga-top-actions{
+  grid-column:2;grid-row:2;justify-self:end;
+  flex:initial;width:auto;min-width:0;margin:0
+ }
+}
