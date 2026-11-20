@@ -18,9 +18,7 @@
   position:relative;isolation:isolate;overflow:hidden;
   grid-template-columns:minmax(165px,235px) minmax(0,1fr);
   gap:clamp(22px,4vw,54px);padding:38px clamp(22px,4vw,52px);align-items:center;
-  border-radius:17px;background:
-    repeating-radial-gradient(circle at 79% 42%,transparent 0 65px,#fff1 66px 67px),
-    radial-gradient(circle at 77% 22%,#3a587a,#203957 55%,#11243c);
+  border-radius:17px;background:#243c5b;
   color:#fff7e9;box-shadow:0 16px 38px #0924412f;
 }
 .app-shell .manga-details-hero .detail-cover{
@@ -223,3 +221,98 @@
 .manga-collection-option input{width:18px;height:18px;flex:none;accent-color:#214d73}
 .manga-collection-footer{display:flex;justify-content:space-between;gap:10px}
 .manga-collection-footer button{min-height:40px}
+
+
+/* The same editorial hero photo treatment as Novel details-palettes.css.
+ * This image is decorative, never derived from private metadata.
+ */
+.app-shell .manga-details-hero .manga-novel-backdrop{
+ position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden;
+ background:radial-gradient(ellipse at 78% 31%,
+  var(--novel-hero-glow,#365c85),var(--novel-hero-mid,#243c5b) 48%,
+  var(--novel-hero-shadow,#14253f))
+}
+.app-shell .manga-details-hero .manga-novel-backdrop img{
+ position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:1
+}
+.app-shell .manga-details-hero .manga-novel-backdrop:after{
+ content:'';position:absolute;inset:0;
+ background:linear-gradient(90deg,#081426a8,#08142626 77%,#08142614)
+}
+.app-shell .manga-details-hero .detail-cover,
+.app-shell .manga-details-hero .detail-content,
+.app-shell .manga-details-hero .details-hero-memberships{
+ position:relative;z-index:1
+}
+.app-shell .manga-details-hero .detail-cover{
+ padding:0;overflow:hidden;border:1px solid #d6dce49c;
+ box-shadow:10px 14px 24px #0008
+}
+.app-shell .manga-details-hero .stat-strip{
+ margin:13px 0 12px;padding:0;display:flex;flex-wrap:wrap;gap:12px
+}
+.app-shell .manga-details-hero .manga-publication-pill{
+ display:inline-flex;align-items:center;gap:6px;color:#fff;
+ padding:5px 9px;border:1px solid #ffffff80;border-radius:5px;
+ background:#0c233b77;font-size:11px;font-weight:650
+}
+.app-shell .manga-details-hero .manga-publication-pill>span{color:#8bdfab;font-size:9px}
+.app-shell .manga-details-hero .details-hero-memberships{
+ grid-column:1/-1;display:flex;align-items:center;flex-wrap:wrap;gap:7px;
+ font-size:10px;font-weight:700;letter-spacing:.06em
+}
+.app-shell .manga-details-hero .details-hero-membership{
+ border:1px solid #ffffff88;border-radius:6px;padding:7px 10px;
+ background:#ffffff20;color:#fff;cursor:pointer;font-size:11px
+}
+.app-shell .manga-details-hero .details-hero-membership:hover{background:#ffffff45}
+.app-shell .manga-tags-card .details-tag-form{
+ display:flex;align-items:flex-end;flex-wrap:wrap;gap:10px;width:100%;max-width:none
+}
+.app-shell .manga-tags-card .details-tag-form label{flex:1 1 190px;min-width:0}
+.app-shell .manga-tags-card .details-tag-form input{
+ width:100%;min-width:0;min-height:43px;border-radius:8px;padding:10px 12px
+}
+.app-shell .manga-tags-card .details-tag-form button{min-height:43px}
+.app-shell .manga-tags-card .details-tag-row{gap:7px}
+.app-shell .manga-tags-card .details-tag-row>.tag{padding:7px 9px}
+.app-shell .manga-tags-card .tag-draft-actions{
+ display:flex;justify-content:space-between;align-items:center;
+ gap:9px;flex-wrap:wrap;margin-top:16px;font-size:11px
+}
+.app-shell .manga-tags-card .tag-draft-actions span{color:var(--md-muted)}
+.app-shell .manga-tags-card .tag-draft-actions button{min-height:37px}
+.app-shell .manga-details-sidebar .personal-annotations{display:block}
+.app-shell .personal-annotations .personal-review-form{
+ display:flex;flex-direction:column;gap:13px;width:100%;margin-top:14px
+}
+.app-shell .personal-annotations .personal-review-form label{
+ display:block;max-width:none;font-size:12px;font-weight:700
+}
+.app-shell .personal-annotations .personal-review-form textarea{
+ display:block;box-sizing:border-box;width:100%;min-width:0;
+ min-height:130px;max-width:100%;padding:12px 14px;
+ border:1px solid var(--md-line);border-radius:8px;
+ background:var(--md-soft);color:var(--md-ink);font-size:12px;line-height:1.6
+}
+.app-shell .personal-annotations .personal-review-actions{
+ display:flex;justify-content:space-between;gap:10px;align-items:center;
+ flex-wrap:wrap;width:100%;margin:0
+}
+.app-shell .personal-annotations .personal-review-actions>span{
+ flex:1 1 120px;font-size:11px;color:var(--md-muted)
+}
+.app-shell .personal-annotations .personal-review-actions button{min-height:40px}
+.app-shell .manga-journey-card .manga-mark-finished{
+ width:100%;margin-top:10px;min-height:40px;border-radius:7px;
+ background:transparent;color:var(--md-ink);border:1px solid var(--md-line)
+}
+.app-shell .manga-journey-card .manga-mark-finished:hover{
+ background:var(--md-soft);color:var(--md-ink)
+}
+@media(max-width:700px){
+ .app-shell .manga-details-hero .manga-novel-backdrop:after{
+  background:linear-gradient(110deg,#0814269a,#08142639 85%)
+ }
+ .app-shell .manga-details-hero .details-hero-memberships{gap:6px}
+}
