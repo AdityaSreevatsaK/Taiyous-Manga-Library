@@ -32,7 +32,6 @@
 .app-shell .manga-details-hero .tag:hover{background:#fff;color:#183149;border-color:#fff}
 /* Novel BookDetails rating controls, lean Manga adaptation. */
 .app-shell .manga-hero-rating{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin:14px 0}
-.app-shell .manga-hero-rating fieldset{border:0;padding:0;margin:0;min-width:0}
 .app-shell .manga-hero-rating legend{display:flex;gap:7px;margin-bottom:8px;color:#e9edf5;font-size:12px;font-weight:700}
 .app-shell .hero-rating-choices{display:flex;flex-wrap:wrap;gap:5px}
 .app-shell .hero-rating-choice{min-width:31px;height:32px;border:1px solid #b7c2d1;border-radius:7px;background:#ffffff17;color:#edf0f7;font-size:12px;font-weight:700}
@@ -41,7 +40,6 @@
 .app-shell .hero-rating-clear{border:0;background:transparent;color:#e9edf5;text-decoration:underline;font-size:11px}
 .app-shell .hero-rating-save{min-height:32px;padding:6px 12px;border:1px solid #d3d7e4;border-radius:7px;background:#d3d7e4;color:#252a43;font-weight:700}
 .app-shell .hero-rating-save:hover{background:#fff}
-.app-shell .hero-rating-save:disabled{opacity:.55}
 .app-shell .manga-mobile-rating{display:none}
 @media(max-width:700px){
  .app-shell .manga-hero-rating{display:none}
@@ -95,7 +93,6 @@
 .app-shell .manga-detail-card :is(.primary,.secondary):hover{
   background:#173e62;color:#fff;border-color:#173e62;
 }
-.app-shell .manga-detail-card :is(.primary,.secondary):disabled{opacity:.55;filter:none}
 .app-shell .manga-detail-card .tag{background:var(--md-soft);color:var(--md-ink);border-color:var(--md-line)}
 .app-shell .manga-detail-card .tag:hover{background:#284f74;color:#fff}
 /* Novel reader footer pattern: chapter number opens the searchable modal. */
@@ -284,6 +281,4 @@
  }
 
 /* Covers use IndexedDB-first blob URLs; the placeholder remains until decoded. */
-.app-shell :is(.book-cover,.detail-cover,.editorial-display-book) .manga-cover-loader{
- position:absolute;inset:0;pointer-events:none
-}
+.app-shell .manga-cover-loader{position:absolute;inset:0;pointer-events:none}
