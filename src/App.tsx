@@ -659,6 +659,8 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
         <div className="manga-nav-links">
           {currentNav.map(section=>
             <a key={section} className="site-nav-link"
+              aria-label={['reading','trying','offline','finished','to-read'].includes(section)
+                ? labels[section]+' ('+counts[section]+')' : labels[section]}
               aria-current={selectedSection===section?'page':undefined}
               href={routeHref({kind:section},import.meta.env.BASE_URL)}
               onClick={event=>followLink(event,()=>goCatalogue(section))}>
