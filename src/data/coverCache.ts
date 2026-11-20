@@ -13,9 +13,16 @@ interface RecordCover {key:string;blob:Blob;size:number;savedAt:number}
 let database:Promise<IDBDatabase>|null=null;
 let generation=0;
 let verifiedCatalogueRevision:string|null=null;
-/** Revision obtained from the already authenticated /api/library response. */
-export function setCoverCatalogueRevision(value:unknown):void{
+let verifiedCanonicalCatalogue=false;
+/** Revision obtained from the authenticated /api/library response. */
+export function setCoverCatalogueRevision(value:unknown,canonical=true):void{
  verifiedCatalogueRevision=typeof value==='string'&&/^[a-f0-9]{40}$/.test(value)?value:null;
+ verifiedCanonicalCatalogue=canonical&&verifiedCatalogueRevision!==null;
+}
+/** Only canonical imports can use data/manga/... revision-pinned page delivery.
+ * Read-only legacy data stays on the previous manifest-gated gateway. */
+export function canFastReadCanonicalPages(revision:string):boolean{
+ return verifiedCanonicalCatalogue&&revision===verifiedCatalogueRevision;
 }
 const inflight=new Map<string,Promise<Blob|null>>();
 /** A small session-only LRU avoids IndexedDB round-trips when navigating shelves.
@@ -144,7 +151,7 @@ export function loadMangaCover(entry:MangaEntry):Promise<Blob|null>{
   // Tell the gateway the already validated descriptor, avoiding extra HF catalogue
   // and revision lookups for cold covers. The gateway still authenticates each GET.
   const query=new URLSearchParams({mangaId:entry.id});
-  if(verifiedCatalogueRevision&&entry.cover){
+  if(verifiedCanonicalCatalogue&&verifiedCatalogueRevision&&entry.cover){
    query.set('revision',verifiedCatalogueRevision);
    query.set('sha256',entry.cover.sha256);
    query.set('mimeType',entry.cover.mimeType);
@@ -173,6 +180,7 @@ export async function clearMangaCoverCache():Promise<boolean>{
  inflight.clear();
  hotCovers.clear();hotBytes=0;
  verifiedCatalogueRevision=null;
+ verifiedCanonicalCatalogue=false;
  try{
   if(typeof indexedDB==='undefined')return true;
   const db=await openDatabase();
