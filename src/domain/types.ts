@@ -4,6 +4,8 @@ export type ReadingDirection = 'rtl' | 'ltr' | 'vertical';
 export interface MangaChapter {
   id: string;
   label: string;
+  /** Permanent public chapter slug. Retain on rename, never use as storage ID. */
+  slug?: string;
   volume?: string;
   /** Immutable ordering key within its series; titles/labels can change. */
   sequence: number;
@@ -14,6 +16,8 @@ export interface MangaEntry {
   kind: 'manga';
   id: string;
   title: string;
+  /** Permanent public series slug. Retain on rename, never use as storage ID. */
+  slug?: string;
   aliases: string[];
   creators: string[];
   tags: string[];
