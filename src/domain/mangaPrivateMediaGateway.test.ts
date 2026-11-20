@@ -109,6 +109,8 @@ describe('owner-only verified private manga image gateway',()=>{
  it('serves only verified original cover types from private immutable HF data',async()=>{
    const query=new URLSearchParams({mangaId:id}).toString();
    for(const sample of coverSamples){
+     // Each fixture simulates a different immutable HF revision despite the reused fake SHA.
+     clearPrivateMediaMetadataCacheForTests();
      const digest=[...new Uint8Array(await crypto.subtle.digest('SHA-256',sample.bytes.buffer))]
        .map(x=>x.toString(16).padStart(2,'0')).join('');
      const cover={assetPath:'covers/'+id+'.'+sample.suffix,mimeType:sample.mime,
