@@ -753,6 +753,30 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
       setPersonalTagDraft(tags);setTagDraft('');
     }catch(error){setStorageNotice(error instanceof Error?error.message:'Invalid personal tag.');}
   }
+  /** Detect newly uploaded Controller catalogues when the owner returns to this tab.
+   * Avoid polling while reading; never replace personal metadata or progress. */
+  useEffect(()=>{
+    if(demo||cloud.status!=='connected')return;
+    let active=true;
+    let lastChecked=Date.now();
+    let running=false;
+    const refresh=()=>{
+      if(!active||running||Date.now()-lastChecked<60_000||document.hidden)return;
+      lastChecked=Date.now();running=true;
+      void fetchPrivateLibrary().then(result=>{
+        if(!active||result.status!=='connected')return;
+        setRemoteEntries(previous=>{
+          const next=[...result.entries];
+          return JSON.stringify(previous)===JSON.stringify(next)?previous:next;
+        });
+      }).catch(()=>{}).finally(()=>{running=false;});
+    };
+    window.addEventListener('focus',refresh);
+    document.addEventListener('visibilitychange',refresh);
+    return ()=>{active=false;window.removeEventListener('focus',refresh);
+      document.removeEventListener('visibilitychange',refresh);};
+  },[demo,cloud.status]);
+
   /** A single metadata-only reload shared by Details and Cloud settings. */
   async function refreshPrivateCatalogue(){
     if(refreshingMetadata)return;
