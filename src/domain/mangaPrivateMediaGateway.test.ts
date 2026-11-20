@@ -148,6 +148,37 @@ describe('owner-only verified private manga image gateway',()=>{
    }
    expect((await request('cover','mangaId=..%2Fprivate')).status).toBe(400);
  });
+ it('loads immutable catalogue-pinned covers in one private HF round trip',async()=>{
+   clearPrivateMediaMetadataCacheForTests();
+   const image=Uint8Array.from([137,80,78,71,13,10,26,10,0,1,2,3]);
+   const expected=[...new Uint8Array(await crypto.subtle.digest('SHA-256',image.buffer))]
+     .map(x=>x.toString(16).padStart(2,'0')).join('');
+   const query=new URLSearchParams({
+     mangaId:id,revision:sha,sha256:expected,mimeType:'image/png',
+     byteSize:String(image.length),extension:'png',
+   });
+   const spy=vi.spyOn(globalThis,'fetch').mockImplementation(async input=>{
+     const url=String(input);
+     if(url.includes('/resolve/'+sha+'/data/covers/'+id+'.png'))
+       return new Response(image.slice().buffer,{status:200});
+     throw Error('Redundant Hugging Face request on pinned cover: '+url);
+   });
+   expect((await request('cover',String(query),false)).status).toBe(401);
+   expect(spy).not.toHaveBeenCalled();
+   const first=await request('cover',String(query));
+   expect(first.status).toBe(200);
+   expect(first.headers.get('Cache-Control')).toContain('no-store');
+   expect(new Uint8Array(await first.arrayBuffer())).toEqual(image);
+   expect((await request('cover',String(query))).status).toBe(200);
+   expect(spy.mock.calls).toHaveLength(1);
+   expect(spy.mock.calls.every(call=>!String(call[0]).includes('/api/datasets/'))).toBe(true);
+   const tampered=new URLSearchParams(query);
+   tampered.set('sha256','f'.repeat(64));
+   expect((await request('cover',String(tampered))).status).toBe(409);
+   const invalid=new URLSearchParams(query);
+   invalid.set('extension','../secret');
+   expect((await request('cover',String(invalid))).status).toBe(400);
+ });
  it('rejects missing and tampered private cover artwork',async()=>{
    const image=coverSamples[0]!.bytes,hash='f'.repeat(64);
    const cover={assetPath:'covers/'+id+'.png',mimeType:'image/png',
