@@ -8,6 +8,35 @@ const CATALOGUE_LIMIT=4*1024*1024, MANIFEST_LIMIT=1024*1024, PAGE_LIMIT=25_000_0
 const ID={manga:/^mng_[A-Za-z0-9_-]{8,64}$/,chapter:/^ch_[A-Za-z0-9_-]{8,64}$/,
   page:/^pg_[A-Za-z0-9_-]{8,64}$/};
 type Layout='canonical'|'legacy';
+type VerifiedIndex={entries:MangaEntry[];layout:Layout};
+type CacheValue<T>={expires:number;value:Promise<T>};
+/** Isolate-local, revision-keyed private metadata cache. Never caches bearer tokens,
+ * raw page images, personal records or HTTP responses. All requests still require
+ * valid owner cookies and a fresh private-repository revision check.
+ */
+const META_TTL_MS=30_000;
+const catalogues=new Map<string,CacheValue<VerifiedIndex>>();
+const manifests=new Map<string,CacheValue<ChapterManifest>>();
+function cachedMetadata<T>(cache:Map<string,CacheValue<T>>,key:string,max:number,
+ loader:()=>Promise<T>):Promise<T>{
+ const old=cache.get(key);
+ if(old&&old.expires>Date.now())return old.value;
+ if(old)cache.delete(key);
+ const value=loader(),record={expires:Date.now()+META_TTL_MS,value};
+ cache.set(key,record);
+ while(cache.size>max){
+   const oldest=cache.keys().next().value;
+   if(oldest===undefined)break;
+   cache.delete(oldest);
+ }
+ void value.catch(()=>{if(cache.get(key)===record)cache.delete(key);});
+ return value;
+}
+/** Clears test-only cached promises between mocked remote dataset fixtures. */
+export function clearPrivateMediaMetadataCacheForTests():void{
+ catalogues.clear();manifests.clear();
+}
+
 
 async function bounded(response:Response,limit:number):Promise<ArrayBuffer>{
  const length=response.headers.get('Content-Length');
@@ -39,7 +68,7 @@ function parseEnvelope(raw:unknown):MangaEntry[]{
  return parseCatalogue(r.entries);
 }
 /** Never reinterpret a partially populated canonical dataset as a legacy one. */
-async function catalogueAt(sha:string,token:string):Promise<{entries:MangaEntry[];layout:Layout}>{
+async function fetchCatalogueAt(sha:string,token:string):Promise<VerifiedIndex>{
  const canonical=await hfFetch('/datasets/'+REPO+'/resolve/'+sha+'/data/library.json',token);
  if(canonical.ok)return {entries:parseEnvelope(await readJson(canonical,CATALOGUE_LIMIT)),layout:'canonical'};
  if(canonical.status!==404)throw Error('Private library unavailable');
@@ -53,6 +82,9 @@ async function catalogueAt(sha:string,token:string):Promise<{entries:MangaEntry[
  if(!legacy.ok)throw Error('Legacy catalogue unavailable');
  return {entries:parseCatalogue(await readJson(legacy,CATALOGUE_LIMIT)),layout:'legacy'};
 }
+function catalogueAt(sha:string,token:string):Promise<VerifiedIndex>{
+ return cachedMetadata(catalogues,sha,2,()=>fetchCatalogueAt(sha,token));
+}
 function identity(url:URL){
  const mangaId=url.searchParams.get('mangaId')||'',chapterId=url.searchParams.get('chapterId')||'';
  const pageId=url.searchParams.get('pageId')||'';
@@ -60,7 +92,7 @@ function identity(url:URL){
  if(!ID.manga.test(mangaId)||!ID.chapter.test(chapterId))return null;
  return {mangaId,chapterId,pageId,revision};
 }
-async function readManifest(sha:string,token:string,layout:Layout,mangaId:string,chapterId:string,
+async function fetchManifest(sha:string,token:string,layout:Layout,mangaId:string,chapterId:string,
  expectedPageCount:number):Promise<ChapterManifest>{
  const path=layout==='canonical'?'data/manifests/':'manifests/';
  const r=await hfFetch('/datasets/'+REPO+'/resolve/'+sha+'/'+path+chapterId+'.json',token);
@@ -70,6 +102,12 @@ async function readManifest(sha:string,token:string,layout:Layout,mangaId:string
    manifest.pages.some(page=>!page.assetPath.startsWith('manga/'+mangaId+'/'+chapterId+'/')))
    throw Error('Chapter metadata does not match the verified catalogue');
  return manifest;
+}
+function readManifest(sha:string,token:string,layout:Layout,mangaId:string,chapterId:string,
+ expectedPageCount:number):Promise<ChapterManifest>{
+ const key=[sha,layout,mangaId,chapterId,expectedPageCount].join(':');
+ return cachedMetadata(manifests,key,24,()=>
+   fetchManifest(sha,token,layout,mangaId,chapterId,expectedPageCount));
 }
 function imageSignature(bytes:Uint8Array,page:MangaPage):boolean{
  const has=(...header:number[])=>header.every((byte,i)=>bytes[i]===byte);
