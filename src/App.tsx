@@ -1137,6 +1137,15 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
           onClick={event=>followLink(event,()=>goCatalogue())}>← Back to the shelf</a>
         <section className="series-detail manga-details-hero novel-photographic-hero">
           <MangaHeroBackdrop key={entry.id} mangaId={entry.id}/>
+          {collections.items.some(folder=>folder.mangaIds.includes(entry.id))&&
+            <nav className="details-hero-memberships" aria-label="Collections containing this manga">
+              <span>IN COLLECTIONS</span>
+              {sortedPersonalCollections.filter(folder=>folder.mangaIds.includes(entry.id)).map(folder=>
+                <button key={folder.id} className="details-hero-membership" type="button"
+                  onClick={()=>filterPersonalCollection(folder.id)}>
+                  {collectionBreadcrumb(collections,folder.id)}
+                </button>)}
+            </nav>}
           <div className={'detail-cover cover-'+(demoEntries.findIndex(d=>d.id===entry.id)%3+1)} aria-hidden="true">
             {!demo && <MangaCoverArtwork key={entry.cover?.sha256??'none'} entry={entry} priority/>}
             <span className="cover-illustration"><i /><b /></span><span className="cover-title">{entry.title}</span>
@@ -1231,6 +1240,12 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
                 onClick={()=>{void openChapter(entry,undefined,!!(progress[entry.id]||privateResumeChapter(entry)));}}>
                 {progressForEntry||(!demo&&privateResumeChapter(entry))?'Resume at saved position':'Start reading'} →
               </button>
+              {personalShelves[entry.id]==='finished'
+                ? <button type="button" className="secondary manga-mark-finished"
+                    onClick={()=>changeShelf(entry,null)}>✓ Completed · Undo</button>
+                : entry.publicationStatus!=='ongoing'&&
+                  <button type="button" className="secondary manga-mark-finished"
+                    onClick={()=>changeShelf(entry,'finished')}>✓ Mark as completed</button>}
             </section>
             <section className="manga-detail-card manga-info-card">
               <p className="manga-card-overline">MANGA INFORMATION</p><h2>Details</h2>
@@ -1246,17 +1261,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
                 <div><dt>Publication</dt><dd>{publicationCaption[entry.publicationStatus]}</dd></div>
                 
               </dl>
-              <div className="personal-shelf-selector">
-              <label>Personal reading shelf
-                <select aria-label="Personal reading shelf" value={personalShelves[entry.id] ?? ''}
-                  onChange={event=>changeShelf(entry, (event.target.value || null) as ShelfSelection)}>
-                  <option value="">No personal shelf</option>
-                  <option value="trying">Trying Out</option>
-                  <option value="to-read">To Be Read</option>
-                  <option value="finished">Finished</option>
-                </select></label>
-              <p>Stored only on this device. Your publication status is not changed.</p>
-            </div>
+              
             
             </section>
             <section className="manga-detail-card manga-tags-card" aria-label="Publication genres and tags">
@@ -1312,43 +1317,11 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
                 </div>
               </form>
             </section>
-            <section className="manga-detail-card manga-collections-card">
-              <p className="manga-card-overline">YOUR ORGANISATION</p><h2>Collections</h2>
-              <div className="collection-membership">
-              <label>Add to collection
-                <select id="manga-detail-collection" aria-label="Add to collection" value="" onChange={event=>{
-                  if(event.target.value)updateMembership(entry,event.target.value,true);
-                }}>
-                  <option value="">Choose a collection</option>
-                  {sortedPersonalCollections.map(folder=><option key={folder.id} value={folder.id}
-                    disabled={folder.mangaIds.includes(entry.id)}>
-                    {collectionBreadcrumb(collections,folder.id)}{folder.mangaIds.includes(entry.id)?' (already added)':''}
-                  </option>)}
-                </select>
-              </label>
-              <div className="collection-memberships">
-                {collections.items.filter(folder=>folder.mangaIds.includes(entry.id)).map(folder=>
-                  <span className="collection-member" key={folder.id}>
-                    <button className="tag" type="button" onClick={()=>filterPersonalCollection(folder.id)}>
-                      {collectionBreadcrumb(collections,folder.id)}</button>
-                    <button type="button" aria-label={'Remove from collection ' + folder.name}
-                      onClick={()=>setConfirmMembershipRemoval({collectionId:folder.id,mangaId:entry.id})}>×</button>
-                  </span>)}
-              </div>
-              {collections.items.length===0 && <p>No personal collections yet. Create one in All Manga.</p>}
-            </div>
-            
-            </section>
             <section className="manga-detail-card manga-management-card">
               <p className="manga-card-overline">MANGA STORAGE</p><h2>Manage this manga</h2>
-              <p>Private manga images are accessed securely from Hugging Face. Offline copies of private chapters are not yet supported.</p>
-              {!demo&&<button className="secondary manga-refresh-metadata" type="button"
-                disabled={refreshingMetadata} onClick={()=>{void refreshPrivateCatalogue();}}>
-                {refreshingMetadata?'Refreshing metadata…':'Refresh publication metadata'}
-              </button>}
-              {!demo&&<a className="secondary manga-storage-link"
-                href="https://github.com/AdityaSreevatsaK/Taiyou-Manga-Storage-Controller/actions"
-                target="_blank" rel="noopener noreferrer">Open Manga Storage Controller ↗</a>}
+              <p>The original cover and pages remain protected in your private library.
+                Uploads, metadata edits, deletion and backups belong to Master Controls on the main library page.</p>
+              <p>Private chapter offline downloads are not yet available.</p>
             </section>
           </aside>
           <section className="manga-detail-card manga-mobile-rating" aria-label="Personal manga rating on mobile">
