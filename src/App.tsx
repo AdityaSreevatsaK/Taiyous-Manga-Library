@@ -40,7 +40,6 @@ import './novel-parity.css';
 import './novel-details-parity.css';
 import './ported-novel-chapters.css';
 import './ported-novel-quick-navigation.css';
-import './manga-ui-refinements.css';
 
 /** These ribbons describe publication status, never the reader's Finished shelf. */
 function roleNames(item:MangaEntry,role:'author'|'artist'):string[]{
