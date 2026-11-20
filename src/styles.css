@@ -25,11 +25,8 @@ h1,h2,h3{font-family:Georgia,Cambria,serif;font-weight:500}
 .toolbar label,.reader-options label{display:flex;flex-direction:column;gap:8px;color:#c8d4d4;font-size:11px;letter-spacing:.03em}
 input,select{background:#192b34;border:1px solid #55646b;color:#f7f0e4;border-radius:8px;min-height:46px;width:100%;padding:10px 12px;min-width:0}
 input::placeholder{color:#9baeb4}
-.book-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px}
-.book-card{background:#1b2932;border:1px solid #3e5059;border-radius:12px;padding:12px;text-align:left;color:inherit;min-width:0;transition:transform .16s,border-color .16s}
-.book-card:hover{border-color:#d2b88a;transform:translateY(-3px)}
+.book-grid{display:grid}
 .book-cover,.detail-cover{position:relative;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden;background:linear-gradient(160deg,#4a414e,#232f40 75%);color:#f4e9d9;border-radius:7px;isolation:isolate}
-.book-cover{aspect-ratio:3/4;width:100%;padding:23px}
 .cover-1{background:linear-gradient(155deg,#665049 0%,#403d4d 47%,#1b2738 100%)}
 .cover-2{background:linear-gradient(155deg,#41605b 0%,#273d41 46%,#142b33 100%)}
 .cover-3{background:linear-gradient(155deg,#5f4e5f 0%,#313a4c 46%,#1b2534 100%)}
@@ -38,8 +35,6 @@ input::placeholder{color:#9baeb4}
 .cover-illustration{position:absolute;inset:12% 0;pointer-events:none}
 .cover-illustration i{position:absolute;top:9%;left:28%;width:45%;aspect-ratio:1;border-radius:50%;background:#e5c995;box-shadow:0 0 0 23px #efd8a41a,0 0 0 53px #fbe4bb14}
 .cover-illustration b{position:absolute;bottom:11%;left:-12%;width:130%;height:28%;transform:rotate(-16deg);border:2px solid #e7cb99aa;border-radius:48% 52% 0 0;background:linear-gradient(8deg,#1b2434,#31404c)}
-.book-details{display:flex;flex-direction:column;gap:9px;padding:15px 6px 5px;color:#bbc9ca;font-size:12px}
-.book-details strong{font-size:17px;color:#f4eee5;font-family:Georgia,serif;font-weight:500}
 .book-micro{display:flex;justify-content:space-between;gap:4px;color:#d8c291}
 .empty-state{padding:68px 20px;background:#192932;border:1px dashed #56676e;border-radius:14px;text-align:center}
 .empty-icon{font-size:40px;color:#e5cca0}
