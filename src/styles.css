@@ -64,7 +64,6 @@ input::placeholder{color:#9baeb4}
 .stat-strip strong{display:block;font:500 30px Georgia,serif;color:#f4ede0;margin-bottom:5px}
 .detail-actions{display:flex;gap:10px;flex-wrap:wrap}
 .fine-print{color:#b0c0c4;font-size:11px;line-height:1.7;margin:18px 0}
-.chapter-title{display:flex;flex-direction:column;gap:5px;flex:1}
 .reader-shell{padding-bottom:50px;outline:none}
 .reader-topline{display:flex;justify-content:space-between;gap:15px;margin:7px 0 20px}
 .reader-controls{display:flex;justify-content:space-between;align-items:flex-end;gap:25px;flex-wrap:wrap;border-bottom:1px solid #45545b;padding-bottom:25px}
@@ -150,11 +149,11 @@ button:disabled{opacity:.52;cursor:not-allowed}
 }
 
 /* Real anchors preserve browser history, middle-click, Ctrl/Cmd-click and new tabs. */
-.wordmark,.book-card,.chapter-row,.back,.primary,.secondary{text-decoration:none}
+.wordmark,.book-card,.back,.primary,.secondary{text-decoration:none}
 .book-card{display:block}
 a.primary,a.secondary{display:inline-flex;align-items:center;justify-content:center;gap:7px}
 a.back:hover,.wordmark:hover{color:#f6ddae}
-a.book-card:focus-visible,a.chapter-row:focus-visible,a.back:focus-visible,a.primary:focus-visible,a.secondary:focus-visible,a.wordmark:focus-visible{outline:3px solid #efd09a;outline-offset:3px}
+a.book-card:focus-visible,a.back:focus-visible,a.primary:focus-visible,a.secondary:focus-visible,a.wordmark:focus-visible{outline:3px solid #efd09a;outline-offset:3px}
 
 
 /* Reader preferences, with optional light/sepia surfaces throughout the application. */
@@ -223,7 +222,6 @@ a.book-card:focus-visible,a.chapter-row:focus-visible,a.back:focus-visible,a.pri
 .offline-series-link span:last-child{color:#e7cb99;font-weight:700}
 .theme-sepia .site-nav-link,:is(.theme-paper,.theme-ocean) .site-nav-link{color:var(--muted)}
 .theme-sepia .site-nav-link[aria-current="page"],:is(.theme-paper,.theme-ocean) .site-nav-link[aria-current="page"]{color:var(--ink);background:var(--panel);border-color:var(--line)}
-.theme-sepia .chapter-entry,:is(.theme-paper,.theme-ocean) .chapter-entry{border-color:var(--line)}
 .theme-sepia .offline-chapter-state,:is(.theme-paper,.theme-ocean) .offline-chapter-state,
 .theme-sepia .offline-shelf>p,:is(.theme-paper,.theme-ocean) .offline-shelf>p{color:var(--muted)}
 .theme-sepia .offline-series-link,:is(.theme-paper,.theme-ocean) .offline-series-link{background:var(--panel);color:var(--ink);border-color:var(--line)}
@@ -232,8 +230,6 @@ a.book-card:focus-visible,a.chapter-row:focus-visible,a.back:focus-visible,a.pri
   .site-header{gap:8px}
   .site-nav{flex:1 1 100%;order:3;justify-content:space-between}
   .site-nav-link{flex:1;justify-content:center;text-align:center}
-  .chapter-entry{align-items:flex-start}
-  .chapter-entry .chapter-row{flex:1 1 100%}
   .offline-chapter-control{flex:1 1 100%;justify-content:space-between;padding-bottom:9px}
   .offline-chapter-feedback{text-align:left}
   .offline-series-link{grid-template-columns:1fr;gap:7px}
@@ -417,13 +413,9 @@ a.book-card:focus-visible,a.chapter-row:focus-visible,a.back:focus-visible,a.pri
 /* Private-to-device personal metadata. No private data is bundled in the catalogue. */
 .personal-annotations{padding:25px clamp(18px,3vw,36px) 35px;border:1px solid var(--line,#586879);border-radius:13px;margin:16px 0 35px;background:var(--panel,#192b34)}
 .personal-annotations h2{font-size:clamp(22px,3vw,30px);margin-bottom:9px}
-.personal-annotations>p,.personal-notes-editor label,.personal-tag-editor strong,.personal-rating>strong{font-size:12px;color:inherit}
+.personal-annotations>p,.personal-notes-editor label{font-size:12px;color:inherit}
 .personal-annotations>p{line-height:1.6;opacity:.8}
-.personal-tag-editor,.personal-notes-editor{margin-top:12px}
-.personal-tag-editor .tag-row{margin:10px 0}
-.personal-tag{display:inline-flex;align-items:center;border-radius:30px;overflow:hidden;gap:0}
-.personal-tag .tag{border-top-right-radius:0;border-bottom-right-radius:0}
-.tag-remove{min-width:36px;min-height:36px;border:1px solid #777;background:#704746;color:#fff;font-size:19px;border-radius:0 30px 30px 0}
+.personal-notes-editor{margin-top:12px}
 .tag-entry{display:flex;align-items:flex-end;gap:9px;flex-wrap:wrap;max-width:600px}
 .tag-entry label,.personal-notes-editor label{display:flex;flex-direction:column;gap:8px;font-size:12px}
 .tag-entry label{flex:1 1 200px}
@@ -455,7 +447,7 @@ a.book-card:focus-visible,a.chapter-row:focus-visible,a.back:focus-visible,a.pri
 .collections-manager summary:focus-visible{outline:3px solid #e5be85;outline-offset:2px}
 .collections-manager>p{font-size:12px;line-height:1.5;margin:12px 0;opacity:.78}
 .collection-create,.collection-editor{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin:14px 0}
-.collection-create label,.collection-editor label,.collection-membership>label{display:flex;flex-direction:column;gap:8px;font-size:11px;flex:1 1 180px}
+.collection-create label,.collection-editor label{display:flex;flex-direction:column;gap:8px;font-size:11px;flex:1 1 180px}
 .collection-create>button{min-height:46px}
 .collection-list{display:flex;flex-direction:column;margin:15px 0 0;gap:5px}
 .collection-list-item{display:flex;align-items:center;flex-wrap:wrap;gap:8px;min-height:52px;padding:8px 0;border-top:1px solid var(--line,#586976)}
@@ -468,14 +460,6 @@ a.book-card:focus-visible,a.chapter-row:focus-visible,a.back:focus-visible,a.pri
 .collection-editor h3{flex-basis:100%;margin:0}
 .collection-editor-actions{display:flex;gap:8px;flex-wrap:wrap;width:100%}
 .collection-error{color:#da806d;font-size:12px}
-.collection-membership{display:flex;flex-direction:column;gap:10px;margin:18px 0;max-width:650px}
-.collection-membership>label{max-width:440px}
-.collection-memberships{display:flex;gap:6px;flex-wrap:wrap}
-.collection-member{display:inline-flex;align-items:center}
-.collection-member .tag{border-radius:20px 0 0 20px}
-.collection-member>button:last-child{min-height:36px;min-width:36px;border:1px solid #9f7474;
-  border-radius:0 20px 20px 0;background:#68413b;color:white;font-size:18px}
-.collection-membership>p,.book-collection{font-size:11px;opacity:.82;margin:0}
 :is(.theme-charcoal,.theme-midnight,.theme-plum) .collections-manager{background:var(--dark-panel);border-color:var(--dark-line)}
 @media(max-width:740px){
   .header-explore{gap:3px}
@@ -531,37 +515,10 @@ a.book-card:focus-visible,a.chapter-row:focus-visible,a.back:focus-visible,a.pri
 /* Favourites are personal on-device annotations, not public catalogue metadata. */
 .book-favourite{display:inline-flex;align-self:flex-start;align-items:center;color:var(--text,#dec69d);font-size:12px;font-weight:700;letter-spacing:.025em}
 
-/* Manual chapter completion is separate from the latest reading position. */
-.chapter-completion-summary{margin:4px 0 14px;font-size:13px;color:var(--muted,#a2aab1)}
-.chapter-completion-toggle{min-height:44px;white-space:nowrap}
-.chapter-completion-toggle[aria-pressed="true"]{font-weight:700;border-color:currentColor}
-
 /* Same-origin private OAuth button in the source selector; no misleading green cloud dot. */
 .cloud-connect-link{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;min-height:44px;font-weight:650}
 .cloud-connect-link:focus-visible{outline:3px solid #efd09a;outline-offset:3px}
 
-/* Long private manga chapter lists should never require scrolling through
-   hundreds of rows to get to the reading controls. */
-.app-shell .private-chapter-read{
-  width:100%;text-align:left;cursor:pointer;
-  font:inherit;display:flex;align-items:center;
-  border:0;background:transparent;color:inherit;
-}
-.app-shell .private-chapter-read:hover:not(:disabled),
-.app-shell .private-chapter-read:focus-visible{
-  background:var(--editorial-soft,rgba(106,119,129,.09));
-}
-.app-shell .private-chapter-read:focus-visible{
-  outline:2px solid var(--editorial-accent,#b18c60);outline-offset:-2px;
-}
-.app-shell .private-chapter-read:disabled{opacity:.68;cursor:wait}
-.app-shell .chapter-list-count{
-  margin:8px 0 15px;color:var(--editorial-muted,#67707a);font-size:12px;
-}
-.app-shell .chapter-load-more{
-  display:block;min-height:43px;margin:18px auto 26px;padding:10px 25px;
-  border-radius:9px;
-}
 .app-shell .chapter-loading-note{
   padding:10px 12px;border:1px solid var(--editorial-line,#cad2d6);
   border-radius:7px;font-size:12px;
