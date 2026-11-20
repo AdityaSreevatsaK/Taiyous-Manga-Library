@@ -64,6 +64,11 @@ export function parseMangaChapter(value: unknown): MangaChapter {
     label: text(item.label, 'chapter.label', 120),
     sequence: integer(item.sequence, 'chapter.sequence', 0, 1000000),
   };
+  const slug=optionalText(item.slug,'chapter.slug',100);
+  if(slug!==undefined){
+    if(!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug))throw new DomainValidationError('chapter.slug','invalid permalink');
+    chapter.slug=slug;
+  }
   const volume = optionalText(item.volume, 'chapter.volume', 60);
   const pageCount = optionalInteger(item.pageCount, 'chapter.pageCount', 0, 1000);
   if (volume !== undefined) chapter.volume = volume;
@@ -86,6 +91,11 @@ export function parseMangaEntry(value: unknown): MangaEntry {
     direction: literal(item.direction, ['rtl', 'ltr', 'vertical'], 'entry.direction'),
     chapters,
   };
+  const slug=optionalText(item.slug,'entry.slug',100);
+  if(slug!==undefined){
+    if(!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug))throw new DomainValidationError('entry.slug','invalid permalink');
+    result.slug=slug;
+  }
   const synopsis = optionalText(item.synopsis, 'entry.synopsis', 2000);
   const rating = optionalInteger(item.rating, 'entry.rating', 1, 10);
   if (synopsis !== undefined) result.synopsis = synopsis;
