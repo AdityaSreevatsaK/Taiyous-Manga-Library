@@ -1263,8 +1263,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
               {personalShelves[entry.id]==='finished'
                 ? <button type="button" className="secondary manga-mark-finished"
                     onClick={()=>changeShelf(entry,null)}>✓ Completed · Undo</button>
-                : entry.publicationStatus!=='ongoing'&&
-                  <button type="button" className="secondary manga-mark-finished"
+                : <button type="button" className="secondary manga-mark-finished"
                     onClick={()=>changeShelf(entry,'finished')}>✓ Mark as completed</button>}
             </section>
             <section className="manga-detail-card manga-info-card">
@@ -1340,6 +1339,19 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
               <p>The original cover and pages remain protected in your private library.
                 Uploads, metadata edits, deletion and backups belong to Master Controls on the main library page.</p>
               <p>Private chapter offline downloads are not yet available.</p>
+              <details className="manga-reading-shelf-management">
+                <summary>Reading shelf options</summary>
+                <p>Personal reading shelves do not change the manga's publication status.</p>
+                <div className="manga-reading-shelf-buttons">
+                  <button className="secondary" type="button"
+                    onClick={()=>changeShelf(entry,personalShelves[entry.id]==='to-read'?null:'to-read')}>
+                    {personalShelves[entry.id]==='to-read'?'Remove from To Be Read':'Move to To Be Read'}
+                  </button>
+                  {personalShelves[entry.id]==='finished'&&
+                    <button className="secondary" type="button"
+                      onClick={()=>changeShelf(entry,null)}>Remove from Finished</button>}
+                </div>
+              </details>
               {(annotations[entry.id]?.tags??[]).length>0&&
                 <details className="manga-personal-tag-management">
                   <summary>Manage personal tags</summary>
