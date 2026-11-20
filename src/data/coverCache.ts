@@ -8,7 +8,6 @@ import type {MangaEntry} from '../domain/types';
 const DB_NAME='taiyou-manga-private-covers-v1';
 const STORE='covers';
 const MAX_COVERS=120,MAX_TOTAL_BYTES=72*1024*1024;
-type Cover=MangaEntry['cover'] & {};
 interface RecordCover {key:string;blob:Blob;size:number;savedAt:number}
 
 let database:Promise<IDBDatabase>|null=null;
