@@ -1186,3 +1186,57 @@ test('verified manga owner sees useful Master controls without unsafe upload API
   await expect(master).not.toHaveAttribute('open','');
   await expect(page.getByRole('heading',{name:'Your private library is empty'})).toBeVisible();
 });
+
+test('private ReLIFE-style chapter list opens verified images without endless scrolling',async({page})=>{
+  const mangaId='mng_'+'e'.repeat(24),sha='b'.repeat(40),pageId='pg_'+'f'.repeat(24);
+  const png='iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/IX8AAAAASUVORK5CYII=';
+  const bytes=Buffer.from(png,'base64'),hash='b00daa524994d8c3c1451326482d57cd44b35c2022c88247dd24c55109acc02e';
+  const chapters=Array.from({length:90},(_,i)=>({
+    id:'ch_'+i.toString(16).padStart(24,'0'),label:'Chapter '+(i+1),
+    sequence:i,pageCount:1,
+  }));
+  const entry={kind:'manga',id:mangaId,title:'ReLIFE',aliases:[],creators:[],tags:[],
+    publicationStatus:'completed',direction:'vertical',chapters};
+  await page.route('**/api/auth/session',route=>route.fulfill({
+    status:200,contentType:'application/json',body:JSON.stringify({
+      connected:true,owner:'AdityaSreevatsaK',repo:'AdityaSreevatsaK/Taiyous-Manga',
+    }),
+  }));
+  await page.route('**/api/library',route=>route.fulfill({
+    status:200,contentType:'application/json',body:JSON.stringify({
+      connected:true,repo:'AdityaSreevatsaK/Taiyous-Manga',revision:sha,empty:false,entries:[entry],
+    }),
+  }));
+  await page.route('**/api/media/manifest?*',route=>{
+    const chapterId=new URL(route.request().url()).searchParams.get('chapterId')!;
+    const manifest={schemaVersion:1,mediaKind:'manga',chapterId,pages:[{
+      id:pageId,assetPath:'manga/'+mangaId+'/'+chapterId+'/'+pageId+'.png',
+      mimeType:'image/png',width:1,height:1,byteSize:bytes.length,sha256:hash,
+    }]};
+    return route.fulfill({status:200,contentType:'application/json',
+      body:JSON.stringify({revision:sha,manifest})});
+  });
+  await page.route('**/api/media/page?*',route=>route.fulfill({
+    status:200,body:bytes,headers:{'Content-Type':'image/png','Content-Length':String(bytes.length)},
+  }));
+  await page.goto('/');
+  await expect(page.getByRole('link',{name:/ReLIFE/}).first()).toBeVisible();
+  await page.locator('.book-card').filter({hasText:'ReLIFE'}).click();
+  await expect(page.getByRole('heading',{name:'ReLIFE'})).toBeVisible();
+  await expect(page.locator('.chapter-entry')).toHaveCount(25);
+  await expect(page.locator('.chapter-list-count')).toContainText('Showing 25 of 90 chapters');
+  await page.getByRole('button',{name:'Show next 25 chapters'}).click();
+  await expect(page.locator('.chapter-entry')).toHaveCount(50);
+  await page.getByRole('searchbox',{name:'Search chapters'}).fill('Chapter 87');
+  await expect(page.locator('.chapter-entry')).toHaveCount(1);
+  await page.getByRole('button',{name:/Chapter 87.*Read/}).click();
+  await expect(page.locator('.vertical-page-image')).toBeVisible();
+  await expect(page.locator('.vertical-page-image')).toHaveAttribute('alt','Manga page 1 of 1');
+  await expect(page.getByRole('button',{name:'Next chapter →'})).toBeEnabled();
+  await page.reload();
+  await expect(page.locator('.vertical-page-image')).toBeVisible();
+  await page.getByRole('button',{name:'Next chapter →'}).click();
+  await expect(page.locator('.reader-heading')).toContainText('Chapter 88');
+  await expect(page.locator('.vertical-page-image')).toBeVisible();
+  await expect(page.getByText('Offline copies of private chapters are not yet supported.')).toBeVisible();
+});

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { entries as realEntries } from './data/catalogue';
 import { fetchPrivateLibrary, type CloudRead } from './data/privateLibrary';
+import { fetchPrivateChapter, privateResumeChapter } from './data/privateMedia';
 import { demoEntries, demoManifests, fixtureStatement } from './data/fixtures';
 import { verifyOfflineChapter } from './data/offlineChapters';
 import { OfflineChapterControl } from './components/OfflineChapterControl';
@@ -76,6 +77,11 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
   const initialFilters = useMemo(readCatalogueQuery, []);
   const [demo, setDemo] = useState(initialDemo);
   const [remoteEntries, setRemoteEntries] = useState<MangaEntry[]>([]);
+  const [privateManifests, setPrivateManifests] = useState<ReadonlyMap<string,ChapterManifest>>(()=>new Map());
+  const [privateRevision, setPrivateRevision] = useState('');
+  const [chapterLoading, setChapterLoading] = useState<string | null>(null);
+  const [chapterLimit, setChapterLimit] = useState(25);
+  const chapterOpenRequest = useRef(0);
   const [cloud, setCloud] = useState<CloudRead | {status:'checking';message:string}>({
     status:'checking',message:'Checking private library connection…',
   });
@@ -144,10 +150,13 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
   const [offlineChapterIds, setOfflineChapterIds] = useState<ReadonlySet<string>>(() => new Set());
   const readerRef = useRef<HTMLElement | null>(null);
   const catalogue = demo ? demoEntries : remoteEntries;
-  const manifests: ReadonlyMap<string, ChapterManifest> = demo ? demoManifests : new Map<string, ChapterManifest>();
+  const manifests: ReadonlyMap<string, ChapterManifest> = demo ? demoManifests : privateManifests;
   const entry = screen.kind === 'reader' || screen.kind === 'details' ? catalogue.find(item => item.id === screen.id) : undefined;
   const manifest = location ? manifests.get(location.chapterId) : undefined;
   const chapters = entry ? orderedChapters(entry) : [];
+  const matchingChapters=chapters.filter(chapter=>
+    chapter.label.toLocaleLowerCase().includes(chapterQuery.toLocaleLowerCase()));
+  const visibleChapters=matchingChapters.slice(0,chapterLimit);
   const activeChapter = chapters.find(chapter => chapter.id === location?.chapterId);
   const allTags = [...new Set(catalogue.flatMap(item =>
     [...item.tags, ...(annotations[item.id]?.tags ?? [])]))].sort((a,b)=>a.localeCompare(b));
@@ -221,7 +230,36 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
         setPersonalShelves(loadShelves(result.entries).shelves);
         setAnnotations(loadAnnotations(result.entries).annotations);
         setProgress(loadAllProgress(result.entries,new Map()).progress);
-        setScreen(previous=>previous.kind==='catalogue'?previous:{kind:'catalogue',section:'home'});
+        const bookmarked=currentBrowserRoute();
+        if(bookmarked.kind==='details'){
+          const item=result.entries.find(value=>value.id===bookmarked.mangaId);
+          setScreen(item?{kind:'details',id:item.id}:{kind:'not-found'});
+        }else if(bookmarked.kind==='reader'){
+          const item=result.entries.find(value=>value.id===bookmarked.mangaId);
+          if(!item||!item.chapters.some(ch=>ch.id===bookmarked.chapterId)){
+            setScreen({kind:'not-found'});
+          }else{
+            setChapterLoading(bookmarked.chapterId);
+            void fetchPrivateChapter(item.id,bookmarked.chapterId,controller.signal).then(loaded=>{
+              if(!live)return;
+              if(bookmarked.pageIndex>=loaded.manifest.pages.length){
+                setScreen({kind:'not-found'});return;
+              }
+              setPrivateManifests(new Map([[loaded.manifest.chapterId,loaded.manifest]]));
+              setPrivateRevision(loaded.revision);
+              setLocation({chapterId:bookmarked.chapterId,pageIndex:bookmarked.pageIndex});
+              setScreen({kind:'reader',id:item.id});
+            }).catch(error=>{
+              if(!live)return;
+              setScreen({kind:'details',id:item.id});
+              setNotice(error instanceof Error?error.message:'Unable to open the bookmarked chapter.');
+            }).finally(()=>{if(live)setChapterLoading(null);});
+          }
+        }else if(bookmarked.kind==='not-found'){
+          setScreen({kind:'not-found'});
+        }else{
+          setScreen({kind:'catalogue',section:bookmarked.kind});
+        }
       }
     }).catch(() => { if (live) setCloud({status:'unavailable',message:'Unable to reach private library.'}); });
     return () => { live=false; controller.abort(); };
@@ -411,20 +449,74 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
       setStorageNotice('Reader settings could not be saved. Changes are only active in this session.');
     else setStorageNotice('');
   }
-  function openChapter(item: MangaEntry, chapterId?: string, resume = false) {
-    const target = resume ? restoreProgress(item, manifests, progress[item.id]) :
-      { chapterId: chapterId ?? orderedChapters(item)[0]?.id ?? '', pageIndex: 0 };
-    if (!target || !manifests.has(target.chapterId)) {
-      setNotice('No verified pages are available for this chapter yet.');
+  async function openChapter(item: MangaEntry, chapterId?: string, resume = false) {
+    if (demo) {
+      const target = resume ? restoreProgress(item,manifests,progress[item.id]) :
+        {chapterId:chapterId ?? orderedChapters(item)[0]?.id ?? '',pageIndex:0};
+      if (!target || !manifests.has(target.chapterId)) {
+        setNotice('No verified pages are available for this chapter yet.');
+        return;
+      }
+      navigateTo({kind:'reader',mangaId:item.id,chapterId:target.chapterId,pageIndex:target.pageIndex});
       return;
     }
-    navigateTo({ kind: 'reader', mangaId: item.id, chapterId: target.chapterId, pageIndex: target.pageIndex });
+    const selected=chapterId ?? (resume ? progress[item.id]?.chapterId??privateResumeChapter(item)??undefined : undefined) ?? orderedChapters(item)[0]?.id ?? '';
+    if (!item.chapters.some(chapter=>chapter.id===selected)) {
+      setNotice('This chapter is not in your private library.');
+      return;
+    }
+    const operation=++chapterOpenRequest.current;
+    setChapterLoading(selected);
+    setNotice('');
+    try{
+      const existing=privateManifests.get(selected);
+      const loaded=existing && privateRevision ?
+        {manifest:existing,revision:privateRevision} :
+        await fetchPrivateChapter(item.id,selected);
+      if(operation!==chapterOpenRequest.current)return;
+      const next=new Map(privateRevision===loaded.revision?privateManifests:new Map());
+      next.set(selected,loaded.manifest);
+      // Verify the prior saved chapter too. Otherwise an unrelated saved chapter
+      // would look corrupt when the reader saves progress in the new chapter.
+      const previousChapter=privateResumeChapter(item);
+      if(previousChapter&&previousChapter!==selected&&!next.has(previousChapter)){
+        try{
+          const previous=await fetchPrivateChapter(item.id,previousChapter);
+          if(previous.revision===loaded.revision)next.set(previousChapter,previous.manifest);
+        }catch{ /* Preserve the previous progress record. Never overwrite unverifiable state. */ }
+      }
+      if(operation!==chapterOpenRequest.current)return;
+      setPrivateManifests(next);
+      setPrivateRevision(loaded.revision);
+      const local=loadProgress(item,next);
+      if(local.status==='ok')setProgress(previous=>({...previous,[item.id]:local.value}));
+      const saved=laterProgress(progress[item.id],local.status==='ok'?local.value:undefined);
+      const index=resume && saved?.chapterId===selected ?
+        Math.max(0,loaded.manifest.pages.findIndex(page=>page.id===saved.pageId)) : 0;
+      setLocation({chapterId:selected,pageIndex:index});
+      setJumpToken(value=>value+1);
+      setScreen({kind:'reader',id:item.id});
+      const url=routeHref({kind:'reader',mangaId:item.id,chapterId:selected,pageIndex:index},import.meta.env.BASE_URL);
+      if(window.location.pathname+window.location.search!==url)window.history.pushState(null,'',url);
+    }catch(error){
+      if(operation===chapterOpenRequest.current)
+        setNotice(error instanceof Error?error.message:'Could not load the private chapter.');
+    }finally{
+      if(operation===chapterOpenRequest.current)setChapterLoading(null);
+    }
   }
   function move(delta: -1 | 1) {
     if (!entry || !location || !manifest) return;
-    const next = stepChapter(entry, manifests, location, delta);
-    if (next) updateLocation(next);
-    else setNotice(delta === 1 ? 'You have reached the final chapter.' : 'You are at the first chapter.');
+    if(!demo){
+      const ordered=orderedChapters(entry);
+      const next=ordered[ordered.findIndex(ch=>ch.id===location.chapterId)+delta];
+      if(next)void openChapter(entry,next.id);
+      else setNotice(delta===1?'You have reached the final chapter.':'You are at the first chapter.');
+      return;
+    }
+    const next=stepChapter(entry,manifests,location,delta);
+    if(next)updateLocation(next);
+    else setNotice(delta===1?'You have reached the final chapter.':'You are at the first chapter.');
   }
   function exitImmersive() {
     if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
@@ -469,6 +561,27 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
       return;
     }
     const verified = manifests.get(route.chapterId);
+    if(!demo&&!verified&&item.chapters.some(chapter=>chapter.id===route.chapterId)){
+      const operation=++chapterOpenRequest.current;
+      setChapterLoading(route.chapterId);
+      void fetchPrivateChapter(item.id,route.chapterId).then(loaded=>{
+        if(operation!==chapterOpenRequest.current)return;
+        if(route.pageIndex>=loaded.manifest.pages.length){
+          setScreen({kind:'not-found'});return;
+        }
+        setPrivateManifests(previous=>new Map(previous).set(route.chapterId,loaded.manifest));
+        setPrivateRevision(loaded.revision);
+        setLocation({chapterId:route.chapterId,pageIndex:route.pageIndex});
+        setScreen({kind:'reader',id:item.id});
+      }).catch(error=>{
+        if(operation!==chapterOpenRequest.current)return;
+        setScreen({kind:'details',id:item.id});
+        setNotice(error instanceof Error?error.message:'Chapter cannot be opened.');
+      }).finally(()=>{
+        if(operation===chapterOpenRequest.current)setChapterLoading(null);
+      });
+      return;
+    }
     if (!item.chapters.some(chapter => chapter.id === route.chapterId) ||
         !verified || route.pageIndex >= verified.pages.length) {
       exitImmersive(); setScreen({ kind: 'not-found' }); setLocation(null); return;
@@ -501,12 +614,16 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
       if(!result.ok)throw Error('logout failed');
       setCloud({status:'disconnected',message:'Signed out of your private Hugging Face library.'});
       setRemoteEntries([]);
+      setPrivateManifests(new Map());setPrivateRevision('');
       changeDemo(true);
     } catch {setStorageNotice('Could not sign out. Check your connection and try again.');}
   }
   function changeDemo(value: boolean) {
+    ++chapterOpenRequest.current;setChapterLoading(null);
     exitImmersive();
     setDemo(value); setLocation(null); setNotice(''); goCatalogue('home');
+    if(value){setPrivateManifests(new Map());setPrivateRevision('');}
+    setChapterLimit(25);setChapterQuery('');
     setPersonalShelves(loadShelves(value ? demoEntries : remoteEntries).shelves);
     setAnnotations(loadAnnotations(value ? demoEntries : remoteEntries).annotations);
     setQuery(''); setTag(''); setCollection(''); setStatus('all');
@@ -999,7 +1116,13 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
               {progressForEntry && <a className="secondary"
                 href={routeHref({kind:'reader',mangaId:entry.id,chapterId:chapters[0]?.id ?? 'unavailable',pageIndex:0},import.meta.env.BASE_URL)}
                 onClick={event=>followLink(event,()=>openChapter(entry,chapters[0]?.id))}>Start from chapter one</a>}
-              </> : <p className="fine-print">Private catalogue reading is not yet enabled. Chapter images remain protected until the verified media gateway is available.</p>}
+              </> : <>
+                <button type="button" className="primary" disabled={chapterLoading!==null||!chapters.length}
+                  onClick={()=>{void openChapter(entry,undefined,!!(progress[entry.id]||privateResumeChapter(entry)));}}>
+                  {chapterLoading?'Loading chapter…':progress[entry.id]||privateResumeChapter(entry)?'Continue reading':'Read from beginning'} <span aria-hidden="true">↗</span>
+                </button>
+                <p className="fine-print">Private manga pages load securely while you are signed in. Offline downloads are not enabled for private chapters yet.</p>
+              </>}
               <button type="button" className="secondary" aria-pressed={!!annotations[entry.id]?.favourite}
                 onClick={()=>changeAnnotation(entry,{favourite:!annotations[entry.id]?.favourite},
                   annotations[entry.id]?.favourite?'Removed from favourites':'Added to favourites')}>
@@ -1084,15 +1207,17 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
         </section>
         <section className="chapter-section"><div className="shelf-heading"><div><p className="eyebrow">CONTENTS / READING ORDER</p><h2>Chapters &amp; volumes</h2></div></div>
           <label className="chapter-search">Search chapters
-            <input type="search" value={chapterQuery} onChange={event=>setChapterQuery(event.target.value)}
-              placeholder="Find a chapter..." />
+            <input type="search" value={chapterQuery} onChange={event=>{
+              setChapterQuery(event.target.value);setChapterLimit(25);
+            }} placeholder="Find a chapter..." />
           </label>
+          <p className="chapter-list-count">Showing {visibleChapters.length} of {matchingChapters.length} chapters
+            {chapterQuery?' matching your search':''}. Choose any chapter to read.</p>
           <p className="chapter-completion-summary">
             {chapters.filter(chapter => annotations[entry.id]?.completedChapterIds?.includes(chapter.id)).length}
             {' '}of {chapters.length} chapters explicitly marked completed on this device.
           </p>
-          {chapters.filter(chapter => chapter.label.toLocaleLowerCase().includes(chapterQuery.toLocaleLowerCase()))
-            .map(chapter=>{ const index = chapters.findIndex(value=>value.id === chapter.id); return <div className="chapter-entry" key={chapter.id}>
+          {visibleChapters.map(chapter=>{ const index = chapters.findIndex(value=>value.id === chapter.id); return <div className="chapter-entry" key={chapter.id}>
             {demo ? <a className="chapter-row"
               href={routeHref({kind:'reader',mangaId:entry.id,chapterId:chapter.id,pageIndex:0},import.meta.env.BASE_URL)}
               onClick={event=>followLink(event,()=>openChapter(entry,chapter.id))}>
@@ -1100,10 +1225,14 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
               <span className="chapter-title"><strong>{chapter.label}</strong>
                 <small>{chapter.volume ?? 'No volume'} · {chapter.pageCount ?? 'Unknown'} sample pages</small></span>
               <span className="chapter-open">Read ↗</span></a> :
-              <div className="chapter-row"><span className="chapter-number">{String(index+1).padStart(2,'0')}</span>
+              <button type="button" className="chapter-row private-chapter-read"
+                disabled={chapterLoading!==null}
+                onClick={()=>{void openChapter(entry,chapter.id);}}>
+                <span className="chapter-number">{String(index+1).padStart(2,'0')}</span>
                 <span className="chapter-title"><strong>{chapter.label}</strong>
                   <small>{chapter.volume ?? 'No volume'} · {chapter.pageCount ?? 'Unknown'} pages</small></span>
-                <span className="chapter-open">Media pending</span></div>}
+                <span className="chapter-open">{chapterLoading===chapter.id?'Loading…':'Read ↗'}</span>
+              </button>}
             <button type="button" className="secondary chapter-completion-toggle"
               aria-label={annotations[entry.id]?.completedChapterIds?.includes(chapter.id) ?
                 'Mark chapter ' + (index + 1) + ' incomplete' :
@@ -1113,9 +1242,15 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
               {annotations[entry.id]?.completedChapterIds?.includes(chapter.id) ?
                 '✓ Completed' : 'Mark completed'}
             </button>
-            {manifests.get(chapter.id) && <OfflineChapterControl manifest={manifests.get(chapter.id)!}
+            {demo && manifests.get(chapter.id) && <OfflineChapterControl manifest={manifests.get(chapter.id)!}
               onChange={()=>setInventoryRevision(value=>value+1)} />}
           </div>;})}
+          {matchingChapters.length>visibleChapters.length&&
+            <button className="secondary chapter-load-more" type="button"
+              onClick={()=>setChapterLimit(value=>value+25)}>
+              Show next {Math.min(25,matchingChapters.length-visibleChapters.length)} chapters
+            </button>}
+          {chapterLoading&&<p role="status" className="chapter-loading-note">Verifying chapter pages from your private library…</p>}
         </section>
       </>}
       {screen.kind === 'reader' && entry && location && <section className="reader-shell" ref={readerRef} tabIndex={0}
@@ -1164,6 +1299,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
         </div>
         {manifest ?
           <VerticalReader key={manifest.chapterId + ':' + inventoryRevision} manifest={manifest}
+            privateMangaId={demo?undefined:entry.id} privateRevision={demo?undefined:privateRevision}
             fit={preferences.fit} activeIndex={location.pageIndex} jumpToken={jumpToken}
             initialOffsetRatio={progress[entry.id]?.chapterId === location.chapterId &&
               progress[entry.id]?.pageId === manifest.pages[location.pageIndex]?.id
@@ -1178,7 +1314,8 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
             onViewedPage={index => markPageViewed(entry, { chapterId: manifest.chapterId, pageIndex: index })} /> :
           <div className="page-error" role="alert">Chapter pages are not available.</div>}
         <div className="page-navigation">
-          <button className="secondary" type="button" disabled={!stepChapter(entry, manifests, location, -1)}
+          <button className="secondary" type="button" disabled={chapterLoading!==null||
+              (demo?!stepChapter(entry,manifests,location,-1):chapters[0]?.id===location.chapterId)}
             onClick={()=>move(-1)}>← Previous chapter</button>
           <div className="bottom-chapter-picker">
             <label>Chapter
@@ -1189,12 +1326,15 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
             <p aria-live="polite">Chapter {chapters.findIndex(chapter=>chapter.id===location.chapterId)+1} of {chapters.length}
               <span aria-hidden="true"> · </span> Page {location.pageIndex+1} of {manifest?.pages.length ?? '?'}</p>
           </div>
-          <button className="primary" type="button" disabled={!stepChapter(entry, manifests, location, 1)}
+          <button className="primary" type="button" disabled={chapterLoading!==null||
+              (demo?!stepChapter(entry,manifests,location,1):chapters.at(-1)?.id===location.chapterId)}
             onClick={()=>move(1)}>Next chapter →</button>
         </div>
         {notice && <p className="reader-notice" role="status">{notice}</p>}
         <p className="reader-hint">Scroll down to read every page in this chapter. Previous and Next move between chapters only. Nearby images load on demand.</p>
-        <p className="fine-print">Synthetic chapter copies can be saved from series details for genuine offline access. No real private media is connected.</p>
+        <p className="fine-print">{demo
+          ? 'You can download synthetic sample chapters for offline reading.'
+          : 'Private images are fetched securely as you scroll. Offline copies of private chapters are not yet supported.'}</p>
       </section>}
       {screen.kind === 'not-found' && <div className="empty-state" role="alert"><h2>Page unavailable</h2>
         <p>This link does not point to an available manga, chapter or page.</p>
