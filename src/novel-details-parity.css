@@ -22,9 +22,6 @@
   color:#fff7e9;box-shadow:0 16px 38px #0924412f;
 }
 .app-shell .manga-details-hero .detail-cover{width:100%;max-width:235px;aspect-ratio:2/3}
-.app-shell .manga-details-hero .detail-cover .cover-title{font-size:clamp(25px,3vw,43px);max-width:100%;color:#fff4df}
-.app-shell .manga-details-hero .detail-content{padding:0;min-width:0}
-.app-shell .manga-details-hero .detail-content .eyebrow{color:#f1d49e}
 .app-shell .manga-details-hero .detail-content h1{font-size:clamp(36px,4.5vw,63px);color:#fff9ef;margin:0 0 9px}
 .app-shell .manga-details-hero .detail-sub{color:#e7ecf5;font:italic 14px/1.5 Georgia,serif;text-transform:none}
 .app-shell .manga-details-hero .tag-row{margin:0 0 12px;gap:7px}
@@ -255,7 +252,6 @@
  width:100%;min-width:0;min-height:43px;border-radius:8px;padding:10px 12px
 }
 .app-shell .manga-tags-card .details-tag-form button{min-height:43px}
-.app-shell .manga-tags-card .details-tag-row{gap:7px}
 .app-shell .manga-tags-card .tag-draft-actions{
  display:flex;justify-content:space-between;align-items:center;
  gap:9px;flex-wrap:wrap;margin-top:16px;font-size:11px
