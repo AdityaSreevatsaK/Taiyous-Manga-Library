@@ -1158,7 +1158,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
                   onClick={()=>{void openChapter(entry,undefined,!!(progress[entry.id]||privateResumeChapter(entry)));}}>
                   {chapterLoading?'Loading chapter…':progress[entry.id]||privateResumeChapter(entry)?'Continue reading':'Read from beginning'} <span aria-hidden="true">↗</span>
                 </button>
-                <p className="fine-print">Private manga pages load securely while you are signed in. Offline downloads are not enabled for private chapters yet.</p>
+                
               </>}
               <button type="button" className="secondary" aria-pressed={!!annotations[entry.id]?.favourite}
                 onClick={()=>changeAnnotation(entry,{favourite:!annotations[entry.id]?.favourite},
