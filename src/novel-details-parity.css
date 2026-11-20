@@ -226,3 +226,8 @@
  margin:0;padding:20px;background:var(--md-panel);color:var(--md-ink);border-color:var(--md-line)}
 .app-shell .editorial-display-book{position:relative;overflow:hidden;isolation:isolate}
 .app-shell .manga-info-card dd{overflow-wrap:anywhere}
+
+.manga-collection-option{height:auto;min-height:50px;cursor:pointer}
+.manga-collection-option input{width:18px;height:18px;flex:none;accent-color:#214d73}
+.manga-collection-footer{display:flex;justify-content:space-between;gap:10px}
+.manga-collection-footer button{min-height:40px}
