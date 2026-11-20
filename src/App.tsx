@@ -6,6 +6,8 @@ import { verifyOfflineChapter } from './data/offlineChapters';
 import { OfflineChapterControl } from './components/OfflineChapterControl';
 import { CollectionManager } from './components/CollectionManager';
 import { LocalBackupControl } from './components/LocalBackupControl';
+import { MangaCloudMenu } from './components/MangaCloudMenu';
+import { MangaThemeSwatches } from './components/MangaThemeSwatches';
 import { VerticalReader } from './components/VerticalReader';
 import { CATALOGUE_SECTIONS, parseAppRoute, routeHref, type AppRoute, type CatalogueSection } from './domain/routes';
 import { loadShelves, saveShelf, type PersonalShelf, type ShelfSelection } from './domain/personalShelves';
@@ -22,6 +24,7 @@ import { orderedChapters, restoreProgress, stepChapter, type ReaderLocation } fr
 import type { ChapterManifest, MangaEntry, MangaProgress, PublicationStatus } from './domain/types';
 import './styles.css';
 import './editorial.css';
+import './novel-parity.css';
 
 /** These ribbons describe publication status, never the reader's Finished shelf. */
 const publicationCaption:Record<PublicationStatus,string>={
@@ -191,7 +194,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
       .filter(item => onShelf(item, screen.section));
     // Home is curated by this device's favourites; All Manga stays alphabetical.
     return screen.section==='home' ? [...items].sort((a,b)=>
-      Number(!!annotations[b.id]?.favourite)-Number(!!annotations[a.id]?.favourite)) : items;
+      Number(!!annotations[b.id]?.favourite)-Number(!!annotations[a.id]?.favourite)).slice(0,4) : items;
   })() : filtered;
   const continueReading = catalogue
     .map(item => ({ item, saved: progress[item.id], resume: restoreProgress(item, manifests, progress[item.id]) }))
@@ -501,8 +504,8 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
   function changeDemo(value: boolean) {
     exitImmersive();
     setDemo(value); setLocation(null); setNotice(''); goCatalogue('home');
-    setPersonalShelves(loadShelves(value ? demoEntries : realEntries).shelves);
-    setAnnotations(loadAnnotations(value ? demoEntries : realEntries).annotations);
+    setPersonalShelves(loadShelves(value ? demoEntries : remoteEntries).shelves);
+    setAnnotations(loadAnnotations(value ? demoEntries : remoteEntries).annotations);
     setQuery(''); setTag(''); setCollection(''); setStatus('all');
     setAdvanced(defaultAdvancedCriteria());setAdvancedOpen(false);
   }
@@ -605,37 +608,73 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
     (immersive && screen.kind === 'reader' ? ' reading-immersive' : '')}>
     <a className="skip" href="#content">Skip to content</a>
     <header className="site-header">
-      <a className="wordmark" href={routeHref({kind:'home'},import.meta.env.BASE_URL)}
-        onClick={event=>followLink(event,()=>goCatalogue('home'))}
-        aria-current={compactNav && selectedSection === 'home' ? 'page' : undefined}
-        aria-label="Taiyou Manga home">
-        <img className="brand-sun" src={import.meta.env.BASE_URL + 'branding/sun-' +
-          (['charcoal','midnight','plum'].includes(preferences.theme) ? 'dark' : 'light') + '.webp'}
-          width="54" height="54" alt="" /><span>TAIYOU <small>LIBRARY / MANGA</small></span>
-      </a>
+      <div className="manga-topbar">
+        <a className="wordmark" href={routeHref({kind:'home'},import.meta.env.BASE_URL)}
+          onClick={event=>followLink(event,()=>goCatalogue('home'))} aria-label="Taiyou Manga home">
+          <span className="manga-logo-frame">
+            <img className="brand-sun" src={import.meta.env.BASE_URL + 'branding/sun-' +
+              (['charcoal','midnight','plum'].includes(preferences.theme) ? 'dark' : 'light') + '.webp'}
+              width="36" height="36" alt="" aria-hidden="true" />
+          </span>
+          <span className="manga-wordmark-text"><strong>TAIYOU'S</strong><small>PERSONAL MANGA LIBRARY</small></span>
+        </a>
+        <MangaCloudMenu cloud={cloud} online={online} demo={demo} count={remoteEntries.length}
+          onSample={()=>changeDemo(true)} onPrivate={()=>changeDemo(false)}
+          onLogout={()=>{void disconnectCloud();}}>
+          <LocalBackupControl entries={catalogue} manifests={manifests}
+            onRestored={()=>{
+              setProgress(loadAllProgress(catalogue, manifests).progress);
+              setPersonalShelves(loadShelves(catalogue).shelves);
+              setAnnotations(loadAnnotations(catalogue).annotations);
+              const restoredCollections=loadCollections();
+              if(restoredCollections.status==='ok')setCollections(restoredCollections.value);
+              const saved=loadPreferences();
+              if(saved.status==='ok')setPreferences(saved.value);
+            }} />
+        </MangaCloudMenu>
+        <div className="manga-top-actions">
+          <label className="manga-global-search">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+              aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg>
+            <input type="search" aria-label="Search all manga" placeholder="Search all manga…"
+              value={query} onChange={event=>{
+                setQuery(event.target.value);
+                if(screen.kind!=='catalogue'||screen.section!=='library')goCatalogue('library');
+              }}/>
+          </label>
+          <button type="button" className="manga-advanced-button" aria-label="Advanced search"
+            title="Advanced search" aria-expanded={advancedOpen&&selectedSection==='library'}
+            onClick={()=>{setAdvancedOpen(value=>!value);goCatalogue('library');}}>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+              <circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/>
+              <path d="M3 3h3M4.5 1.5v3M18 3h3"/>
+            </svg>
+          </button>
+          <MangaThemeSwatches value={preferences.theme}
+            onChange={theme=>updatePreferences({...preferences,theme})}/>
+        </div>
+      </div>
       <nav className="site-nav" aria-label="Main navigation">
-        {currentNav.map(section =>
-          <a key={section} className="site-nav-link"
-            aria-current={selectedSection === section ? 'page' : undefined}
-            href={routeHref({kind:section},import.meta.env.BASE_URL)}
-            onClick={event=>followLink(event,()=>goCatalogue(section))}>
-            {labels[section]} {['reading','trying','offline','finished','to-read'].includes(section) &&
-              <span className="nav-count">({counts[section]})</span>}
-          </a>)}
-        {compactNav && <details className="nav-more"><summary>More</summary>
-          <div className="nav-more-menu">{moreNav.map(section =>
+        <div className="manga-nav-links">
+          {currentNav.map(section=>
             <a key={section} className="site-nav-link"
-              aria-current={selectedSection === section ? 'page' : undefined}
+              aria-current={selectedSection===section?'page':undefined}
               href={routeHref({kind:section},import.meta.env.BASE_URL)}
               onClick={event=>followLink(event,()=>goCatalogue(section))}>
-              {labels[section]}
-            </a>)}</div>
+              {labels[section]} {['reading','trying','offline','finished','to-read'].includes(section)&&
+                <span className="nav-count">{counts[section]}</span>}
+            </a>)}
+          {compactNav&&<details className="nav-more"><summary>More</summary>
+            <div className="nav-more-menu">{moreNav.map(section=>
+              <a key={section} className="site-nav-link"
+                aria-current={selectedSection===section?'page':undefined}
+                href={routeHref({kind:section},import.meta.env.BASE_URL)}
+                onClick={event=>followLink(event,()=>goCatalogue(section))}>{labels[section]}</a>)}
+            </div>
           </details>}
-      </nav>
-      <div className="header-right">
-        <div className="header-explore">
-          <button type="button" className="header-advanced" aria-expanded={advancedOpen&&selectedSection==='library'}
-            onClick={()=>{setAdvancedOpen(value=>!value);goCatalogue('library');}}>Advanced Search</button>
+        </div>
+        <div className="manga-nav-tools">
           <details className="header-menu"><summary>Tags</summary>
             <div className="header-menu-content">
               <button type="button" onClick={event=>{setTag('');goCatalogue('library');event.currentTarget.closest('details')?.removeAttribute('open');}}>All tags</button>
@@ -654,15 +693,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
             </div>
           </details>
         </div>
-        <label className="app-theme-label">App theme
-          <select aria-label="App theme" value={preferences.theme}
-            onChange={event=>updatePreferences({...preferences,theme:event.target.value as ReaderPreferences['theme']})}>
-            {(['sepia','paper','charcoal','midnight','ocean','plum'] as const).map(theme =>
-              <option key={theme} value={theme}>{theme.charAt(0).toUpperCase() + theme.slice(1)}</option>)}
-          </select></label>
-        <span className="demo-pill">{demo?'SAMPLE':cloud.status==='connected'?'PRIVATE LIBRARY':'NOT CONNECTED'}</span>
-        <span className="network-state">{online ? 'Device online' : 'Device offline'}</span>
-      </div>
+      </nav>
     </header>
     <main id="content" className="main-area">
       {screen.kind === 'catalogue' && <>
@@ -793,34 +824,6 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
                 onClick={event=>followLink(event,()=>goCatalogue('library'))}>Browse the library</a>
             </div>}
         </section> : <>
-        <div className="mode-bar editorial-source-switcher" role="group" aria-label="Catalogue source">
-          <div><strong>{demo ? 'Browsing a sample collection' : 'Your private library'}</strong>
-            <p>{demo ? fixtureStatement :
-              cloud.status==='connected'
-                ? remoteEntries.length===0
-                  ? 'Your private Hugging Face dataset is connected and empty. No manga have been imported yet.'
-                  : 'Connected to your private Hugging Face dataset. Catalogue metadata is read-only.'
-                : cloud.message}</p></div>
-          <div className="mode-actions">
-            {cloud.status==='connected' ?
-              <button type="button" className="chip" onClick={()=>{void disconnectCloud();}}>Sign out of Hugging Face</button> :
-              <a className="chip cloud-connect-link" href="/api/auth/login">Sign in with Hugging Face</a>}
-            <button type="button" aria-pressed={demo} className={demo ? 'chip active' : 'chip'} onClick={() => changeDemo(true)}>Try the sample reader</button>
-            <button type="button" aria-pressed={!demo} className={!demo ? 'chip active' : 'chip'} onClick={() => changeDemo(false)}>
-              {cloud.status==='connected'?'My library ('+remoteEntries.length+')':'My library (empty)'}
-            </button>
-          </div>
-        </div>
-        <LocalBackupControl entries={catalogue} manifests={manifests}
-          onRestored={()=>{
-            setProgress(loadAllProgress(catalogue, manifests).progress);
-            setPersonalShelves(loadShelves(catalogue).shelves);
-            setAnnotations(loadAnnotations(catalogue).annotations);
-            const restoredCollections=loadCollections();
-            if(restoredCollections.status==='ok')setCollections(restoredCollections.value);
-            const saved = loadPreferences();
-            if (saved.status === 'ok') setPreferences(saved.value);
-          }} />
         <section className="shelf" aria-label="Manga catalogue">
           <div className="shelf-heading"><div><p className="eyebrow">DISCOVER / THE SHELF</p>
               <h2>{screen.section === 'home' ? (demo ? 'The sample collection' : 'Your collection') : labels[screen.section]}</h2>
