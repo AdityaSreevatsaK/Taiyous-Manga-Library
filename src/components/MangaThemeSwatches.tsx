@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react';
+import {useEffect,useRef,useState,type CSSProperties} from 'react';
 import type { ReaderPreferences } from '../domain/localReaderStorage';
 
 type Theme=ReaderPreferences['theme'];
@@ -17,15 +17,52 @@ const options:readonly {id:Theme;label:string;swatch:string;ink:string}[]=[
 export function MangaThemeSwatches({value,onChange,compact=false}:{
   value:Theme;onChange:(theme:Theme)=>void;compact?:boolean;
 }){
+  const [open,setOpen]=useState(false);
+  const root=useRef<HTMLDivElement>(null);
+  useEffect(()=>{
+    if(!open)return;
+    const closeOutside=(event:PointerEvent)=>{
+      if(!root.current?.contains(event.target as Node))setOpen(false);
+    };
+    const closeEscape=(event:KeyboardEvent)=>{
+      if(event.key==='Escape')setOpen(false);
+    };
+    document.addEventListener('pointerdown',closeOutside);
+    document.addEventListener('keydown',closeEscape);
+    return()=>{
+      document.removeEventListener('pointerdown',closeOutside);
+      document.removeEventListener('keydown',closeEscape);
+    };
+  },[open]);
   if(compact){
     const selected=options.find(option=>option.id===value)??options[0]!;
-    return <label className="manga-theme-compact">
-      <span className="manga-theme-compact-dot" style={{background:selected.swatch}} aria-hidden="true"/>
-      <select aria-label="Colour theme" value={value}
-        onChange={event=>onChange(event.target.value as Theme)}>
-        {options.map(option=><option key={option.id} value={option.id}>{option.label}</option>)}
-      </select>
-    </label>;
+    return <div className="manga-theme-menu" ref={root}>
+      <button type="button" className="manga-theme-menu-toggle"
+        aria-label={'Choose colour theme, currently '+selected.label}
+        aria-haspopup="true" aria-expanded={open}
+        aria-controls="manga-theme-menu-options"
+        onClick={()=>setOpen(wasOpen=>!wasOpen)}>
+        <span className="manga-theme-compact-dot" style={{background:selected.swatch}} aria-hidden="true"/>
+        <span>{selected.label}</span>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          strokeWidth="2" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+      </button>
+      {open&&<div id="manga-theme-menu-options" className="manga-theme-menu-panel"
+        role="group" aria-label="Choose reading colour theme">
+        <span className="manga-theme-menu-caption">CHOOSE A THEME</span>
+        <div className="manga-theme-menu-grid">
+          {options.map(option=><button type="button" key={option.id}
+            className="manga-theme-menu-choice" aria-pressed={option.id===value}
+            aria-label={'Use '+option.label+' theme'}
+            onClick={()=>{onChange(option.id);setOpen(false);}}>
+            <span className="manga-theme-menu-preview"
+              style={{background:option.swatch,color:option.ink}} aria-hidden="true">
+              {option.id===value?'✓':''}</span>
+            <span>{option.label}</span>
+          </button>)}
+        </div>
+      </div>}
+    </div>;
   }
   return <div className="manga-theme-swatches" role="group" aria-label="App theme">
     {options.map(option=><button type="button" key={option.id}

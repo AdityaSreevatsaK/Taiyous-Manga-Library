@@ -10,7 +10,7 @@ import { LocalBackupControl } from './components/LocalBackupControl';
 import { MangaCloudMenu } from './components/MangaCloudMenu';
 import { MangaBrandMark } from './components/MangaBrandMark';
 import { MangaOwnerTools } from './components/MangaOwnerTools';
-import { SearchIcon, HashIcon, LibraryIcon, ChevronDownIcon } from './components/SharedLibraryIcons';
+import { SearchIcon, HashIcon, LibraryIcon, BookOpenIcon, ChevronDownIcon } from './components/SharedLibraryIcons';
 import { MangaThemeSwatches } from './components/MangaThemeSwatches';
 import { VerticalReader } from './components/VerticalReader';
 import { MangaChapterPicker } from './components/MangaChapterPicker';
@@ -19,6 +19,7 @@ import { MangaHeroBackdrop } from './components/MangaHeroBackdrop';
 import { MangaDetailsQuickNav } from './components/MangaDetailsQuickNav';
 import { MangaCollectionPicker } from './components/MangaCollectionPicker';
 import { MangaCoverArtwork } from './components/MangaCoverArtwork';
+import { MangaSynopsisCard } from './components/MangaSynopsisCard';
 import {clearMangaCoverCache} from './data/coverCache';
 import {ratingLabel,ratingSummary,ratingToneClass} from './domain/ratings';
 import { CATALOGUE_SECTIONS, parseAppRoute, resolveAppRoute, routeHref, type AppRoute, type CatalogueSection } from './domain/routes';
@@ -57,6 +58,10 @@ function creditLine(item:MangaEntry):string{
  return authors||artists||item.creators.join(', ')||'Creator unknown';
 }
 const publicationCaption:Record<PublicationStatus,string>={
+  completed:'Completed',ongoing:'Ongoing',hiatus:'On Hiatus',unknown:'Unknown',
+};
+/** Cover ribbons deliberately use editorial wording, not the metadata status. */
+const ribbonCaption:Record<PublicationStatus,string>={
   completed:'Story Complete',ongoing:'Updating',hiatus:'On Hiatus',unknown:'Unknown',
 };
 type Screen = { kind: 'catalogue'; section: CatalogueSection } | { kind: 'details' | 'reader'; id: string } | { kind: 'not-found' };
@@ -1173,8 +1178,8 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
                 {!demo && <MangaCoverArtwork key={item.cover?.sha256??'none'} entry={item}/>}
                 {item.publicationStatus !== 'unknown' &&
                   <span className={'status-ribbon status-'+item.publicationStatus}
-                    aria-label={'Publication: '+publicationCaption[item.publicationStatus]}>
-                    {publicationCaption[item.publicationStatus]}</span>}
+                    aria-label={'Publication: '+ribbonCaption[item.publicationStatus]}>
+                    {ribbonCaption[item.publicationStatus]}</span>}
                 <span className="cover-number">TAIYOU / {String(index+1).padStart(2,'0')}</span>
                 <span className="cover-illustration" aria-hidden="true"><i /><b /></span>
                 <span className="cover-title">{item.title}</span>
@@ -1240,12 +1245,12 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
             <span className="cover-illustration"><i /><b /></span><span className="cover-title">{entry.title}</span>
           </div>
           <div className="detail-content"><p className="eyebrow">THE STORY / {demo?'READER DEMONSTRATION':'PRIVATE LIBRARY'}</p>
-            <h1>{entry.title}</h1><p className="detail-sub">{creditLine(entry)} <span aria-hidden="true">·</span> {publicationCaption[entry.publicationStatus]}</p>
+            <h1>{entry.title}</h1><p className="detail-sub">by {creditLine(entry)}</p>
             <div className="stat-strip details-meta-row">
-              <span>▤ {entry.chapters.length.toLocaleString()} chapters</span>
+              <span className="manga-chapter-stat"><BookOpenIcon size={15}/> {entry.chapters.length.toLocaleString()} chapters</span>
               {entry.publicationStatus!=='unknown'&&
                 <span className={'manga-publication-pill status-'+entry.publicationStatus}>
-                  <span aria-hidden="true">●</span> {publicationCaption[entry.publicationStatus]}
+                  {publicationCaption[entry.publicationStatus]}
                 </span>}
             </div>
             <div className="tag-row details-hero-tags">
@@ -1353,7 +1358,12 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
                       {i>0?', ':''}<a className="manga-author-link" href={authorHref(name)}
                         onClick={event=>followLink(event,()=>browseByAuthor(name))}>{name}</a>
                     </span>) : 'Not supplied'}</dd></div>}
-                {entry.aliases.length>0&&<div><dt>Also known as</dt><dd>{entry.aliases.join('; ')}</dd></div>}
+                {entry.aliases.length>0&&<div><dt>Also known as</dt><dd className="manga-alias-value">
+                  {entry.aliases.length===1?entry.aliases[0]:
+                    <details className="manga-alias-list">
+                      <summary>{entry.aliases[0]} <span>+{entry.aliases.length-1} more</span></summary>
+                      <ul>{entry.aliases.slice(1).map(alias=><li key={alias}>{alias}</li>)}</ul>
+                    </details>}</dd></div>}
                 <div><dt>Chapters</dt><dd>{chapters.length}</dd></div>
                 <div><dt>Publication</dt><dd>{publicationCaption[entry.publicationStatus]}</dd></div>
                 
@@ -1462,10 +1472,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
             </form>
           </section>
           <div className="manga-details-main">
-            <section className="manga-detail-card manga-synopsis-card">
-              <p className="manga-card-overline">ABOUT THE STORY</p><h2>Synopsis</h2>
-              <p className="detail-description">{entry.synopsis||'A synopsis has not been added yet.'}</p>
-            </section>
+            <MangaSynopsisCard key={entry.id} entry={entry}/>
             <MangaChapterBrowser mangaId={entry.id} chapters={chapters}
               currentChapterId={progressForEntry?.chapterId} busy={chapterLoading!==null}
               onReadChapter={chapterId=>{void openChapter(entry,chapterId);}}

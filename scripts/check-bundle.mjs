@@ -5,10 +5,10 @@ import { gzipSync } from 'node:zlib';
 const root = 'dist/assets';
 const assets = readdirSync(root).filter(name => /\.(?:js|css)$/.test(name));
 const budgets = [
-  { extension: '.js', limit: 300 * 1024 },
-  // Editorial details add visual components; bound the uncompressed source
-  // separately while preserving the same 18 KiB gzip network transfer gate.
-  { extension: '.css', limit: 96 * 1024, gzipLimit: 18 * 1024 },
+  // The private synopsis editor and shared cloud status control add a small
+  // measured payload. Retain strict caps, including compressed CSS transfer.
+  { extension: '.js', limit: 304 * 1024 },
+  { extension: '.css', limit: 100 * 1024, gzipLimit: 19 * 1024 },
 ];
 for (const { extension, limit, gzipLimit } of budgets) {
   const files = assets.filter(name => name.endsWith(extension));

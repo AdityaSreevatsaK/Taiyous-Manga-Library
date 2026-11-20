@@ -173,8 +173,8 @@
 .app-shell .manga-cloud-menu{width:42px;height:42px;min-width:42px}
 .app-shell .manga-cloud-menu>summary.cloud-status-toggle{display:grid;place-items:center;box-sizing:border-box;list-style:none;width:42px;height:42px;min-height:42px;padding:0;border:1px solid var(--editorial-line);border-radius:12px;background:transparent;color:var(--editorial-ink)}
 .app-shell .manga-cloud-menu>summary.cloud-status-toggle:hover,.app-shell .manga-cloud-menu[open]>summary.cloud-status-toggle{background:var(--editorial-soft);border-color:var(--editorial-accent)}
-.app-shell .manga-cloud-menu .cloud-status-icon{position:relative;display:grid;place-items:center;width:27px;height:27px}
-.app-shell .manga-cloud-menu .cloud-status-icon>svg{display:block;width:27px;height:27px;stroke:currentColor}
+.app-shell .manga-cloud-menu .cloud-status-icon{position:relative;display:grid;place-items:center;width:25px;height:25px}
+.app-shell .manga-cloud-menu .cloud-status-icon>svg{display:block;width:25px;height:25px;stroke:currentColor}
 .app-shell .manga-cloud-menu .cloud-status-dot{position:absolute;left:51%;top:56%;transform:translate(-50%,-50%);width:6px;height:6px;border:1px solid var(--editorial-surface);border-radius:50%}
 .app-shell .manga-cloud-menu .cloud-status-dot.is-connected{background:#26d878;box-shadow:0 0 0 1px #065c35}
 .app-shell .manga-cloud-menu .cloud-status-dot.is-disconnected{background:#f05e66;box-shadow:0 0 0 1px #7d2530}
@@ -288,3 +288,41 @@
 .app-shell .manga-cloud-menu>summary::-webkit-details-marker{display:none}
 .app-shell .manga-cloud-menu>summary::marker{content:''}
 .app-shell .manga-cloud-menu>summary:focus-visible{outline:2px solid var(--editorial-accent);outline-offset:3px}
+
+/* Novel status styling is intentionally separate from cover ribbon wording. */
+.app-shell .manga-details-hero .manga-publication-pill{
+ border:0;background:transparent;padding:2px 0;color:#fff
+}
+.app-shell .manga-details-hero .manga-publication-pill::before{
+ content:'';display:inline-block;width:7px;height:7px;margin-right:6px;
+ vertical-align:middle;border-radius:50%;background:#b4b6c5
+}
+.app-shell .manga-publication-pill.status-completed::before{background:#83dca8}
+.app-shell .manga-publication-pill.status-ongoing::before{background:#89bfff}
+.app-shell .manga-publication-pill.status-hiatus::before{background:#eac679}
+.app-shell .manga-chapter-stat{display:inline-flex;align-items:center;gap:6px}
+.app-shell .manga-details-hero .detail-actions{display:flex;flex-wrap:wrap;gap:10px}
+.app-shell .manga-hero-rating .hero-rating-save:disabled{color:#293a4d;opacity:.85}
+.app-shell .manga-info-card dd.manga-alias-value{max-width:70%;overflow-wrap:anywhere}
+.app-shell .manga-alias-list summary{cursor:pointer}
+.app-shell .manga-alias-list ul{padding-left:17px;text-align:left}
+.app-shell .manga-synopsis-heading{display:flex;align-items:start;justify-content:space-between;gap:8px}
+.app-shell .manga-synopsis-edit{
+ border:1px solid var(--md-line);border-radius:7px;padding:7px 10px;
+ background:var(--md-soft);color:var(--md-ink);font-size:11px
+}
+.app-shell .manga-synopsis-edit:hover{border-color:var(--editorial-accent)}
+.app-shell .manga-synopsis-label{display:block;font-size:11px;margin-bottom:7px}
+.app-shell .manga-synopsis-card textarea{width:100%;min-height:135px;resize:vertical;padding:10px}
+.app-shell .manga-synopsis-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px}
+.app-shell .manga-synopsis-actions>span{font-size:10px;color:var(--md-muted);margin-right:auto}
+.app-shell .manga-synopsis-actions button{min-height:39px;padding:7px 10px;border-radius:7px}
+.app-shell .manga-synopsis-card .manga-synopsis-hint{margin:10px 0 0;font-size:10px}
+.app-shell .manga-synopsis-hint button{margin-left:7px;color:var(--md-ink);text-decoration:underline}
+.app-shell .novel-chapter-browser .chapter-search input{
+ background:transparent;border:0;box-shadow:none;outline:none
+}
+.app-shell .novel-chapter-browser .chapter-search:focus-within{
+ outline:2px solid var(--editorial-accent);outline-offset:2px
+}
+.app-shell .manga-tags-card .details-tag-row{margin-bottom:13px;row-gap:8px}

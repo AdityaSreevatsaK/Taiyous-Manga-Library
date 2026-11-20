@@ -18,6 +18,10 @@ export function SearchIcon(props:Omit<Props,'children'>){
 export function HashIcon(props:Omit<Props,'children'>){
   return <Icon {...props}><path d="M4 9h16M4 15h16M11 3 7 21M17 3l-4 18"/></Icon>;
 }
+/** The same open-book chapter glyph displayed on Novel Library details. */
+export function BookOpenIcon(props:Omit<Props,'children'>){
+  return <Icon {...props}><path d="M12 7v14"/><path d="M3 18V5a2 2 0 0 1 2-2h3a4 4 0 0 1 4 4v14a4 4 0 0 0-4-4H5a2 2 0 0 0-2 2z"/><path d="M21 18V5a2 2 0 0 0-2-2h-3a4 4 0 0 0-4 4v14a4 4 0 0 1 4-4h3a2 2 0 0 1 2 2z"/></Icon>;
+}
 export function LibraryIcon(props:Omit<Props,'children'>){
   return <Icon {...props}><path d="m16 6 4 14M12 6v14M8 8v12M4 4v16"/></Icon>;
 }

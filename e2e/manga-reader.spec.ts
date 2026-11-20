@@ -1589,3 +1589,64 @@ test('twenty verified private covers load from IndexedDB on refresh and clear at
   await page.getByRole('button',{name:'Sign out of Hugging Face'}).click();
   await expect.poll(countCached,{timeout:15000}).toBe(0);
 });
+
+test('Novel status labels and book icon are distinct from publication ribbons',async({page})=>{
+  await page.goto('/manga/mng_silvergarden');
+  await expect(page.locator('.manga-publication-pill')).toHaveText('Completed');
+  await expect(page.locator('.manga-info-card')).toContainText('Completed');
+  await expect(page.locator('.detail-sub')).not.toContainText('Story Complete');
+  await expect(page.locator('.manga-chapter-stat svg')).toBeVisible();
+  await expect(page.locator('.manga-chapter-stat')).toContainText('chapters');
+  await page.goto('/');
+  await expect(page.locator('.status-ribbon').filter({hasText:'Story Complete'})).toHaveCount(2);
+});
+
+test('editable manga synopsis saves locally, survives refresh and restores its original',async({page})=>{
+  await page.goto('/manga/mng_lanternarchive');
+  const card=page.locator('.manga-synopsis-card');
+  const original=await card.locator('.detail-description').textContent();
+  const edit=card.getByRole('button',{name:'Edit synopsis'});
+  await edit.click();
+  await expect(card.getByRole('textbox',{name:/Personal synopsis/})).toBeVisible();
+  await card.getByRole('textbox',{name:/Personal synopsis/}).fill('A carefully edited personal synopsis.');
+  await card.getByRole('button',{name:'Save synopsis'}).click();
+  await expect(card.locator('.detail-description')).toHaveText('A carefully edited personal synopsis.');
+  await page.reload();
+  await expect(card.locator('.detail-description')).toHaveText('A carefully edited personal synopsis.');
+  await card.getByRole('button',{name:'Restore original'}).click();
+  await expect(card.locator('.detail-description')).toHaveText(original!);
+  await page.reload();
+  await expect(card.locator('.detail-description')).toHaveText(original!);
+});
+
+test('Novel cloud glyph and settings retain keyboard controls and six themes at all widths',async({page})=>{
+  for(const width of [320,390,768,1280]){
+    await page.setViewportSize({width,height:850});
+    await page.goto('/manga/mng_lanternarchive');
+    const toggle=page.locator('.manga-cloud-menu>summary');
+    const glyph=toggle.locator('.cloud-status-icon svg');
+    await expect(glyph).toHaveAttribute('width','25');
+    await expect(glyph).toHaveAttribute('height','25');
+    await expect(glyph).toHaveAttribute('stroke-width','1.9');
+    await expect(toggle.locator('.cloud-status-dot.is-disconnected')).toHaveCount(1);
+    await toggle.focus();
+    await page.keyboard.press('Enter');
+    await expect(page.locator('.manga-cloud-panel')).toBeVisible();
+    await expect(page.locator('.manga-cloud-panel')).toContainText('Cloud library settings');
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.manga-cloud-panel')).toBeHidden();
+    await expect(toggle).toBeFocused();
+    const choose=page.getByRole('button',{name:/Choose colour theme/});
+    await choose.click();
+    const menu=page.locator('.manga-theme-menu-panel');
+    await expect(menu.getByRole('button',{name:/Use .* theme/})).toHaveCount(6);
+    await expect(menu.getByRole('button',{name:'Use Paper theme'})).toBeVisible();
+    await menu.getByRole('button',{name:'Use Paper theme'}).click();
+    await expect(page.locator('.app-shell')).toHaveClass(/theme-paper/);
+    await expect(menu).toHaveCount(0);
+    await choose.click();
+    await menu.getByRole('button',{name:'Use Charcoal theme'}).click();
+    await expect(page.locator('.app-shell')).toHaveClass(/theme-charcoal/);
+    await assertNoHorizontalOverflow(page);
+  }
+});
