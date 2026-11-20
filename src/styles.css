@@ -568,3 +568,30 @@ a.book-card:focus-visible,a.chapter-row:focus-visible,a.back:focus-visible,a.pri
 /* Same-origin private OAuth button in the source selector; no misleading green cloud dot. */
 .cloud-connect-link{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;min-height:44px;font-weight:650}
 .cloud-connect-link:focus-visible{outline:3px solid #efd09a;outline-offset:3px}
+
+/* Long private manga chapter lists should never require scrolling through
+   hundreds of rows to get to the reading controls. */
+.app-shell .private-chapter-read{
+  width:100%;text-align:left;cursor:pointer;
+  font:inherit;display:flex;align-items:center;
+  border:0;background:transparent;color:inherit;
+}
+.app-shell .private-chapter-read:hover:not(:disabled),
+.app-shell .private-chapter-read:focus-visible{
+  background:var(--editorial-soft,rgba(106,119,129,.09));
+}
+.app-shell .private-chapter-read:focus-visible{
+  outline:2px solid var(--editorial-accent,#b18c60);outline-offset:-2px;
+}
+.app-shell .private-chapter-read:disabled{opacity:.68;cursor:wait}
+.app-shell .chapter-list-count{
+  margin:8px 0 15px;color:var(--editorial-muted,#67707a);font-size:12px;
+}
+.app-shell .chapter-load-more{
+  display:block;min-height:43px;margin:18px auto 26px;padding:10px 25px;
+  border-radius:9px;
+}
+.app-shell .chapter-loading-note{
+  padding:10px 12px;border:1px solid var(--editorial-line,#cad2d6);
+  border-radius:7px;font-size:12px;
+}
