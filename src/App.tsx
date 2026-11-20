@@ -14,6 +14,9 @@ import { SearchIcon, HashIcon, LibraryIcon, ChevronDownIcon } from './components
 import { MangaThemeSwatches } from './components/MangaThemeSwatches';
 import { VerticalReader } from './components/VerticalReader';
 import { MangaChapterPicker } from './components/MangaChapterPicker';
+import { MangaChapterBrowser } from './components/MangaChapterBrowser';
+import { MangaHeroBackdrop } from './components/MangaHeroBackdrop';
+import { MangaDetailsQuickNav } from './components/MangaDetailsQuickNav';
 import { MangaCollectionPicker } from './components/MangaCollectionPicker';
 import { MangaCoverArtwork } from './components/MangaCoverArtwork';
 import {ratingLabel,ratingSummary,ratingToneClass} from './domain/ratings';
@@ -34,6 +37,8 @@ import './styles.css';
 import './editorial.css';
 import './novel-parity.css';
 import './novel-details-parity.css';
+import './ported-novel-chapters.css';
+import './ported-novel-quick-navigation.css';
 
 /** These ribbons describe publication status, never the reader's Finished shelf. */
 function roleNames(item:MangaEntry,role:'author'|'artist'):string[]{
@@ -94,7 +99,6 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
   const [privateManifests, setPrivateManifests] = useState<ReadonlyMap<string,ChapterManifest>>(()=>new Map());
   const [privateRevision, setPrivateRevision] = useState('');
   const [chapterLoading, setChapterLoading] = useState<string | null>(null);
-  const [chapterLimit, setChapterLimit] = useState(25);
   const chapterOpenRequest = useRef(0);
   const [cloud, setCloud] = useState<CloudRead | {status:'checking';message:string}>({
     status:'checking',message:'Checking private library connection…',
@@ -125,9 +129,6 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
     return Object.entries(current).some(([key,value])=>value!==null&&value!==''&&value!=='any'&&
       key!=='unused');
   });
-  const [chapterQuery, setChapterQuery] = useState('');
-  const [chapterNumber,setChapterNumber]=useState('');
-  const [invalidChapterNumber,setInvalidChapterNumber]=useState(false);
   const [chapterPickerOpen,setChapterPickerOpen] = useState(false);
   const [collectionPickerOpen,setCollectionPickerOpen] = useState(false);
   useEffect(()=>{
@@ -151,6 +152,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
   const [personalTagDraft,setPersonalTagDraft]=useState<string[]>([]);
   const [ratingDraft,setRatingDraft]=useState<number|undefined>(undefined);
   const [confirmSaveTags,setConfirmSaveTags]=useState(false);
+  const [confirmRemoveTag,setConfirmRemoveTag]=useState<string|null>(null);
   const [preferences, setPreferences] = useState<ReaderPreferences>(() => {
     const read = loadPreferences();
     return read.status === 'ok' ? read.value : defaultReaderPreferences;
@@ -178,10 +180,6 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
   const entry = screen.kind === 'reader' || screen.kind === 'details' ? catalogue.find(item => item.id === screen.id) : undefined;
   const manifest = location ? manifests.get(location.chapterId) : undefined;
   const chapters = entry ? orderedChapters(entry) : [];
-  const matchingChapters=chapters.filter((chapter,index)=>
-    chapter.label.toLocaleLowerCase().includes(chapterQuery.toLocaleLowerCase())||
-    String(index+1)===chapterQuery.trim());
-  const visibleChapters=matchingChapters.slice(0,chapterLimit);
   const activeChapter = chapters.find(chapter => chapter.id === location?.chapterId);
   const allTags = [...new Set(catalogue.flatMap(item =>
     [...item.tags, ...(annotations[item.id]?.tags ?? [])]))].sort((a,b)=>a.localeCompare(b));
@@ -337,6 +335,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
     setTagDraft('');
     setPersonalTagDraft(entry ? annotations[entry.id]?.tags??[] : []);
     setConfirmSaveTags(false);
+    setConfirmRemoveTag(null);
   // Changing a rating must not erase unsaved notes; only change drafts when the manga changes.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entry?.id]);
@@ -663,7 +662,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
     exitImmersive();
     setDemo(value); setLocation(null); setNotice(''); goCatalogue('home');
     if(value){setPrivateManifests(new Map());setPrivateRevision('');}
-    setChapterLimit(25);setChapterQuery('');
+
     setPersonalShelves(loadShelves(value ? demoEntries : remoteEntries).shelves);
     setAnnotations(loadAnnotations(value ? demoEntries : remoteEntries).annotations);
     setQuery(''); setTag(''); setCollection(''); setStatus('all');
@@ -751,9 +750,6 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
       setPersonalTagDraft(tags);setTagDraft('');
     }catch(error){setStorageNotice(error instanceof Error?error.message:'Invalid personal tag.');}
   }
-  function removePersonalTag(value:string){
-    setPersonalTagDraft(previous=>previous.filter(tag=>tag!==value));
-  }
   /** A single metadata-only reload shared by Details and Cloud settings. */
   async function refreshPrivateCatalogue(){
     if(refreshingMetadata)return;
@@ -769,7 +765,12 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
     }finally{setRefreshingMetadata(false);}
   }
   function savePersonalTags(item:MangaEntry){
-    if(changeAnnotation(item,{tags:personalTagDraft},'Personal tag changes saved'))
+    // Port Novel BookDetails add-only contract. Concurrent/stale drafts cannot
+    // silently remove tags; deletion belongs to dedicated Master Controls.
+    const existing=annotations[item.id]?.tags??[];
+    const additions=personalTagDraft.filter(tag=>!existing.some(saved=>
+      saved.toLocaleLowerCase('en')===tag.toLocaleLowerCase('en')));
+    if(changeAnnotation(item,{tags:[...existing,...additions]},'Personal tags saved'))
       setConfirmSaveTags(false);
   }
   function jumpToFilter(kind: 'tag' | 'collection', value: string) {
@@ -782,7 +783,8 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
   const progressForEntry = entry ? restoreProgress(entry, manifests, progress[entry.id]) : null;
 
   return <div className={'app-shell theme-' + preferences.theme +
-    (immersive && screen.kind === 'reader' ? ' reading-immersive' : '')}>
+    (immersive && screen.kind === 'reader' ? ' reading-immersive' : '') +
+    (screen.kind==='details'?' is-manga-details':'')}>
     <a className="skip" href="#content">Skip to content</a>
     <header className="site-header">
       <div className="manga-topbar">
@@ -806,6 +808,20 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
               if(saved.status==='ok')setPreferences(saved.value);
             }} />
         </MangaCloudMenu>
+        {screen.kind==='details'&&
+          <MangaDetailsQuickNav
+            collections={sortedPersonalCollections.map(folder=>({
+              id:folder.id,name:folder.name,parentId:folder.parentId,
+              path:collectionBreadcrumb(collections,folder.id),count:folder.mangaIds.length,
+            }))}
+            readingHref={routeHref({kind:'reading'},import.meta.env.BASE_URL,catalogue)}
+            allHref={routeHref({kind:'library'},import.meta.env.BASE_URL,catalogue)}
+            searchHref={routeHref({kind:'library'},import.meta.env.BASE_URL,catalogue)}
+            collectionHref={id=>routeHref({kind:'library'},import.meta.env.BASE_URL,catalogue)+
+              '?collection='+encodeURIComponent('personal:'+id)}
+            onReading={()=>goCatalogue('reading')} onAll={()=>goCatalogue('library')}
+            onSearch={()=>{setAdvancedOpen(true);goCatalogue('library');}}
+            onCollection={filterPersonalCollection}/>}
         <div className="manga-top-actions">
           <label className="manga-global-search">
             <SearchIcon size={16}/>
@@ -820,7 +836,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
             onClick={()=>{setAdvancedOpen(value=>!value);goCatalogue('library');}}>
             <SearchIcon size={17}/>
           </button>
-          <MangaThemeSwatches value={preferences.theme}
+          <MangaThemeSwatches value={preferences.theme} compact={screen.kind==='details'}
             onChange={theme=>updatePreferences({...preferences,theme})}/>
         </div>
       </div>
@@ -1139,21 +1155,34 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
       <div className="manga-detail-page">
         <a className="back manga-detail-back" href={routeHref({kind:'library'},import.meta.env.BASE_URL,catalogue)}
           onClick={event=>followLink(event,()=>goCatalogue())}>← Back to the shelf</a>
-        <section className="series-detail manga-details-hero">
+        <section className="series-detail manga-details-hero novel-photographic-hero">
+          {!demo&&<MangaHeroBackdrop key={entry.id} mangaId={entry.id}/>}
+          {collections.items.some(folder=>folder.mangaIds.includes(entry.id))&&
+            <nav className="details-hero-memberships" aria-label="Collections containing this manga">
+              <span>IN COLLECTIONS</span>
+              {sortedPersonalCollections.filter(folder=>folder.mangaIds.includes(entry.id)).map(folder=>
+                <button key={folder.id} className="details-hero-membership" type="button"
+                  onClick={()=>filterPersonalCollection(folder.id)}>
+                  {collectionBreadcrumb(collections,folder.id)}
+                </button>)}
+            </nav>}
           <div className={'detail-cover cover-'+(demoEntries.findIndex(d=>d.id===entry.id)%3+1)} aria-hidden="true">
-            {!demo && <MangaCoverArtwork key={entry.cover?.sha256??'none'} entry={entry}/>}
-            {entry.publicationStatus !== 'unknown' &&
-              <span className={'status-ribbon status-'+entry.publicationStatus}>
-                {publicationCaption[entry.publicationStatus]}</span>}
+            {!demo && <MangaCoverArtwork key={entry.cover?.sha256??'none'} entry={entry} priority/>}
             <span className="cover-illustration"><i /><b /></span><span className="cover-title">{entry.title}</span>
           </div>
           <div className="detail-content"><p className="eyebrow">THE STORY / {demo?'READER DEMONSTRATION':'PRIVATE LIBRARY'}</p>
             <h1>{entry.title}</h1><p className="detail-sub">{creditLine(entry)} <span aria-hidden="true">·</span> {publicationCaption[entry.publicationStatus]}</p>
-            <div className="tag-row">{entry.tags.map(value=><button type="button" className="tag" key={value}
-              onClick={()=>jumpToFilter('tag',value)} title={'Filter All Manga by ' + value}>{value}</button>)}</div>
-            <div className="stat-strip"><span><strong>{entry.chapters.length}</strong> chapters</span>
-
-              <span><strong>Scroll</strong> continuous chapter view</span></div>
+            <div className="stat-strip details-meta-row">
+              <span>▤ {entry.chapters.length.toLocaleString()} chapters</span>
+              {entry.publicationStatus!=='unknown'&&
+                <span className={'manga-publication-pill status-'+entry.publicationStatus}>
+                  <span aria-hidden="true">●</span> {publicationCaption[entry.publicationStatus]}
+                </span>}
+            </div>
+            <div className="tag-row details-hero-tags">
+              {entry.tags.map(value=><button type="button" className="tag" key={value}
+                onClick={()=>jumpToFilter('tag',value)} title={'Filter All Manga by '+value}>{value}</button>)}
+            </div>
             <form className="hero-rating manga-hero-rating" aria-label="Personal manga rating"
               onSubmit={event=>{
                 event.preventDefault();
@@ -1231,6 +1260,11 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
                 onClick={()=>{void openChapter(entry,undefined,!!(progress[entry.id]||privateResumeChapter(entry)));}}>
                 {progressForEntry||(!demo&&privateResumeChapter(entry))?'Resume at saved position':'Start reading'} →
               </button>
+              {personalShelves[entry.id]==='finished'
+                ? <button type="button" className="secondary manga-mark-finished"
+                    onClick={()=>changeShelf(entry,null)}>✓ Completed · Undo</button>
+                : <button type="button" className="secondary manga-mark-finished"
+                    onClick={()=>changeShelf(entry,'finished')}>✓ Mark as completed</button>}
             </section>
             <section className="manga-detail-card manga-info-card">
               <p className="manga-card-overline">MANGA INFORMATION</p><h2>Details</h2>
@@ -1244,33 +1278,21 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
                 {entry.aliases.length>0&&<div><dt>Also known as</dt><dd>{entry.aliases.join('; ')}</dd></div>}
                 <div><dt>Chapters</dt><dd>{chapters.length}</dd></div>
                 <div><dt>Publication</dt><dd>{publicationCaption[entry.publicationStatus]}</dd></div>
-                <div><dt>Reading</dt><dd>Continuous scroll</dd></div>
+                
               </dl>
-              <div className="personal-shelf-selector">
-              <label>Personal reading shelf
-                <select aria-label="Personal reading shelf" value={personalShelves[entry.id] ?? ''}
-                  onChange={event=>changeShelf(entry, (event.target.value || null) as ShelfSelection)}>
-                  <option value="">No personal shelf</option>
-                  <option value="trying">Trying Out</option>
-                  <option value="to-read">To Be Read</option>
-                  <option value="finished">Finished</option>
-                </select></label>
-              <p>Stored only on this device. Your publication status is not changed.</p>
-            </div>
+              
             
             </section>
             <section className="manga-detail-card manga-tags-card" aria-label="Publication genres and tags">
               <p className="manga-card-overline">ORGANISE YOUR READING</p><h2>Tags &amp; genres</h2>
-              <p>Browse all tags together. Imported genres are protected; personal tags can be added or removed.</p>
+              <p>Browse all tags together and add personal tags here. To remove personal tags, use Manage this manga below. Imported genres are protected.</p>
               <div className="tag-row details-tag-row" aria-label="All manga tags">
                 {entry.tags.map(value=><button key={'source:'+value} type="button" className="tag imported-tag"
                   title="Imported publication genre" onClick={()=>jumpToFilter('tag',value)}>{value}</button>)}
                 {personalTagDraft.filter(value=>!entry.tags.some(imported=>
                   imported.toLocaleLowerCase('en')===value.toLocaleLowerCase('en')))
-                  .map(value=><span className="personal-tag" key={'personal:'+value}>
-                    <button className="tag" type="button" onClick={()=>jumpToFilter('tag',value)}>{value}</button>
-                    <button className="tag-remove" type="button" aria-label={'Remove tag '+value}
-                      onClick={()=>removePersonalTag(value)}>×</button></span>)}
+                  .map(value=><button key={'personal:'+value} className="tag" type="button"
+                    onClick={()=>jumpToFilter('tag',value)}>{value}</button>)}
                 {!entry.tags.length&&!personalTagDraft.length&&<span className="manga-metadata-missing">No tags yet. Add one below.</span>}
               </div>
               <form className="tag-entry details-tag-form" onSubmit={event=>{event.preventDefault();addTag(entry);}}>
@@ -1312,43 +1334,35 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
                 </div>
               </form>
             </section>
-            <section className="manga-detail-card manga-collections-card">
-              <p className="manga-card-overline">YOUR ORGANISATION</p><h2>Collections</h2>
-              <div className="collection-membership">
-              <label>Add to collection
-                <select id="manga-detail-collection" aria-label="Add to collection" value="" onChange={event=>{
-                  if(event.target.value)updateMembership(entry,event.target.value,true);
-                }}>
-                  <option value="">Choose a collection</option>
-                  {sortedPersonalCollections.map(folder=><option key={folder.id} value={folder.id}
-                    disabled={folder.mangaIds.includes(entry.id)}>
-                    {collectionBreadcrumb(collections,folder.id)}{folder.mangaIds.includes(entry.id)?' (already added)':''}
-                  </option>)}
-                </select>
-              </label>
-              <div className="collection-memberships">
-                {collections.items.filter(folder=>folder.mangaIds.includes(entry.id)).map(folder=>
-                  <span className="collection-member" key={folder.id}>
-                    <button className="tag" type="button" onClick={()=>filterPersonalCollection(folder.id)}>
-                      {collectionBreadcrumb(collections,folder.id)}</button>
-                    <button type="button" aria-label={'Remove from collection ' + folder.name}
-                      onClick={()=>setConfirmMembershipRemoval({collectionId:folder.id,mangaId:entry.id})}>×</button>
-                  </span>)}
-              </div>
-              {collections.items.length===0 && <p>No personal collections yet. Create one in All Manga.</p>}
-            </div>
-            
-            </section>
             <section className="manga-detail-card manga-management-card">
               <p className="manga-card-overline">MANGA STORAGE</p><h2>Manage this manga</h2>
-              <p>Private manga images are accessed securely from Hugging Face. Offline copies of private chapters are not yet supported.</p>
-              {!demo&&<button className="secondary manga-refresh-metadata" type="button"
-                disabled={refreshingMetadata} onClick={()=>{void refreshPrivateCatalogue();}}>
-                {refreshingMetadata?'Refreshing metadata…':'Refresh publication metadata'}
-              </button>}
-              {!demo&&<a className="secondary manga-storage-link"
-                href="https://github.com/AdityaSreevatsaK/Taiyou-Manga-Storage-Controller/actions"
-                target="_blank" rel="noopener noreferrer">Open Manga Storage Controller ↗</a>}
+              <p>The original cover and pages remain protected in your private library.
+                Uploads, metadata edits, deletion and backups belong to Master Controls on the main library page.</p>
+              <p>Private chapter offline downloads are not yet available.</p>
+              <details className="manga-reading-shelf-management">
+                <summary>Reading shelf options</summary>
+                <p>Personal reading shelves do not change the manga's publication status.</p>
+                <div className="manga-reading-shelf-buttons">
+                  <button className="secondary" type="button"
+                    onClick={()=>changeShelf(entry,personalShelves[entry.id]==='to-read'?null:'to-read')}>
+                    {personalShelves[entry.id]==='to-read'?'Remove from To Be Read':'Move to To Be Read'}
+                  </button>
+                  {personalShelves[entry.id]==='finished'&&
+                    <button className="secondary" type="button"
+                      onClick={()=>changeShelf(entry,null)}>Remove from Finished</button>}
+                </div>
+              </details>
+              {(annotations[entry.id]?.tags??[]).length>0&&
+                <details className="manga-personal-tag-management">
+                  <summary>Manage personal tags</summary>
+                  <p>Removing a tag does not alter the imported genres or the manga itself.</p>
+                  <div className="manga-tag-management-actions">
+                    {(annotations[entry.id]?.tags??[]).map(tag=>
+                      <button type="button" className="secondary" key={tag}
+                        onClick={()=>setConfirmRemoveTag(tag)}
+                        aria-label={'Remove personal tag '+tag}>Remove {tag}</button>)}
+                  </div>
+                </details>}
             </section>
           </aside>
           <section className="manga-detail-card manga-mobile-rating" aria-label="Personal manga rating on mobile">
@@ -1377,107 +1391,16 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
               <p className="manga-card-overline">ABOUT THE STORY</p><h2>Synopsis</h2>
               <p className="detail-description">{entry.synopsis||'A synopsis has not been added yet.'}</p>
             </section>
-            <section className="chapter-section manga-detail-card chapter-browser" aria-labelledby="manga-chapters-heading">
-              <div className="details-section-header">
-                <div><p className="manga-card-overline">PICK UP ANYWHERE</p>
-                  <h2 id="manga-chapters-heading">Chapters</h2></div>
-                <span className="manga-chapter-section-icon" aria-hidden="true">☷</span>
-              </div>
-              <div className="chapter-topline">
-                <strong>{chapters.length.toLocaleString()} chapters available</strong>
-                {progressForEntry&&<button type="button" className="chapter-current-link"
-                  onClick={()=>{
-                    setChapterQuery('');
-                    const index=chapters.findIndex(ch=>ch.id===progressForEntry.chapterId);
-                    setChapterLimit(Math.max(25,Math.ceil((index+1)/25)*25));
-                  }}>◈ Show my last chapter ({chapters.findIndex(ch=>ch.id===progressForEntry.chapterId)+1})</button>}
-              </div>
-              <div className="chapter-tools">
-                <label className="chapter-search"><span className="manga-search-glyph" aria-hidden="true">⌕</span>
-                  <span className="manga-sr-only">Search chapters</span>
-                  <input type="search" aria-label="Search chapters" value={chapterQuery}
-                    onChange={event=>{setChapterQuery(event.target.value);setChapterLimit(25);}}
-                    placeholder="Search chapter titles or numbers" />
-                </label>
-                <form className="chapter-jump" onSubmit={event=>{
-                  event.preventDefault();
-                  const n=Number(chapterNumber);
-                  if(!/^\d+$/.test(chapterNumber.trim())||!Number.isSafeInteger(n)||
-                    n<1||n>chapters.length){setInvalidChapterNumber(true);return;}
-                  setInvalidChapterNumber(false);
-                  void openChapter(entry,chapters[n-1]?.id);
-                }}>
-                  <label htmlFor="manga-chapter-number">Go to</label>
-                  <input id="manga-chapter-number" type="number" min={1} max={chapters.length}
-                    placeholder="#" value={chapterNumber} aria-invalid={invalidChapterNumber}
-                    onChange={event=>{setChapterNumber(event.target.value);setInvalidChapterNumber(false);}}/>
-                  <button type="submit" disabled={!chapterNumber.trim()||chapterLoading!==null}>Open ↗</button>
-                </form>
-              </div>
-              {invalidChapterNumber&&<p className="chapter-validation" role="alert">
-                Enter a chapter number between 1 and {chapters.length.toLocaleString()}.</p>}
-              <p className="chapter-completion-summary">
-                {chapters.filter(chapter=>annotations[entry.id]?.completedChapterIds?.includes(chapter.id)).length}
-                {' '}of {chapters.length} chapters explicitly marked completed on this device.
-              </p>
-              <div className="chapter-list" role="list" aria-label="Available chapters">
-                {visibleChapters.map(chapter=>{
-                  const index=chapters.findIndex(value=>value.id===chapter.id);
-                  const current=progressForEntry?.chapterId===chapter.id;
-                  return <div className="chapter-entry" role="listitem" key={chapter.id}>
-                    {demo?<a className={'chapter-row chapter-list-item'+(current?' chapter-list-current':'')}
-                      href={routeHref({kind:'reader',mangaId:entry.id,chapterId:chapter.id,pageIndex:0},
-                        import.meta.env.BASE_URL,catalogue)}
-                      onClick={event=>followLink(event,()=>openChapter(entry,chapter.id))}>
-                      <span className="chapter-number chapter-list-index">{index+1}</span>
-                      <span className="chapter-title chapter-list-label"><strong>{chapter.label}</strong>
-                        <small>{chapter.volume??'No volume'} · {chapter.pageCount??'Unknown'} sample pages</small></span>
-                      {current&&<span className="chapter-list-badge">Last read</span>}
-                      <span className="chapter-open chapter-list-arrow" aria-hidden="true">→</span>
-                    </a>:
-                    <button type="button" className={'chapter-row chapter-list-item private-chapter-read'+
-                      (current?' chapter-list-current':'')} disabled={chapterLoading!==null}
-                      onClick={()=>{void openChapter(entry,chapter.id);}}>
-                      <span className="chapter-number chapter-list-index">{index+1}</span>
-                      <span className="chapter-title chapter-list-label"><strong>{chapter.label}</strong>
-                        <small>{chapter.volume??'No volume'} · {chapter.pageCount??'Unknown'} pages</small></span>
-                      {current&&<span className="chapter-list-badge">Last read</span>}
-                      <span className="chapter-open chapter-list-arrow" aria-hidden="true">
-                        {chapterLoading===chapter.id?'Loading…':'→'}</span>
-                    </button>}
-                    <button type="button" className="secondary chapter-completion-toggle"
-                      aria-label={annotations[entry.id]?.completedChapterIds?.includes(chapter.id)?
-                        'Mark chapter '+(index+1)+' incomplete':'Mark chapter '+(index+1)+' completed'}
-                      aria-pressed={!!annotations[entry.id]?.completedChapterIds?.includes(chapter.id)}
-                      onClick={()=>toggleChapterComplete(entry,chapter.id)}>
-                      {annotations[entry.id]?.completedChapterIds?.includes(chapter.id)?
-                        '✓ Completed':'Mark completed'}
-                    </button>
-                    {demo&&manifests.get(chapter.id)&&<OfflineChapterControl
-                      manifest={manifests.get(chapter.id)!}
-                      onChange={()=>setInventoryRevision(value=>value+1)}/>}
-                  </div>;
-                })}
-                {!matchingChapters.length&&<div className="chapter-no-results">
-                  No chapters match your search.</div>}
-              </div>
-              <nav className="chapter-paging" aria-label="Chapter list pages">
-                <span>Showing {visibleChapters.length.toLocaleString()} of {matchingChapters.length.toLocaleString()}
-                  {chapterQuery?' matching chapters':' chapters'}</span>
-                <div className="chapter-page-actions">
-                  {chapterLimit>25&&<button type="button" className="secondary"
-                    onClick={()=>setChapterLimit(25)}>First 25</button>}
-                  {matchingChapters.length>visibleChapters.length&&
-                    <button className="secondary chapter-load-more" type="button"
-                      onClick={()=>setChapterLimit(value=>value+25)}>
-                      Show next {Math.min(25,matchingChapters.length-visibleChapters.length)} chapters →
-                    </button>}
-                </div>
-              </nav>
-              {chapterLoading&&<p role="status" className="chapter-loading-note">
-                Verifying chapter pages from your private library…</p>}
-            </section>
-
+            <MangaChapterBrowser mangaId={entry.id} chapters={chapters}
+              currentChapterId={progressForEntry?.chapterId} busy={chapterLoading!==null}
+              onReadChapter={chapterId=>{void openChapter(entry,chapterId);}}
+              completedChapterIds={annotations[entry.id]?.completedChapterIds??[]}
+              onToggleComplete={chapterId=>toggleChapterComplete(entry,chapterId)}
+              renderOfflineControl={demo?chapter=>{
+                const sample=manifests.get(chapter.id);
+                return sample?<OfflineChapterControl manifest={sample}
+                  onChange={()=>setInventoryRevision(value=>value+1)}/>:null;
+              }:undefined}/>
           </div>
         </div>
       </div>
@@ -1603,11 +1526,28 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
           </div>
         </div>
       </div>}
+      {confirmRemoveTag && entry && screen.kind==='details' && <div className="dialog-scrim"
+        onKeyDown={event=>{if(event.key==='Escape')setConfirmRemoveTag(null);}}>
+        <div className="app-dialog" role="dialog" aria-modal="true" aria-labelledby="remove-personal-tag-title">
+          <h2 id="remove-personal-tag-title">Remove this personal tag?</h2>
+          <p>Remove “{confirmRemoveTag}” from this manga only? The imported publication genres remain unchanged.</p>
+          <div className="dialog-actions">
+            <button className="secondary" type="button" autoFocus
+              onClick={()=>setConfirmRemoveTag(null)}>Cancel</button>
+            <button className="primary" type="button" onClick={()=>{
+              const updated=(annotations[entry.id]?.tags??[]).filter(tag=>tag!==confirmRemoveTag);
+              if(changeAnnotation(entry,{tags:updated},'Personal tag removed')){
+                setPersonalTagDraft(updated);setTagDraft('');setConfirmRemoveTag(null);
+              }
+            }}>Remove personal tag</button>
+          </div>
+        </div>
+      </div>}
       {confirmSaveTags && entry && screen.kind==='details' && <div className="dialog-scrim"
         onKeyDown={event=>{if(event.key==='Escape')setConfirmSaveTags(false);}}>
         <div className="app-dialog" role="dialog" aria-modal="true" aria-labelledby="confirm-tag-title">
           <h2 id="confirm-tag-title">Save tag changes?</h2>
-          <p>All personal tag additions and removals will be saved together. Imported genres remain unchanged.</p>
+          <p>Your personal tag additions will be saved together. Existing tags and imported genres remain unchanged.</p>
           <div className="dialog-actions">
             <button autoFocus className="secondary" type="button"
               onClick={()=>setConfirmSaveTags(false)}>Cancel</button>

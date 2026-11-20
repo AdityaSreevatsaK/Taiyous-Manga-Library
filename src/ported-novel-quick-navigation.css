@@ -1,0 +1,91 @@
+/* Direct port of Novel Library components/quick-navigation.css.
+ * Manga details apply equivalent palette tokens and preserve URL semantics.
+ */
+.app-shell.is-manga-details{
+ --bg:var(--editorial-paper);--text:var(--editorial-ink);
+ --subtext:var(--editorial-muted);--surface:var(--editorial-surface);
+ --pale:var(--editorial-soft);--border:var(--editorial-line);
+ --accent:var(--editorial-accent);
+}
+.quick-nav {display:flex;align-items:center;justify-content:center;min-width:0;color:var(--text)}
+.quick-nav-primary {display:flex;align-items:center;justify-content:center;gap:clamp(7px,1.2vw,22px)}
+.quick-nav a,.quick-nav summary {color:var(--text);font-size:12px;font-weight:600;text-decoration:none;white-space:nowrap;cursor:pointer}
+.quick-nav-primary>a {display:inline-flex;align-items:center;gap:6px;padding:9px 2px;min-height:44px}
+.quick-nav a:hover,.quick-nav summary:hover {color:var(--accent,#a37e51)}
+.quick-nav details {position:relative}
+.quick-nav summary {list-style:none;display:flex;align-items:center;gap:6px;padding:10px 9px;border-radius:7px;min-height:44px}
+.quick-nav summary::-webkit-details-marker {display:none}
+.quick-nav details[open]>summary {background:var(--pale)}
+.quick-nav-popover {position:absolute;right:0;top:calc(100% + 8px);z-index:1000;display:flex;flex-direction:column;gap:2px;min-width:245px;max-width:min(330px,90vw);max-height:min(65dvh,530px);padding:12px;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:10px;box-shadow:0 14px 40px #0003;overflow:auto}
+.quick-nav-popover strong {font:750 10px/1.4 sans-serif;letter-spacing:.11em;color:var(--subtext);margin:7px 9px}
+.quick-nav-popover a {display:flex;align-items:center;gap:7px;border-radius:6px;padding:10px 12px;white-space:normal;overflow-wrap:anywhere}
+.quick-nav-popover a:hover {background:var(--pale)}
+.quick-nav-collection-link span {min-width:0;flex:1}
+.quick-nav-collection-link small {color:var(--subtext);font-size:10px}
+.quick-nav-empty {font-size:12px;color:var(--subtext);padding:8px;margin:0}
+.quick-nav-mobile {display:none}
+.quick-nav :is(a,summary):focus-visible {outline:2px solid var(--accent,#96734a);outline-offset:3px}
+@media (max-width:1080px) {
+  .quick-nav-primary {display:none}
+  .quick-nav-mobile {display:block}
+}
+@media (max-width:550px) {
+  .quick-nav-mobile summary span {display:none}
+  .quick-nav-mobile summary {padding:9px 6px}
+}
+
+
+
+.app-shell.is-manga-details .site-nav{display:none}
+.app-shell.is-manga-details .manga-topbar{
+ min-height:64px;gap:14px;flex-wrap:nowrap
+}
+.app-shell.is-manga-details .wordmark{flex:0 0 auto}
+.app-shell.is-manga-details .manga-detail-quick-nav{flex:1 1 auto;min-width:0;order:2}
+.app-shell.is-manga-details .manga-cloud-menu{order:3;flex:0 0 42px}
+.app-shell.is-manga-details .manga-top-actions{
+ order:4;margin-left:0;width:auto;flex:0 0 auto
+}
+.app-shell.is-manga-details .manga-global-search,
+.app-shell.is-manga-details .manga-advanced-button{display:none}
+@media(max-width:800px){
+ .app-shell.is-manga-details .manga-topbar{gap:7px;flex-wrap:nowrap}
+ .app-shell.is-manga-details .manga-wordmark-text small{display:none}
+ .app-shell.is-manga-details .manga-theme-swatches{gap:2px}
+}
+@media(max-width:550px){
+ .app-shell.is-manga-details .manga-topbar{padding:9px 11px}
+ .app-shell.is-manga-details .manga-wordmark-text strong{font-size:11px}
+ .app-shell.is-manga-details .manga-wordmark-text small{display:none}
+ .app-shell.is-manga-details .quick-nav-mobile .quick-nav-popover{
+  position:fixed;left:10px;right:10px;top:65px;max-width:none;min-width:0
+ }
+}
+
+/* Match the Novel Library's two-line compact header without 320px overflow.
+ * Keep cloud, themes and collection navigation accessible.
+ */
+.app-shell.is-manga-details .manga-cloud-menu:not([open])>.manga-cloud-panel{display:none}
+@media(max-width:740px){
+ .app-shell.is-manga-details .manga-topbar{
+  display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px 10px;
+  align-items:center;flex-wrap:initial;min-width:0
+ }
+ .app-shell.is-manga-details .wordmark{grid-column:1;grid-row:1;min-width:0}
+ .app-shell.is-manga-details .manga-cloud-menu{
+  grid-column:2;grid-row:1;justify-self:end;min-width:42px
+ }
+ .app-shell.is-manga-details .manga-detail-quick-nav{
+  grid-column:1;grid-row:2;min-width:0;justify-content:flex-start
+ }
+ .app-shell.is-manga-details .manga-top-actions{
+  grid-column:2;grid-row:2;justify-self:end;
+  flex:initial;width:auto;min-width:0;margin:0
+ }
+}
+
+/* Compact Novel-style theme choice on manga details, instead of six swatches. */
+.app-shell.is-manga-details .manga-theme-compact{display:flex;align-items:center;gap:5px;height:37px;padding:0 6px;border:1px solid var(--editorial-line);border-radius:999px;background:var(--editorial-surface);flex:none}
+.app-shell.is-manga-details .manga-theme-compact-dot{width:16px;height:16px;min-width:16px;border-radius:50%;border:1px solid var(--editorial-line)}
+.app-shell.is-manga-details .manga-theme-compact select{width:82px;min-width:0;min-height:34px;padding:4px 2px;border:0;background:transparent;color:var(--editorial-ink);font-size:11px}
+@media(max-width:440px){.app-shell.is-manga-details .manga-theme-compact select{width:24px;font-size:0}}

@@ -16,6 +16,31 @@ type CacheValue<T>={expires:number;value:Promise<T>};
 const META_TTL_MS=30_000;
 const catalogues=new Map<string,CacheValue<VerifiedIndex>>();
 const manifests=new Map<string,CacheValue<ChapterManifest>>();
+/** Bounded isolate-only cache of verified private cover bytes.
+ * Every request still checks the signed-in owner and current private dataset SHA.
+ * Never persisted, never written to Cache API or the service worker.
+ */
+const COVER_TTL_MS=120_000,COVER_BUDGET=12_000_000;
+const verifiedCovers=new Map<string,{expires:number;bytes:ArrayBuffer;mime:string}>();
+function findVerifiedCover(key:string,mime:string):ArrayBuffer|undefined{
+ const hit=verifiedCovers.get(key);
+ if(!hit)return;
+ if(hit.expires<Date.now()||hit.mime!==mime){verifiedCovers.delete(key);return;}
+ verifiedCovers.delete(key);verifiedCovers.set(key,hit);
+ return hit.bytes;
+}
+function rememberVerifiedCover(key:string,mime:string,bytes:ArrayBuffer):void{
+ if(bytes.byteLength>COVER_BUDGET)return;
+ verifiedCovers.set(key,{expires:Date.now()+COVER_TTL_MS,bytes,mime});
+ let total=0;
+ for(const item of verifiedCovers.values())total+=item.bytes.byteLength;
+ while(total>COVER_BUDGET){
+  const oldest=verifiedCovers.keys().next().value;
+  if(oldest===undefined)break;
+  total-=verifiedCovers.get(oldest)!.bytes.byteLength;
+  verifiedCovers.delete(oldest);
+ }
+}
 function cachedMetadata<T>(cache:Map<string,CacheValue<T>>,key:string,max:number,
  loader:()=>Promise<T>):Promise<T>{
  const old=cache.get(key);
@@ -33,7 +58,7 @@ function cachedMetadata<T>(cache:Map<string,CacheValue<T>>,key:string,max:number
 }
 /** Clears isolate-only metadata caches between mocked test fixtures. */
 export function clearPrivateMediaMetadataCacheForTests():void{
- catalogues.clear();manifests.clear();
+ catalogues.clear();manifests.clear();verifiedCovers.clear();
 }
 
 async function bounded(response:Response,limit:number):Promise<ArrayBuffer>{
@@ -136,15 +161,22 @@ export async function onRequest({request,env}:Context):Promise<Response>{
      const {entries,layout}=await catalogueAt(snapshot.sha,session.access);
      const cover=entries.find(item=>item.id===mangaId)?.cover;
      if(layout!=='canonical'||!cover)return json({error:'No verified private cover available'},404);
-     const upstream=await hfFetch('/datasets/'+REPO+'/resolve/'+snapshot.sha+'/data/'+cover.assetPath,session.access);
-     if(!upstream.ok)return json({error:'Private cover is unavailable'},502);
-     const bytes=await bounded(upstream,Math.min(5_000_000,cover.byteSize));
+     // No cover is returned until owner, private repository and current SHA are verified.
+     const key=[snapshot.sha,mangaId,cover.sha256,cover.mimeType,cover.byteSize].join(':');
+     let bytes=findVerifiedCover(key,cover.mimeType);
+     if(!bytes){
+       const upstream=await hfFetch('/datasets/'+REPO+'/resolve/'+snapshot.sha+'/data/'+cover.assetPath,session.access);
+       if(!upstream.ok)return json({error:'Private cover is unavailable'},502);
+       bytes=await bounded(upstream,Math.min(5_000_000,cover.byteSize));
+       const img=new Uint8Array(bytes);
+       if(img.byteLength!==cover.byteSize||!imageSignature(img,cover))
+         return json({error:'Private cover failed format or size verification'},409);
+       const digest=[...new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))]
+         .map(byte=>byte.toString(16).padStart(2,'0')).join('');
+       if(digest!==cover.sha256)return json({error:'Private cover failed checksum verification'},409);
+       rememberVerifiedCover(key,cover.mimeType,bytes);
+     }
      const img=new Uint8Array(bytes);
-     if(img.byteLength!==cover.byteSize||!imageSignature(img,cover))
-       return json({error:'Private cover failed format or size verification'},409);
-     const digest=[...new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))]
-       .map(byte=>byte.toString(16).padStart(2,'0')).join('');
-     if(digest!==cover.sha256)return json({error:'Private cover failed checksum verification'},409);
      return new Response(bytes,{status:200,headers:{
        ...HEADERS,'Content-Type':cover.mimeType,'Content-Length':String(img.length),
        'Cross-Origin-Resource-Policy':'same-origin',
