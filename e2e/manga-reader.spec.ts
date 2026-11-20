@@ -1377,6 +1377,25 @@ test('Novel Library details keep source and personal tags together, separate fro
   }
 });
 
+test('personal tag deletion requires management disclosure and explicit confirmation',async({page})=>{
+  await page.goto('/manga/mng_lanternarchive');
+  await page.getByLabel('Add a personal tag').fill('Protected Favourite');
+  await page.getByRole('button',{name:'Add tag'}).click();
+  await page.getByRole('button',{name:'Review & save tags'}).click();
+  await page.getByRole('dialog',{name:'Save tag changes?'}).getByRole('button',{name:'Save tags'}).click();
+  await expect(page.getByRole('button',{name:'Remove tag Protected Favourite'})).toHaveCount(0);
+  await page.locator('.manga-personal-tag-management summary').click();
+  await page.getByRole('button',{name:'Remove personal tag Protected Favourite'}).click();
+  const modal=page.getByRole('dialog',{name:'Remove this personal tag?'});
+  await expect(modal).toBeVisible();
+  await modal.getByRole('button',{name:'Cancel'}).click();
+  await expect(page.locator('.manga-tags-card')).toContainText('Protected Favourite');
+  await page.getByRole('button',{name:'Remove personal tag Protected Favourite'}).click();
+  await modal.getByRole('button',{name:'Remove personal tag'}).click();
+  await page.reload();
+  await expect(page.locator('.manga-tags-card')).not.toContainText('Protected Favourite');
+});
+
 test('Novel-style collection picker opens from the manga hero and preserves membership on mobile',async({page})=>{
   await page.setViewportSize({width:390,height:850});
   await page.goto('/library');
