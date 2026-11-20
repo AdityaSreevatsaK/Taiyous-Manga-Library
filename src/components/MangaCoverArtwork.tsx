@@ -1,11 +1,18 @@
-import {useState} from 'react';
+import {useEffect,useState} from 'react';
 import type {MangaEntry} from '../domain/types';
+import {useMangaCoverArt} from './useMangaCoverArt';
 
-/** Authenticated same-origin artwork only. No HF URL or OAuth token reaches the DOM. */
+/** Novel-style local cover art, sourced only from the authenticated manga gateway.
+ * Blob URLs are per component and revoked on unmount; never expose HF paths.
+ */
 export function MangaCoverArtwork({entry,priority=false}:{entry:MangaEntry;priority?:boolean}){
+ const {wrapper,url}=useMangaCoverArt(entry,priority);
  const [failed,setFailed]=useState(false);
- if(!entry.cover||failed)return null;
- return <img className="manga-cover-image" alt="" loading={priority?"eager":"lazy"} fetchPriority={priority?"high":"auto"} decoding="async"
-   src={'/api/media/cover?'+new URLSearchParams({mangaId:entry.id})}
-   onError={()=>setFailed(true)} />;
+ useEffect(()=>setFailed(false),[entry.id,entry.cover?.sha256]);
+ if(!entry.cover)return null;
+ return <span className="manga-cover-loader" ref={wrapper} aria-hidden="true">
+   {url&&!failed&&<img className="manga-cover-image" alt="" src={url}
+     loading={priority?'eager':'lazy'} fetchPriority={priority?'high':'auto'}
+     decoding="async" onError={()=>setFailed(true)}/>}
+ </span>;
 }
