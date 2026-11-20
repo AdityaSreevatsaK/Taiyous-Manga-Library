@@ -146,8 +146,9 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
     loadAnnotations(initialDemo ? demoEntries : realEntries).annotations);
   const [noteDraft, setNoteDraft] = useState('');
   const [tagDraft, setTagDraft] = useState('');
+  const [personalTagDraft,setPersonalTagDraft]=useState<string[]>([]);
   const [ratingDraft,setRatingDraft]=useState<number|undefined>(undefined);
-  const [confirmRemoveTag, setConfirmRemoveTag] = useState<string | null>(null);
+  const [confirmSaveTags,setConfirmSaveTags]=useState(false);
   const [preferences, setPreferences] = useState<ReaderPreferences>(() => {
     const read = loadPreferences();
     return read.status === 'ok' ? read.value : defaultReaderPreferences;
@@ -331,7 +332,8 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
     setNoteDraft(entry ? annotations[entry.id]?.notes ?? '' : '');
     setRatingDraft(entry ? annotations[entry.id]?.rating : undefined);
     setTagDraft('');
-    setConfirmRemoveTag(null);
+    setPersonalTagDraft(entry ? annotations[entry.id]?.tags??[] : []);
+    setConfirmSaveTags(false);
   // Changing a rating must not erase unsaved notes; only change drafts when the manga changes.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entry?.id]);
@@ -735,28 +737,31 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
       existing.filter(id=>id!==chapterId) : [...existing,chapterId]},
       done ? 'Chapter marked incomplete' : 'Chapter marked completed');
   }
+  /** Match Novel Library: stage changes, then save all personal tags after review. */
   function addTag(item: MangaEntry) {
     try {
-      const existing = annotations[item.id]?.tags ?? [];
-      const tags = addPersonalTag(existing, tagDraft);
-      if (tags.length === existing.length) {
-        setShelfNotice('This tag is already attached.');
-        return;
+      const tags=addPersonalTag(personalTagDraft,tagDraft);
+      if(tags.length===personalTagDraft.length||
+        item.tags.some(value=>value.toLocaleLowerCase('en')===tagDraft.trim().toLocaleLowerCase('en'))){
+        setShelfNotice('That tag is already on this manga.');return;
       }
-      if (changeAnnotation(item, {tags}, 'Personal tag added')) setTagDraft('');
-    } catch (error) {
-      setStorageNotice(error instanceof Error ? error.message : 'Cannot add this tag.');
-    }
+      setPersonalTagDraft(tags);setTagDraft('');
+    }catch(error){setStorageNotice(error instanceof Error?error.message:'Invalid personal tag.');}
   }
-  function removePersonalTag(item: MangaEntry, value: string) {
-    const tags = (annotations[item.id]?.tags ?? []).filter(tag => tag !== value);
-    if (changeAnnotation(item, {tags}, 'Personal tag removed')) setConfirmRemoveTag(null);
+  function removePersonalTag(value:string){
+    setPersonalTagDraft(previous=>previous.filter(tag=>tag!==value));
+  }
+  function savePersonalTags(item:MangaEntry){
+    if(changeAnnotation(item,{tags:personalTagDraft},'Personal tag changes saved'))
+      setConfirmSaveTags(false);
   }
   function jumpToFilter(kind: 'tag' | 'collection', value: string) {
     setTag(kind === 'tag' ? value : '');
     setCollection(kind === 'collection' ? value : '');
     goCatalogue('library');
   }
+  const tagChanges=entry!==undefined &&
+    JSON.stringify(personalTagDraft)!==JSON.stringify(annotations[entry.id]?.tags??[]);
   const progressForEntry = entry ? restoreProgress(entry, manifests, progress[entry.id]) : null;
 
   return <div className={'app-shell theme-' + preferences.theme +
@@ -1238,52 +1243,56 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
             </section>
             <section className="manga-detail-card manga-tags-card" aria-label="Publication genres and tags">
               <p className="manga-card-overline">ORGANISE YOUR READING</p><h2>Tags &amp; genres</h2>
-              <p>Imported genres are protected. Add or remove your own personal tags below.</p>
-              <div className="tag-row" aria-label="Imported manga genres">
-                {entry.tags.length?entry.tags.map(value=>
-                  <button type="button" key={value} className="tag"
-                    onClick={()=>jumpToFilter('tag',value)}>{value}</button>):
-                  <span className="manga-metadata-missing">No imported genres supplied yet.</span>}
+              <p>Browse all tags together. Imported genres are protected; personal tags can be added or removed.</p>
+              <div className="tag-row details-tag-row" aria-label="All manga tags">
+                {entry.tags.map(value=><button key={'source:'+value} type="button" className="tag imported-tag"
+                  title="Imported publication genre" onClick={()=>jumpToFilter('tag',value)}>{value}</button>)}
+                {personalTagDraft.filter(value=>!entry.tags.some(imported=>
+                  imported.toLocaleLowerCase('en')===value.toLocaleLowerCase('en')))
+                  .map(value=><span className="personal-tag" key={'personal:'+value}>
+                    <button className="tag" type="button" onClick={()=>jumpToFilter('tag',value)}>{value}</button>
+                    <button className="tag-remove" type="button" aria-label={'Remove tag '+value}
+                      onClick={()=>removePersonalTag(value)}>×</button></span>)}
+                {!entry.tags.length&&!personalTagDraft.length&&<span className="manga-metadata-missing">No tags yet. Add one below.</span>}
               </div>
-
-          <div className="personal-tag-editor">
-            <strong>Personal tags</strong>
-            <div className="tag-row">
-              {(annotations[entry.id]?.tags ?? []).map(value=><span className="personal-tag" key={value}>
-                <button className="tag" type="button" onClick={()=>jumpToFilter('tag',value)}>{value}</button>
-                <button className="tag-remove" type="button" aria-label={'Remove tag ' + value}
-                  onClick={()=>setConfirmRemoveTag(value)}>×</button>
-              </span>)}
-            </div>
-            <div className="tag-entry">
-              <label>Add a personal tag
-                <input type="text" value={tagDraft} maxLength={48} list="personal-tag-suggestions"
-                  onChange={event=>setTagDraft(event.target.value)}
-                  onKeyDown={event=>{if(event.key === 'Enter'){event.preventDefault();addTag(entry);}}}
-                  placeholder="e.g. Romance" /></label>
-              <datalist id="personal-tag-suggestions">{allTags.map(value=><option key={value} value={value}/>)}</datalist>
-              <button type="button" className="secondary" disabled={!tagDraft.trim()} onClick={()=>addTag(entry)}>Add tag</button>
-            </div>
-          </div>
+              <form className="tag-entry details-tag-form" onSubmit={event=>{event.preventDefault();addTag(entry);}}>
+                <label htmlFor="new-manga-tag">Add a personal tag</label>
+                <input id="new-manga-tag" type="text" value={tagDraft} maxLength={48}
+                  list="personal-tag-suggestions" onChange={event=>setTagDraft(event.target.value)}
+                  placeholder="e.g. Favourite, Romance, Slow burn..." />
+                <datalist id="personal-tag-suggestions">{allTags.map(value=>
+                  <option key={value} value={value}/>)}</datalist>
+                <button type="submit" className="primary" disabled={!tagDraft.trim()}>+ Add tag</button>
+              </form>
+              <div className="tag-draft-actions">
+                <span>{tagChanges?'Unsaved tag changes':'Your tags are saved'}</span>
+                {tagChanges&&<>
+                  <button className="secondary" type="button"
+                    onClick={()=>{setPersonalTagDraft(annotations[entry.id]?.tags??[]);setTagDraft('');}}>Discard changes</button>
+                  <button className="primary" type="button"
+                    onClick={()=>setConfirmSaveTags(true)}>Review &amp; save tags</button>
+                </>}
+              </div>
             </section>
             <section className="personal-annotations manga-detail-card" aria-label="Personal manga annotations">
-          <p className="manga-card-overline">YOUR PERSONAL IMPRESSIONS</p><h2>Comments &amp; reading notes</h2>
-          <p>These are private to this browser. They are not part of the public demonstration catalogue.</p>
-          <div className="personal-notes-editor">
-            <label>Personal notes
-              <textarea value={noteDraft} maxLength={5000} rows={4}
-                onChange={event=>setNoteDraft(event.target.value)} placeholder="Your thoughts about this manga..." />
-            </label>
-            <div className="notes-actions">
-              <button className="primary" type="button"
-                disabled={noteDraft === (annotations[entry.id]?.notes ?? '')}
-                onClick={()=>changeAnnotation(entry,{notes:noteDraft},'Notes saved')}>Save notes</button>
-              <button className="secondary" type="button"
-                disabled={noteDraft === (annotations[entry.id]?.notes ?? '')}
-                onClick={()=>setNoteDraft(annotations[entry.id]?.notes ?? '')}>Discard edits</button>
-            </div>
-          </div>
-        </section>
+              <p className="manga-card-overline">YOUR PERSONAL IMPRESSIONS</p><h2>Comments &amp; reading notes</h2>
+              <p>Capture your thoughts about this manga. Comments and ratings are saved locally on this device.</p>
+              <form className="personal-notes-editor personal-review-form" onSubmit={event=>{
+                event.preventDefault();changeAnnotation(entry,{notes:noteDraft},'Comments saved');
+              }}>
+                <label htmlFor="manga-personal-review">My comments / reading notes</label>
+                <textarea id="manga-personal-review" value={noteDraft} maxLength={5000} rows={5}
+                  onChange={event=>setNoteDraft(event.target.value)}
+                  placeholder="Memorable scenes, characters or your thoughts..." />
+                <div className="notes-actions personal-review-actions">
+                  <span>Saved locally on this device</span>
+                  <button className="primary" type="submit"
+                    disabled={noteDraft===(annotations[entry.id]?.notes??'')}>Save comments</button>
+                  {noteDraft!==(annotations[entry.id]?.notes??'')&&<button className="secondary" type="button"
+                    onClick={()=>setNoteDraft(annotations[entry.id]?.notes??'')}>Discard edits</button>}
+                </div>
+              </form>
+            </section>
             <section className="manga-detail-card manga-collections-card">
               <p className="manga-card-overline">YOUR ORGANISATION</p><h2>Collections</h2>
               <div className="collection-membership">
@@ -1531,14 +1540,16 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
           </div>
         </div>
       </div>}
-      {confirmRemoveTag && entry && screen.kind === 'details' && <div className="dialog-scrim"
-        onKeyDown={event=>{if(event.key==='Escape')setConfirmRemoveTag(null);}}>
+      {confirmSaveTags && entry && screen.kind==='details' && <div className="dialog-scrim"
+        onKeyDown={event=>{if(event.key==='Escape')setConfirmSaveTags(false);}}>
         <div className="app-dialog" role="dialog" aria-modal="true" aria-labelledby="confirm-tag-title">
-          <h2 id="confirm-tag-title">Remove personal tag?</h2>
-          <p>Remove “{confirmRemoveTag}” from this manga on this device?</p>
+          <h2 id="confirm-tag-title">Save tag changes?</h2>
+          <p>All personal tag additions and removals will be saved together. Imported genres remain unchanged.</p>
           <div className="dialog-actions">
-            <button autoFocus className="secondary" type="button" onClick={()=>setConfirmRemoveTag(null)}>Cancel</button>
-            <button className="primary" type="button" onClick={()=>removePersonalTag(entry,confirmRemoveTag)}>Remove tag</button>
+            <button autoFocus className="secondary" type="button"
+              onClick={()=>setConfirmSaveTags(false)}>Cancel</button>
+            <button className="primary" type="button"
+              onClick={()=>savePersonalTags(entry)}>Save tags</button>
           </div>
         </div>
       </div>}
