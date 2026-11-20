@@ -149,6 +149,8 @@
   box-shadow:none;background:transparent;
 }
 .app-shell .nav-count{opacity:.65;font-size:10px}
+.app-shell .manga-nav-mobile{display:none}
+.app-shell .manga-nav-desktop{display:inline}
 .app-shell .manga-nav-tools{display:flex;align-items:center;gap:4px;flex:0 0 auto}
 .app-shell .manga-nav-tools .header-menu>summary{
   min-height:40px;padding:9px 10px;border:1px solid transparent;
@@ -181,6 +183,10 @@
   }
   .app-shell .site-nav{min-height:49px;flex-wrap:wrap;gap:0;padding-bottom:3px}
   .app-shell .manga-nav-links{overflow:visible;flex:1 1 auto}
+  .app-shell .manga-nav-links .site-nav-link{width:auto;min-width:0;white-space:nowrap}
+  .app-shell .manga-nav-links .nav-more{width:auto;flex:0 0 auto}
+  .app-shell .manga-nav-desktop{display:none}
+  .app-shell .manga-nav-mobile{display:inline}
   .app-shell .manga-nav-tools{margin-left:auto}
   .app-shell .site-nav-link{min-height:46px;padding:8px 7px;font-size:10px}
   .app-shell .nav-more summary{min-height:45px}
