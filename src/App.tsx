@@ -14,6 +14,7 @@ import { SearchIcon, HashIcon, LibraryIcon, ChevronDownIcon } from './components
 import { MangaThemeSwatches } from './components/MangaThemeSwatches';
 import { VerticalReader } from './components/VerticalReader';
 import { MangaChapterPicker } from './components/MangaChapterPicker';
+import { MangaCoverArtwork } from './components/MangaCoverArtwork';
 import { CATALOGUE_SECTIONS, parseAppRoute, routeHref, type AppRoute, type CatalogueSection } from './domain/routes';
 import { loadShelves, saveShelf, type PersonalShelf, type ShelfSelection } from './domain/personalShelves';
 import { collectionBreadcrumb, loadCollections, saveCollections, setCollectionMembership,
@@ -33,6 +34,12 @@ import './novel-parity.css';
 import './novel-details-parity.css';
 
 /** These ribbons describe publication status, never the reader's Finished shelf. */
+function creditLine(item:MangaEntry):string{
+ const authors=item.authors?.join(', ')||'';
+ const artists=item.artists?.join(', ')||'';
+ if(authors&&artists&&authors!==artists)return authors+' · Art: '+artists;
+ return authors||artists||item.creators.join(', ')||'Creator unknown';
+}
 const publicationCaption:Record<PublicationStatus,string>={
   completed:'Story Complete',ongoing:'Updating',hiatus:'On Hiatus',unknown:'Unknown',
 };
@@ -845,7 +852,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
                 <div className={'editorial-display-book book-'+index} key={item.id}>
                   <span className="editorial-book-glyph">✦</span>
                   <span className="editorial-book-title">{item.title}</span>
-                  <span className="editorial-book-maker">{item.creators[0] || 'TAIYOU LIBRARY'}</span>
+                  <span className="editorial-book-maker">{item.authors?.[0] || item.creators[0] || 'TAIYOU LIBRARY'}</span>
                 </div>)}
             </div> : <div className="editorial-empty-plate">
               <span className="editorial-plate-icon">✦</span>
@@ -1037,6 +1044,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
             <a className="book-card" key={item.id} href={routeHref({kind:'details',mangaId:item.id},import.meta.env.BASE_URL)}
               onClick={event=>followLink(event,()=>navigateTo({kind:'details',mangaId:item.id}))}>
               <span className={'book-cover cover-'+(demoEntries.findIndex(d=>d.id===item.id)%3+1)}>
+                {!demo && <MangaCoverArtwork entry={item}/>}
                 {item.publicationStatus !== 'unknown' &&
                   <span className={'status-ribbon status-'+item.publicationStatus}
                     aria-label={'Publication: '+publicationCaption[item.publicationStatus]}>
@@ -1044,12 +1052,12 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
                 <span className="cover-number">TAIYOU / {String(index+1).padStart(2,'0')}</span>
                 <span className="cover-illustration" aria-hidden="true"><i /><b /></span>
                 <span className="cover-title">{item.title}</span>
-                <span className="cover-creator">{item.creators[0] || 'UNKNOWN CREATOR'}</span>
+                <span className="cover-creator">{item.authors?.[0] || item.creators[0] || 'CREATOR UNKNOWN'}</span>
                 <span className="cover-foot">{demo?'READER DEMONSTRATION':'YOUR PRIVATE ARCHIVE'}</span>
               </span>
               <span className="book-details"><strong>{item.title}</strong>
                 {annotations[item.id]?.favourite && <span className="book-favourite">★ Favourite</span>}
-                <span className="book-author">{item.creators.join(', ') || 'Creator unknown'}</span>
+                <span className="book-author">{creditLine(item)}</span>
                 <span className="book-tags" aria-label="Genres">{item.tags.slice(0,3).map(value=>
                   <span key={value} className="book-tag">{value}</span>)}
                   {item.tags.length>3&&<span className="book-tag book-tag-extra">+{item.tags.length-3}</span>}
@@ -1084,13 +1092,14 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
           onClick={event=>followLink(event,()=>goCatalogue())}>← Back to the shelf</a>
         <section className="series-detail manga-details-hero">
           <div className={'detail-cover cover-'+(demoEntries.findIndex(d=>d.id===entry.id)%3+1)} aria-hidden="true">
+            {!demo && <MangaCoverArtwork entry={entry}/>}
             {entry.publicationStatus !== 'unknown' &&
               <span className={'status-ribbon status-'+entry.publicationStatus}>
                 {publicationCaption[entry.publicationStatus]}</span>}
             <span className="cover-illustration"><i /><b /></span><span className="cover-title">{entry.title}</span>
           </div>
           <div className="detail-content"><p className="eyebrow">THE STORY / {demo?'READER DEMONSTRATION':'PRIVATE LIBRARY'}</p>
-            <h1>{entry.title}</h1><p className="detail-sub">{entry.creators.join(', ')} <span aria-hidden="true">·</span> {entry.publicationStatus}</p>
+            <h1>{entry.title}</h1><p className="detail-sub">{creditLine(entry)} <span aria-hidden="true">·</span> {publicationCaption[entry.publicationStatus]}</p>
             <div className="tag-row">{entry.tags.map(value=><button type="button" className="tag" key={value}
               onClick={()=>jumpToFilter('tag',value)} title={'Filter All Manga by ' + value}>{value}</button>)}</div>
             <div className="stat-strip"><span><strong>{entry.chapters.length}</strong> chapters</span>
@@ -1167,7 +1176,11 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
             <section className="manga-detail-card manga-info-card">
               <p className="manga-card-overline">MANGA INFORMATION</p><h2>Details</h2>
               <dl>
-                <div><dt>Creator</dt><dd>{entry.creators.join(', ')||'Unknown'}</dd></div>
+                {entry.authors?.length ? <div><dt>Author{entry.authors.length>1?'s':''}</dt><dd>{entry.authors.join(', ')}</dd></div> : null}
+                {entry.artists?.length ? <div><dt>Artist{entry.artists.length>1?'s':''}</dt><dd>{entry.artists.join(', ')}</dd></div> : null}
+                {!entry.authors?.length&&!entry.artists?.length&&
+                  <div><dt>Creators</dt><dd>{entry.creators.join(', ')||'Not supplied'}</dd></div>}
+                {entry.aliases.length>0&&<div><dt>Also known as</dt><dd>{entry.aliases.join('; ')}</dd></div>}
                 <div><dt>Chapters</dt><dd>{chapters.length}</dd></div>
                 <div><dt>Publication</dt><dd>{publicationCaption[entry.publicationStatus]}</dd></div>
                 <div><dt>Reading</dt><dd>Continuous scroll</dd></div>
@@ -1184,6 +1197,21 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
               <p>Stored only on this device. Your publication status is not changed.</p>
             </div>
             
+            </section>
+            <section className="manga-detail-card manga-tags-card" aria-label="Publication genres and tags">
+              <p className="manga-card-overline">ORGANISE YOUR READING</p><h2>Tags &amp; genres</h2>
+              <p>Imported publication tags are separate from your personal tags.</p>
+              <div className="tag-row" aria-label="Imported manga genres">
+                {entry.tags.length?entry.tags.map(value=>
+                  <button type="button" key={value} className="tag"
+                    onClick={()=>jumpToFilter('tag',value)}>{value}</button>):
+                  <span className="manga-metadata-missing">No imported genres supplied yet.</span>}
+              </div>
+              {annotations[entry.id]?.tags?.length ? <div className="tag-row" aria-label="Your personal tags">
+                {annotations[entry.id]!.tags!.map(value=>
+                  <button type="button" key={value} className="tag"
+                    onClick={()=>jumpToFilter('tag',value)}>{value}</button>)}
+              </div> : null}
             </section>
             <section className="manga-detail-card manga-collections-card">
               <p className="manga-card-overline">YOUR ORGANISATION</p><h2>Collections</h2>
@@ -1211,6 +1239,50 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
               {collections.items.length===0 && <p>No personal collections yet. Create one in All Manga.</p>}
             </div>
             
+            </section>
+            <section className="personal-annotations manga-detail-card" aria-label="Personal manga annotations">
+          <p className="manga-card-overline">YOUR PERSONAL IMPRESSIONS</p><h2>Comments &amp; reading notes</h2>
+          <p>These are private to this browser. They are not part of the public demonstration catalogue.</p>
+          <div className="personal-tag-editor">
+            <strong>Personal tags</strong>
+            <div className="tag-row">
+              {(annotations[entry.id]?.tags ?? []).map(value=><span className="personal-tag" key={value}>
+                <button className="tag" type="button" onClick={()=>jumpToFilter('tag',value)}>{value}</button>
+                <button className="tag-remove" type="button" aria-label={'Remove tag ' + value}
+                  onClick={()=>setConfirmRemoveTag(value)}>×</button>
+              </span>)}
+            </div>
+            <div className="tag-entry">
+              <label>Add a personal tag
+                <input type="text" value={tagDraft} maxLength={48} list="personal-tag-suggestions"
+                  onChange={event=>setTagDraft(event.target.value)}
+                  onKeyDown={event=>{if(event.key === 'Enter'){event.preventDefault();addTag(entry);}}}
+                  placeholder="e.g. Romance" /></label>
+              <datalist id="personal-tag-suggestions">{allTags.map(value=><option key={value} value={value}/>)}</datalist>
+              <button type="button" className="secondary" disabled={!tagDraft.trim()} onClick={()=>addTag(entry)}>Add tag</button>
+            </div>
+          </div>
+          <div className="personal-notes-editor">
+            <label>Personal notes
+              <textarea value={noteDraft} maxLength={5000} rows={4}
+                onChange={event=>setNoteDraft(event.target.value)} placeholder="Your thoughts about this manga..." />
+            </label>
+            <div className="notes-actions">
+              <button className="primary" type="button"
+                disabled={noteDraft === (annotations[entry.id]?.notes ?? '')}
+                onClick={()=>changeAnnotation(entry,{notes:noteDraft},'Notes saved')}>Save notes</button>
+              <button className="secondary" type="button"
+                disabled={noteDraft === (annotations[entry.id]?.notes ?? '')}
+                onClick={()=>setNoteDraft(annotations[entry.id]?.notes ?? '')}>Discard edits</button>
+            </div>
+          </div>
+        </section>
+            <section className="manga-detail-card manga-management-card">
+              <p className="manga-card-overline">MANGA STORAGE</p><h2>Manage this manga</h2>
+              <p>Private manga images are accessed securely from Hugging Face. Offline copies of private chapters are not yet supported.</p>
+              {!demo&&<a className="secondary manga-storage-link"
+                href="https://github.com/AdityaSreevatsaK/Taiyou-Manga-Storage-Controller/actions"
+                target="_blank" rel="noopener noreferrer">Open Manga Storage Controller ↗</a>}
             </section>
           </aside>
           <div className="manga-details-main">
@@ -1266,43 +1338,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
           {chapterLoading&&<p role="status" className="chapter-loading-note">Verifying chapter pages from your private library…</p>}
         </section>
 
-            <section className="personal-annotations manga-detail-card" aria-label="Personal manga annotations">
-          <h2>My notes and tags</h2>
-          <p>These are private to this browser. They are not part of the public demonstration catalogue.</p>
-          <div className="personal-tag-editor">
-            <strong>Personal tags</strong>
-            <div className="tag-row">
-              {(annotations[entry.id]?.tags ?? []).map(value=><span className="personal-tag" key={value}>
-                <button className="tag" type="button" onClick={()=>jumpToFilter('tag',value)}>{value}</button>
-                <button className="tag-remove" type="button" aria-label={'Remove tag ' + value}
-                  onClick={()=>setConfirmRemoveTag(value)}>×</button>
-              </span>)}
-            </div>
-            <div className="tag-entry">
-              <label>Add a personal tag
-                <input type="text" value={tagDraft} maxLength={48} list="personal-tag-suggestions"
-                  onChange={event=>setTagDraft(event.target.value)}
-                  onKeyDown={event=>{if(event.key === 'Enter'){event.preventDefault();addTag(entry);}}}
-                  placeholder="e.g. Romance" /></label>
-              <datalist id="personal-tag-suggestions">{allTags.map(value=><option key={value} value={value}/>)}</datalist>
-              <button type="button" className="secondary" disabled={!tagDraft.trim()} onClick={()=>addTag(entry)}>Add tag</button>
-            </div>
-          </div>
-          <div className="personal-notes-editor">
-            <label>Personal notes
-              <textarea value={noteDraft} maxLength={5000} rows={4}
-                onChange={event=>setNoteDraft(event.target.value)} placeholder="Your thoughts about this manga..." />
-            </label>
-            <div className="notes-actions">
-              <button className="primary" type="button"
-                disabled={noteDraft === (annotations[entry.id]?.notes ?? '')}
-                onClick={()=>changeAnnotation(entry,{notes:noteDraft},'Notes saved')}>Save notes</button>
-              <button className="secondary" type="button"
-                disabled={noteDraft === (annotations[entry.id]?.notes ?? '')}
-                onClick={()=>setNoteDraft(annotations[entry.id]?.notes ?? '')}>Discard edits</button>
-            </div>
-          </div>
-        </section>
+
         
           </div>
         </div>
