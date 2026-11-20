@@ -123,13 +123,14 @@ describe('private Cloudflare OAuth read-only gateway',()=>{
    });
    const result=await api('/api/library',cookie.split(';')[0]!);
    expect(result.status).toBe(200);
-   expect(await result.json()).toMatchObject({
+   const payload=await result.json();
+   expect(payload).toMatchObject({
      connected:true,repo:REPO,revision:sha,empty:false,
      entries:[{kind:'manga',id:demoEntries[0]!.id,title:demoEntries[0]!.title}],
    });
    expect(result.headers.get('Cache-Control')).toContain('no-store');
    expect(spy).toHaveBeenCalledTimes(2);
-   expect(JSON.stringify(await result.clone().json())).not.toContain(token);
+   expect(JSON.stringify(payload)).not.toContain(token);
  });
  it('rejects malformed controller catalogue without falling through to an empty library',async()=>{
    const cookie=await fakeSession();
