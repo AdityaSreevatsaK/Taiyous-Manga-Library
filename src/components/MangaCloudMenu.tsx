@@ -1,5 +1,6 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import type { CloudRead } from '../data/privateLibrary';
+import { CloudIcon } from './SharedLibraryIcons';
 
 type Cloud = CloudRead | {status:'checking';message:string};
 
@@ -33,11 +34,10 @@ export function MangaCloudMenu({cloud,online,demo,count,onSample,onPrivate,onLog
   return <details className="manga-cloud-menu" ref={root}>
     <summary aria-label={'Cloud settings, '+(healthy?'connected':'disconnected')}
       title={connected?'Private Hugging Face library connected':'Private Hugging Face library'}>
-      <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true" fill="none"
-        stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M7.2 18.3h10.2a4.15 4.15 0 0 0 .13-8.29 5.7 5.7 0 0 0-10.94-.9A4.66 4.66 0 0 0 7.2 18.3Z"/>
-      </svg>
-      <span className={'manga-cloud-dot'+(healthy?' is-connected':'')} aria-hidden="true"/>
+      <span className="manga-cloud-icon" aria-hidden="true">
+        <CloudIcon size={27}/>
+        <span className={'manga-cloud-dot'+(healthy?' is-connected':'')}/>
+      </span>
     </summary>
     <div className="manga-cloud-panel">
       <p className="manga-cloud-overline">YOUR LIBRARY / STORAGE</p>

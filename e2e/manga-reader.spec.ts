@@ -1126,3 +1126,63 @@ test('cloud icon consolidates sample, private connection and versioned backup to
   await expect(page.locator('.book-card')).toHaveCount(4);
   await assertNoHorizontalOverflow(page);
 });
+
+test('Novel Library brand assets and chrome render without the invented logo tile',async({page})=>{
+  for(const width of [320,390,768,1280]){
+    await page.setViewportSize({width,height:820});
+    await page.goto('/');
+    const mark=page.locator('.manga-logo-frame');
+    await expect(mark).toBeVisible();
+    await expect(mark.locator('img')).toHaveAttribute('src',/branding\/sun-light\.webp$/);
+    const style=await mark.evaluate(node=>({
+      border:getComputedStyle(node).borderTopWidth,
+      background:getComputedStyle(node).backgroundColor,
+      image:getComputedStyle(node.querySelector('img')!).objectFit,
+    }));
+    expect(style.border,'framed logo should be removed').toBe('0px');
+    expect(style.background,'logo must float freely').toBe('rgba(0, 0, 0, 0)');
+    expect(style.image).toBe('contain');
+    const cloud=page.locator('.manga-cloud-icon');
+    const svg=await cloud.locator('svg').boundingBox();
+    const dot=await cloud.locator('.manga-cloud-dot').boundingBox();
+    expect(svg&&dot).toBeTruthy();
+    // Novel Library's indicator is inside the cloud, not bottom-right on the button.
+    expect(dot!.x+dot!.width/2).toBeGreaterThan(svg!.x+svg!.width*.4);
+    expect(dot!.x+dot!.width/2).toBeLessThan(svg!.x+svg!.width*.62);
+    await assertNoHorizontalOverflow(page);
+  }
+  for(const [name,swatch] of [
+    ['Sepia','#e9d5b7'],['Paper','#f9f9f7'],['Charcoal','#30343c'],
+    ['Midnight','#12213b'],['Ocean','#dcecf6'],['Plum','#332638']
+  ]){
+    const button=page.getByRole('button',{name:'Use '+name+' theme'});
+    await expect(button).toBeVisible();
+    expect(await button.evaluate(el=>(el as HTMLElement).style.getPropertyValue('--swatch-bg'))).toBe(swatch);
+  }
+});
+test('verified manga owner sees useful Master controls without unsafe upload APIs',async({page})=>{
+  await page.route('**/api/auth/session',route=>route.fulfill({
+    status:200,contentType:'application/json',body:JSON.stringify({
+      connected:true,owner:'AdityaSreevatsaK',repo:'AdityaSreevatsaK/Taiyous-Manga',
+    }),
+  }));
+  await page.route('**/api/library',route=>route.fulfill({
+    status:200,contentType:'application/json',body:JSON.stringify({
+      connected:true,repo:'AdityaSreevatsaK/Taiyous-Manga',revision:'a'.repeat(40),
+      empty:true,entries:[],
+    }),
+  }));
+  await page.goto('/');
+  await expect(page.getByText('Your private shelves are ready.',{exact:false})).toBeVisible();
+  const master=page.locator('.manga-master-menu');
+  await expect(master.getByText('Master',{exact:true})).toBeVisible();
+  await master.locator('summary').click();
+  await expect(master.getByText('Connected as AdityaSreevatsaK.')).toBeVisible();
+  await expect(master.getByRole('link',{name:'Manga Storage Controller'}))
+    .toHaveAttribute('href','https://github.com/AdityaSreevatsaK/Taiyou-Manga-Storage-Controller');
+  await expect(page.getByRole('link',{name:'Manage manga'})).toHaveAttribute('href',
+    'https://github.com/AdityaSreevatsaK/Taiyou-Manga-Storage-Controller/actions');
+  await master.getByRole('button',{name:'Open my private library'}).click();
+  await expect(master).not.toHaveAttribute('open','');
+  await expect(page.getByRole('heading',{name:'Your private library is empty'})).toBeVisible();
+});
