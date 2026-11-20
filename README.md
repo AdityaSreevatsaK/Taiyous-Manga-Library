@@ -1,10 +1,10 @@
 # Taiyou's Manga Library
 
-> **Live Manga Library:** [taiyous-manga-library.pages.dev](https://taiyous-manga-library.pages.dev/). The public build contains only fictional demonstration artwork. Private dataset catalogue metadata is read through owner-only Cloudflare Pages Functions after Hugging Face OAuth; no personal manga images, Hugging Face tokens or private catalogue documents are included in the static build.
+> **Live Manga Library:** [taiyous-manga-library.pages.dev](https://taiyous-manga-library.pages.dev/). The public build contains only fictional demonstration artwork. Private catalogue metadata, original covers and chapter pages are read through owner-only Cloudflare Pages Functions after Hugging Face OAuth. No private manga images, Hugging Face tokens or catalogue documents are included in the static build.
 >
 > **Release checks:** GitHub Actions runs TypeScript, unit, production-build and Chromium browser tests. After each `master` push, a separate live workflow verifies Cloudflare has deployed the exact build, its deep links and offline service worker. Passing CI does not replace real-device testing.
 >
-> **Privacy:** Owner-only read access to a private Hugging Face dataset is available through server-side OAuth. Chapter-image delivery, private uploads, and automatic cross-device progress sync are **not** enabled. User-controlled v2 manual JSON backups remain local and private.
+> **Privacy:** Owner-only read access to a private Hugging Face dataset is available through server-side OAuth. Authenticated chapter-image delivery and original covers are enabled. Private chapter offline downloads, in-app uploads and automatic cross-device progress sync are **not** enabled. User-controlled v2 manual JSON backups remain local and private.
 
 ## Mission
 Read and organise legitimately acquired manga with chapter/page-level progress and optional offline access. The user experience should remain readable, fast, polished and accessible on phones, tablets and desktop. The existing novel library is the visual inspiration, not an implementation dependency.
@@ -25,21 +25,23 @@ Read and organise legitimately acquired manga with chapter/page-level progress a
 ## Implemented on `master`
 
 - Confidential Hugging Face OAuth for the exact Manga Library owner and a read-only private catalogue connection. An empty dataset is shown as empty, not silently filled with fictional manga. See [HF connection and acceptance](docs/HF_READONLY_CONNECTION.md).
-- Continuous full-chapter **synthetic** vertical scrolling with Previous/Next navigating **chapters only**, mobile layouts, focus mode and reading preferences.
-- Browser deep links and Back/Forward navigation for catalogue, series and chapters.
+- Continuous full-chapter vertical scrolling for synthetic and authenticated private manga, with Previous/Next navigating **chapters only**, mobile layouts, focus mode and reading preferences.
+- Readable, canonical manga and chapter permalinks, old-ID bookmark compatibility, native Back/Forward navigation and chapter-wide lazy-image preloading.
 - Eight primary catalogue sections with mobile More navigation, six persisted themes (Sepia default), approved Taiyou Sun artwork and status ribbons.
-- Personal rating, notes, custom tags, favourites, **explicit per-chapter completion markers**, reading shelves and arbitrary nested collections with validated device-local storage and green success notices. Completion markers are manual and never inferred from scrolling. On Home, favourites are shown first; All Manga retains alphabetical sorting.
+- Novel Library-style 1–10 personal rating, notes, confirmed tag edits, favourites, **explicit per-chapter completion markers**, reading shelves and arbitrary nested collections with validated device-local storage and green success notices. Completion markers are manual and never inferred from scrolling. On Home, favourites are shown first; All Manga retains alphabetical sorting.
 - Advanced on-device Search and personal Analytics derived from real saved positions and ratings, not fabricated reading durations.
 - Versioned local progress, Continue Reading, and manual JSON v2 backups including personal metadata and collections. Malformed data is preserved; v1 backups still import.
 - Opt-in offline downloads for fictional chapters, offline navigation, release-fingerprinted service worker and cache-integrity checks.
+- Authenticated cover and page endpoints validate the private HF dataset revision, immutable ownership, image type, byte length and SHA-256; never hotlink private HF media.
+- Private catalogue connection now makes one owner-attested API request, while the image gateway briefly reuses only SHA-pinned validated metadata. Private media bytes, sessions and tokens are never cached.
 - Accessibility, error recovery, responsive Chromium browser tests, separate Firefox/WebKit smoke checks and automatic live Cloudflare deployment verification.
 
-The optional **sample** catalogue includes **Five Chapter Scroll Trial**, containing 36 original illustration pages over five chapters. The private dataset is connected separately through read-only OAuth; the manuscript/image reading gateway remains disabled. See the [chapter reader acceptance checklist](docs/CHAPTER_READER_ACCEPTANCE.md) to test scrolling, chapter navigation, offline copies and progress on mobile.
+The optional **sample** catalogue includes **Five Chapter Scroll Trial**, containing 36 original illustration pages over five chapters. The private dataset is connected separately through read-only OAuth; verified original covers and chapter images load only through the owner-authenticated gateway. See the [chapter reader acceptance checklist](docs/CHAPTER_READER_ACCEPTANCE.md) to test scrolling, chapter navigation, offline copies and progress on mobile.
 
 ## Non-negotiable boundaries
 - The owner has authorised public repository source visibility. Verify the actual GitHub setting before asserting that the change is live. No personal media or private credentials may be added to Git.
 - No real private media or credentials in Git, browser bundles, test fixtures or GitHub Actions logs.
-- The owner allows routine non-destructive merges once CI is green; `master` automatically deploys through Cloudflare. Always verify the live smoke check after merge. Secrets and destructive private actions require separate approval.
+- The owner permits routine green, non-destructive PR merges without waiting for another approval; `master` automatically deploys through Cloudflare. Always verify the live smoke check after merge. Secrets and destructive private actions require separate approval.
 - No cross-app single sign-on promises. The deployed Novel Library's Hugging Face OAuth cookie cannot simply authenticate unrelated app origins.
 - No copied entire Novel Library, no Git submodules, no premature shared database.
 - No unlicensed manga downloads, paywall bypass, scraping of protected sites, reader requests to arbitrary URLs, or remote image proxying without SSRF protection.
@@ -74,7 +76,7 @@ The production source branch is `master`, with Cloudflare Pages Git integration 
 
 ## Current limitations
 
-Private HF **catalogue metadata reading** and per-app OAuth have been added. Authorised original manga chapter/page delivery, rights-checked importer integration and **automatic** cross-device progress sync remain future work. Multi-engine automated smoke is now available; physical iOS/Android and 300–1,000-page low-memory stress testing remain to be verified. Manual personal data transfer is available through the local backup panel. No private manga belongs in public Git or static hosting.
+Private HF catalogue and cover metadata, per-app OAuth and verified original manga image delivery are implemented. The separate Storage Controller manages approved private imports. **Automatic** cross-device progress sync, authenticated private-media offline caching and in-app uploads remain future work. Multi-engine automated smoke is now available; physical iOS/Android and 300–1,000-page low-memory stress testing remain to be verified. Manual personal data transfer is available through the local backup panel. No private manga belongs in public Git or static hosting.
 
 ## Licensing
 
