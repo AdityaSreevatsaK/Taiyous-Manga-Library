@@ -40,10 +40,16 @@ import './novel-parity.css';
 import './novel-details-parity.css';
 import './ported-novel-chapters.css';
 import './ported-novel-quick-navigation.css';
+import './manga-ui-refinements.css';
 
 /** These ribbons describe publication status, never the reader's Finished shelf. */
 function roleNames(item:MangaEntry,role:'author'|'artist'):string[]{
  return item.creatorRoles?.filter(person=>person.role===role).map(person=>person.name) ?? [];
+}
+/** Use source-authored roles when available; otherwise treat legacy creators as authors. */
+function authorNames(item:MangaEntry):string[]{
+ const names=roleNames(item,'author');
+ return names.length?names:!item.creatorRoles?.length?item.creators:[];
 }
 function creditLine(item:MangaEntry):string{
  const authors=roleNames(item,'author').join(', ');
@@ -805,6 +811,17 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
     if(changeAnnotation(item,{tags:[...existing,...additions]},'Personal tags saved'))
       setConfirmSaveTags(false);
   }
+  /** Author links are real, bookmarkable catalogue links. */
+  function browseByAuthor(name:string){
+    setQuery('');setStatus('all');setTag('');setCollection('');setSort('title');
+    setAdvanced({...defaultAdvancedCriteria(),creator:name});
+    setAdvancedOpen(true);
+    goCatalogue('library');
+  }
+  function authorHref(name:string){
+    return routeHref({kind:'library'},import.meta.env.BASE_URL,catalogue)+
+      '?creator='+encodeURIComponent(name);
+  }
   function jumpToFilter(kind: 'tag' | 'collection', value: string) {
     setTag(kind === 'tag' ? value : '');
     setCollection(kind === 'collection' ? value : '');
@@ -1138,8 +1155,12 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
               onCommit={commitCollections} onFilter={filterPersonalCollection}/>
           </>}
           {displayed.length ? <div className="book-grid">{displayed.map((item, index) =>
-            <a className="book-card" key={item.id} href={routeHref({kind:'details',mangaId:item.id},import.meta.env.BASE_URL,catalogue)}
-              onClick={event=>followLink(event,()=>navigateTo({kind:'details',mangaId:item.id}))}>
+            <article className="book-card" key={item.id}
+              onClick={event=>{if(!(event.target as HTMLElement).closest('a,button'))
+                navigateTo({kind:'details',mangaId:item.id});}}>
+              <a className="book-card-cover-link" href={routeHref({kind:'details',mangaId:item.id},import.meta.env.BASE_URL,catalogue)}
+                aria-label={'View '+item.title}
+                onClick={event=>followLink(event,()=>navigateTo({kind:'details',mangaId:item.id}))}>
               <span className={'book-cover cover-'+(demoEntries.findIndex(d=>d.id===item.id)%3+1)}>
                 {!demo && <MangaCoverArtwork key={item.cover?.sha256??'none'} entry={item}/>}
                 {item.publicationStatus !== 'unknown' &&
@@ -1151,10 +1172,18 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
                 <span className="cover-title">{item.title}</span>
                 <span className="cover-creator">{roleNames(item,'author')[0] || item.creators[0] || 'CREATOR UNKNOWN'}</span>
                 <span className="cover-foot">{demo?'READER DEMONSTRATION':'YOUR PRIVATE ARCHIVE'}</span>
-              </span>
-              <span className="book-details"><strong>{item.title}</strong>
+              </span></a>
+              <span className="book-details"><a className="book-title-link"
+                  href={routeHref({kind:'details',mangaId:item.id},import.meta.env.BASE_URL,catalogue)}
+                  onClick={event=>followLink(event,()=>navigateTo({kind:'details',mangaId:item.id}))}>
+                  <strong>{item.title}</strong></a>
                 {annotations[item.id]?.favourite && <span className="book-favourite">★ Favourite</span>}
-                <span className="book-author">{creditLine(item)}</span>
+                <span className="book-author">{authorNames(item).length
+                  ? authorNames(item).map((name,authorIndex)=><span key={name}>
+                    {authorIndex>0?', ':''}<a className="manga-author-link" href={authorHref(name)}
+                    aria-label={'Show manga by '+name}
+                    onClick={event=>followLink(event,()=>browseByAuthor(name))}>{name}</a></span>)
+                  : creditLine(item)}</span>
                 <span className="book-tags" aria-label="Genres">{item.tags.slice(0,3).map(value=>
                   <span key={value} className="book-tag">{value}</span>)}
                   {item.tags.length>3&&<span className="book-tag book-tag-extra">+{item.tags.length-3}</span>}
@@ -1171,7 +1200,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
                   : item.rating ? '★ '+item.rating+'/10 · Source' : 'Explore series'}</span>
                   <span aria-hidden="true">↗</span></span>
               </span>
-            </a>)}</div> :
+            </article>)}</div> :
             <div className="empty-state"><span className="empty-icon" aria-hidden="true">◇</span>
               <h3>{demo ? (screen.section === 'home' || screen.section === 'library' ?
                 'Nothing matches these filters' : 'No manga in ' + labels[screen.section] + ' yet') : cloud.status==='connected' ? 'Your private library is empty' : 'Your collection is not connected yet'}</h3>
@@ -1302,11 +1331,20 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
               <p className="manga-card-overline">MANGA INFORMATION</p><h2>Details</h2>
               <dl>
                 {roleNames(entry,'author').length>0 &&
-                  <div><dt>Author{roleNames(entry,'author').length>1?'s':''}</dt><dd>{roleNames(entry,'author').join(', ')}</dd></div>}
+                  <div><dt>Author{roleNames(entry,'author').length>1?'s':''}</dt><dd>
+                    {roleNames(entry,'author').map((name,i)=><span key={name}>
+                      {i>0?', ':''}<a className="manga-author-link" href={authorHref(name)}
+                        onClick={event=>followLink(event,()=>browseByAuthor(name))}>{name}</a>
+                    </span>)}
+                  </dd></div>}
                 {roleNames(entry,'artist').length>0 &&
                   <div><dt>Artist{roleNames(entry,'artist').length>1?'s':''}</dt><dd>{roleNames(entry,'artist').join(', ')}</dd></div>}
                 {!entry.creatorRoles?.length &&
-                  <div><dt>Creators</dt><dd>{entry.creators.join(', ')||'Not supplied'}</dd></div>}
+                  <div><dt>Creators</dt><dd>{entry.creators.length
+                    ? entry.creators.map((name,i)=><span key={name}>
+                      {i>0?', ':''}<a className="manga-author-link" href={authorHref(name)}
+                        onClick={event=>followLink(event,()=>browseByAuthor(name))}>{name}</a>
+                    </span>) : 'Not supplied'}</dd></div>}
                 {entry.aliases.length>0&&<div><dt>Also known as</dt><dd>{entry.aliases.join('; ')}</dd></div>}
                 <div><dt>Chapters</dt><dd>{chapters.length}</dd></div>
                 <div><dt>Publication</dt><dd>{publicationCaption[entry.publicationStatus]}</dd></div>
@@ -1325,16 +1363,13 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
                   imported.toLocaleLowerCase('en')===value.toLocaleLowerCase('en')))
                   .map(value=><button key={'personal:'+value} className="tag" type="button"
                     onClick={()=>jumpToFilter('tag',value)}>{value}</button>)}
-                {!entry.tags.length&&!personalTagDraft.length&&<span className="manga-metadata-missing">No tags yet. Add one below.</span>}
+                {!entry.tags.length&&!personalTagDraft.length&&<span className="manga-metadata-missing">No tags yet.</span>}
               </div>
               <form className="tag-entry details-tag-form" onSubmit={event=>{event.preventDefault();addTag(entry);}}>
-                <label htmlFor="new-manga-tag">Add a personal tag
-                  <input id="new-manga-tag" type="text" value={tagDraft} maxLength={48}
-                    list="personal-tag-suggestions" onChange={event=>setTagDraft(event.target.value)}
-                    placeholder="e.g. Favourite, Romance, Slow burn..." />
-                </label>
-                <datalist id="personal-tag-suggestions">{allTags.map(value=>
-                  <option key={value} value={value}/>)}</datalist>
+                <label htmlFor="new-manga-tag" className="visually-hidden">Tag name</label>
+                <input id="new-manga-tag" type="text" value={tagDraft} maxLength={48}
+                  autoComplete="off" onChange={event=>setTagDraft(event.target.value)}
+                  placeholder="New tag…" />
                 <button type="submit" className="primary" disabled={!tagDraft.trim()}>+ Add tag</button>
               </form>
               <div className="tag-draft-actions">
