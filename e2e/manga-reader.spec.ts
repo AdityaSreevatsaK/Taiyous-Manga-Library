@@ -50,7 +50,7 @@ test.describe('local manga catalogue and chapter reader', () => {
     });
   }
   test('searches/filter/sorts the generated catalogue and honours the empty source', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/library');
     await page.getByRole('searchbox', { name: /Search series or aliases/ }).fill('keeper of the last light');
     await expect(page.locator('.book-card')).toHaveCount(1);
     await page.getByRole('searchbox', { name: /Search series or aliases/ }).fill('');
@@ -59,7 +59,8 @@ test.describe('local manga catalogue and chapter reader', () => {
     await page.getByRole('combobox', { name: 'Publication' }).selectOption('all');
     await page.getByRole('combobox', { name: 'Collection' }).selectOption('Nightfall Stories');
     await expect(page.locator('.book-card')).toHaveCount(2);
-    await page.getByRole('button', { name: 'My library (empty)' }).click();
+    await page.locator('.manga-cloud-menu > summary').click();
+    await page.getByRole('button', { name: 'My library (0)' }).click();
     await expect(page.getByText('Your collection is not connected yet')).toBeVisible();
     await expect(page.locator('.book-card')).toHaveCount(0);
   });
@@ -305,7 +306,8 @@ test.describe('continue reading shelf', () => {
     await page.getByRole('link',{name:'Taiyou Manga home'}).click();
     await expect(page.locator('.continue-card')).toHaveCount(2);
     await expect(page.locator('.continue-card').first()).toContainText('Five Chapter Scroll Trial');
-    await page.getByRole('button',{name:'My library (empty)'}).click();
+    await page.locator('.manga-cloud-menu > summary').click();
+    await page.getByRole('button',{name:'My library (0)'}).click();
     await expect(page.locator('.continue-card')).toHaveCount(0);
   });
 });
@@ -390,6 +392,7 @@ test.describe('manual local reading backup and restore', () => {
     await page.locator('.vertical-page').nth(2).evaluate(el=>el.scrollIntoView({block:'start'}));
     await expect(page.locator('.page-navigation')).toContainText('Page 3 of 5');
     await page.goto('/library');
+    await page.locator('.manga-cloud-menu > summary').click();
     await page.getByText('Transfer reading progress between devices').click();
     const downloadPromise=page.waitForEvent('download');
     await page.getByRole('button',{name:'Download personal backup'}).click();
@@ -406,6 +409,7 @@ test.describe('manual local reading backup and restore', () => {
     expect(JSON.stringify(backup)).not.toContain('assetPath');
     await page.evaluate(()=>localStorage.removeItem('taiyou-manga:progress:v1:mng_lanternarchive'));
     await page.reload();
+    await page.locator('.manga-cloud-menu > summary').click();
     await page.getByText('Transfer reading progress between devices').click();
     await page.locator('.backup-panel input[type=file]').setInputFiles({
       name: download.suggestedFilename(), mimeType:'application/json', buffer:bytes,
@@ -413,7 +417,7 @@ test.describe('manual local reading backup and restore', () => {
     await expect(page.locator('.backup-preview')).toContainText('1 potentially restorable');
     await expect(page.getByRole('button',{name:'Confirm restore'})).toBeEnabled();
     await page.getByRole('button',{name:'Confirm restore'}).click();
-    await expect(page.getByRole('status')).toContainText('1 newer progress records imported');
+    await expect(page.locator('.backup-message')).toContainText('1 newer progress records imported');
     await page.goto('/manga/mng_lanternarchive');
     await page.getByRole('link',{name:/Continue reading/}).click();
     await expect(page.locator('.page-navigation')).toContainText('Page 3 of 5');
@@ -421,6 +425,7 @@ test.describe('manual local reading backup and restore', () => {
 
   test('refuses invalid files and requires explicit confirmation for valid imports', async ({page}) => {
     await page.goto('/library');
+    await page.locator('.manga-cloud-menu > summary').click();
     await page.getByText('Transfer reading progress between devices').click();
     const input=page.locator('.backup-panel input[type=file]');
     await input.setInputFiles({name:'untrusted.json',mimeType:'application/json',
@@ -626,7 +631,7 @@ test.describe('offline failure handling and accessibility hardening', () => {
       await page.setViewportSize({ width, height: 760 });
       await page.goto('/manga/mng_lanternarchive');
       await assertNoHorizontalOverflow(page);
-      const heights = await page.locator('.site-nav > .site-nav-link, .offline-chapter-control button')
+      const heights = await page.locator('.manga-nav-links > .site-nav-link, .offline-chapter-control button')
         .evaluateAll(elements => elements.map(el => Math.round(el.getBoundingClientRect().height)));
       expect(heights.every(height => height >= 44), 'touch target width ' + width + ': ' + heights).toBe(true);
       // Repeating viewport checks should use either the fresh start or the stored resume link.
@@ -659,18 +664,18 @@ test.describe('offline failure handling and accessibility hardening', () => {
 test.describe('approved library navigation and personal presentation', () => {
   test('defaults to Sepia and supports six persisted themes and matching branding', async ({page}) => {
     await page.goto('/');
-    const selector=page.getByRole('combobox',{name:'App theme'});
-    await expect(selector).toHaveValue('sepia');
+    const theme=(name:string)=>page.getByRole('button',{name:'Use '+name+' theme'});
+    await expect(theme('Sepia')).toHaveAttribute('aria-pressed','true');
     await expect(page.locator('.wordmark .brand-sun')).toHaveAttribute('src',/sun-light.webp/);
     for (const theme of ['paper','charcoal','midnight','ocean','plum','sepia']) {
-      await selector.selectOption(theme);
+      await page.getByRole('button',{name:'Use '+theme.charAt(0).toUpperCase()+theme.slice(1)+' theme'}).click();
       await expect(page.locator('.app-shell')).toHaveClass(new RegExp('theme-'+theme));
     }
-    await selector.selectOption('charcoal');
+    await theme('Charcoal').click();
     await expect(page.locator('.wordmark .brand-sun')).toHaveAttribute('src',/sun-dark.webp/);
     await expect(page.locator('#taiyou-favicon')).toHaveAttribute('href',/favicon-dark.png/);
     await page.reload();
-    await expect(page.getByRole('combobox',{name:'App theme'})).toHaveValue('charcoal');
+    await expect(theme('Charcoal')).toHaveAttribute('aria-pressed','true');
     const manifest=await page.request.get('/manifest.webmanifest');
     expect(manifest.ok()).toBe(true);
     expect((await manifest.json()).icons).toHaveLength(2);
@@ -679,12 +684,12 @@ test.describe('approved library navigation and personal presentation', () => {
   test('eight sections on desktop and accessible compact More navigation on mobile', async ({page}) => {
     await page.setViewportSize({width:1280,height:900});
     await page.goto('/');
-    await expect(page.locator('.site-nav > .site-nav-link')).toHaveCount(8);
+    await expect(page.locator('.manga-nav-links > .site-nav-link')).toHaveCount(8);
     await page.getByRole('link',{name:'Currently Reading (0)'}).click();
     await expect(page).toHaveURL('/reading');
     await expect(page.locator('.site-nav-link[aria-current="page"]')).toHaveCount(1);
     await page.setViewportSize({width:320,height:800});
-    await expect(page.locator('.site-nav > .site-nav-link')).toHaveCount(3);
+    await expect(page.locator('.manga-nav-links > .site-nav-link')).toHaveCount(3);
     await expect(page.getByText('More',{exact:true})).toBeVisible();
     await page.locator('.nav-more summary').click();
     await page.getByRole('link',{name:'Analytics'}).click();
@@ -792,6 +797,7 @@ test.describe('compatible private manga library backups',()=>{
     await page.getByLabel('Add a personal tag').fill('Adventure Favourite');
     await page.getByRole('button',{name:'Add tag'}).click();
     await page.goto('/library');
+    await page.locator('.manga-cloud-menu > summary').click();
     await page.getByText('Transfer reading progress between devices').click();
     const got=page.waitForEvent('download');
     await page.getByRole('button',{name:'Download personal backup'}).click();
@@ -807,6 +813,7 @@ test.describe('compatible private manga library backups',()=>{
         localStorage.removeItem('taiyou-manga:'+suffix+'mng_lanternarchive');
     });
     await page.reload();
+    await page.locator('.manga-cloud-menu > summary').click();
     await page.getByText('Transfer reading progress between devices').click();
     await page.locator('.backup-panel input[type=file]').setInputFiles({
       name:'private.json',mimeType:'application/json',buffer:bytes,
@@ -902,6 +909,7 @@ test('a full personal backup restores a nested collection tree with confirmation
   await page.getByRole('combobox',{name:'Inside collection'}).selectOption({label:'Parent'});
   await page.getByRole('button',{name:'Create collection'}).click();
   const save=page.waitForEvent('download');
+  await page.locator('.manga-cloud-menu > summary').click();
   await page.getByText('Transfer reading progress between devices').click();
   await page.getByRole('button',{name:'Download personal backup'}).click();
   const zip=await save;
@@ -910,6 +918,7 @@ test('a full personal backup restores a nested collection tree with confirmation
   expect(doc.collections.items).toHaveLength(2);
   await page.evaluate(()=>localStorage.removeItem('taiyou-manga:personal-collections:v1'));
   await page.reload();
+  await page.locator('.manga-cloud-menu > summary').click();
   await page.getByText('Transfer reading progress between devices').click();
   await page.locator('.backup-panel input[type=file]').setInputFiles({
     name:'collections.json',mimeType:'application/json',buffer:bytes,
@@ -1025,15 +1034,17 @@ test('mock authenticated empty HF dataset replaces sample catalogue with a truth
     status:200,contentType:'application/json',body:'{"connected":false}',
   }));
   await page.goto('/');
+  await expect(page.getByText('Your private shelves are ready.',{exact:false})).toBeVisible();
+  await page.locator('.manga-cloud-menu > summary').click();
   await expect(page.getByRole('button',{name:'My library (0)'})).toBeVisible();
-  await expect(page.getByText('Your private Hugging Face dataset is connected and empty.',{exact:false})).toBeVisible();
   await expect(page.getByRole('heading',{name:'Your private library is empty'})).toBeVisible();
   await expect(page.locator('.book-card')).toHaveCount(0);
-  await expect(page.getByText('PRIVATE LIBRARY',{exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Use Sepia theme'})).toBeVisible();
+  await expect(page.locator('.manga-cloud-menu')).toHaveAttribute('open','');
   await page.getByRole('button',{name:'Sign out of Hugging Face'}).click();
-  await expect(page.getByRole('button',{name:'My library (empty)'})).toBeVisible();
+  await expect(page.getByRole('button',{name:'My library (0)'})).toBeVisible();
   await expect(page.locator('.book-card')).toHaveCount(4);
-  await expect(page.getByText('SAMPLE',{exact:true})).toBeVisible();
+  await expect(page.getByText('THE READING ROOM / DEMONSTRATION')).toBeVisible();
 });
 
 test('editorial cover grid stays readable, accessible and unbroken across device widths', async ({page}) => {
@@ -1059,7 +1070,7 @@ test('editorial cover grid stays readable, accessible and unbroken across device
 test('editorial theme tokens cover all six approved app palettes', async ({page}) => {
   await page.goto('/');
   for(const theme of ['sepia','paper','charcoal','midnight','ocean','plum']){
-    await page.getByRole('combobox',{name:'App theme'}).selectOption(theme);
+    await page.getByRole('button',{name:'Use '+theme.charAt(0).toUpperCase()+theme.slice(1)+' theme'}).click();
     await expect(page.locator('.app-shell')).toHaveClass(new RegExp('theme-'+theme));
     const tokens=await page.locator('.app-shell').evaluate(node=>{
       const style=getComputedStyle(node);
@@ -1067,4 +1078,51 @@ test('editorial theme tokens cover all six approved app palettes', async ({page}
     });
     expect(tokens.every(Boolean),theme+' editorial palette incomplete').toBe(true);
   }
+});
+
+test('novel-style masthead keeps logo, real cloud, search, themes and all manga sections reachable',async({page})=>{
+  for(const width of [320,390,740,900,1280,1536]){
+    await page.setViewportSize({width,height:820});
+    await page.goto('/');
+    await expect(page.locator('.manga-topbar')).toBeVisible();
+    await expect(page.locator('.manga-nav-links')).toBeVisible();
+    await expect(page.locator('.manga-nav-tools')).toBeVisible();
+    await expect(page.locator('.wordmark .manga-wordmark-text')).toContainText("TAIYOU'S");
+    await expect(page.locator('.manga-cloud-menu > summary')).toBeVisible();
+    await expect(page.getByRole('searchbox',{name:'Search all manga'})).toBeVisible();
+    await expect(page.locator('.manga-theme-swatch')).toHaveCount(6);
+    await expect(page.locator('.mode-bar')).toHaveCount(0);
+    await assertNoHorizontalOverflow(page);
+  }
+  await expect(page.locator('.editorial-hero')).toBeVisible();
+  await expect(page.locator('.editorial-overview')).toBeVisible();
+  const background=await page.locator('.editorial-hero').evaluate(node=>getComputedStyle(node).backgroundImage);
+  expect(background).toContain('linear-gradient');
+  await page.getByRole('button',{name:'Use Paper theme'}).click();
+  await expect(page.locator('.app-shell')).toHaveClass(/theme-paper/);
+  await page.getByRole('searchbox',{name:'Search all manga'}).fill('Lantern');
+  await expect(page).toHaveURL(/\/library\?q=Lantern$/);
+  await expect(page.locator('.book-card')).toHaveCount(1);
+  await expect(page.getByRole('searchbox',{name:'Search series or aliases'})).toHaveValue('Lantern');
+});
+test('cloud icon consolidates sample, private connection and versioned backup tools',async({page})=>{
+  await page.setViewportSize({width:320,height:820});
+  await page.goto('/');
+  await page.locator('.manga-cloud-menu > summary').click();
+  const panel=page.locator('.manga-cloud-panel');
+  await expect(panel).toBeVisible();
+  await expect(panel.getByRole('button',{name:'Try the sample reader'})).toHaveAttribute('aria-pressed','true');
+  await expect(panel.getByRole('button',{name:'My library (0)'})).toHaveAttribute('aria-pressed','false');
+  await expect(panel.getByText('Transfer reading progress between devices')).toBeVisible();
+  const rect=await panel.boundingBox();
+  expect(rect).toBeTruthy();
+  expect(rect!.x).toBeGreaterThanOrEqual(0);
+  expect(rect!.x+rect!.width).toBeLessThanOrEqual(321);
+  await panel.getByRole('button',{name:'My library (0)'}).click();
+  await expect(page.locator('.book-card')).toHaveCount(0);
+  await page.locator('.manga-cloud-menu > summary').click();
+  await page.locator('.manga-cloud-menu > summary').click();
+  await panel.getByRole('button',{name:'Try the sample reader'}).click();
+  await expect(page.locator('.book-card')).toHaveCount(4);
+  await assertNoHorizontalOverflow(page);
 });

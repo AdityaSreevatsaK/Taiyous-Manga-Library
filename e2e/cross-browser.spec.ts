@@ -12,7 +12,7 @@ test('home, desktop navigation and transparent brand assets work on both engines
   await page.setViewportSize({width:1280,height:900});
   await page.goto('/');
   await expect(page.getByRole('heading',{name:'The sample collection'})).toBeVisible();
-  await expect(page.locator('.site-nav > .site-nav-link')).toHaveCount(8);
+  await expect(page.locator('.manga-nav-links > .site-nav-link')).toHaveCount(8);
   await expect(page.locator('.wordmark .brand-sun')).toHaveAttribute('src',/sun-light.webp$/);
   await expect(page.locator('.app-shell')).toHaveClass(/theme-sepia/);
   await expect(page.locator('.book-card')).toHaveCount(4);
@@ -21,16 +21,16 @@ test('home, desktop navigation and transparent brand assets work on both engines
 test('mobile More and six themes stay accessible at narrow widths', async ({page}) => {
   await page.setViewportSize({width:320,height:768});
   await page.goto('/');
-  await expect(page.locator('.site-nav > .site-nav-link')).toHaveCount(3);
+  await expect(page.locator('.manga-nav-links > .site-nav-link')).toHaveCount(3);
   await page.locator('.nav-more summary').click();
   await page.locator('.nav-more-menu').getByRole('link',{name:'Analytics'}).click();
   await expect(page).toHaveURL(/\/analytics$/);
   await expect(page.getByRole('heading',{name:'Analytics'})).toBeVisible();
-  const theme=page.getByRole('combobox',{name:'App theme'});
-  await theme.selectOption('midnight');
+  const theme=page.getByRole('button',{name:'Use Midnight theme'});
+  await theme.click();
   await expect(page.locator('.app-shell')).toHaveClass(/theme-midnight/);
   await page.reload();
-  await expect(theme).toHaveValue('midnight');
+  await expect(theme).toHaveAttribute('aria-pressed','true');
   await noHorizontalScroll(page);
 });
 test('a whole manga chapter scrolls vertically with original page ratios', async ({page}) => {
