@@ -854,11 +854,14 @@ test.describe('nested personal manga collections',()=>{
     await expect(page.locator('.collections-manager')).toContainText('Favourites / Romance');
     await page.goto('/manga/mng_lanternarchive');
     const publicationBefore=await page.locator('.detail-sub').textContent();
-    await page.getByRole('combobox',{name:'Add to collection'}).selectOption({label:'Favourites / Romance'});
+    await page.getByRole('button',{name:'Add to collection'}).click();
+    await page.getByRole('dialog',{name:'Collections for The Lantern Archive'})
+      .getByRole('checkbox',{name:'Favourites / Romance'}).check();
+    await page.getByRole('button',{name:'Done'}).click();
     await expect(page.locator('.success-toast')).toContainText('Added manga to collection');
-    await expect(page.locator('.collection-member')).toContainText('Favourites / Romance');
+    await expect(page.locator('.details-hero-membership')).toContainText('Favourites / Romance');
     await expect(page.locator('.detail-sub')).toHaveText(publicationBefore);
-    await page.locator('.collection-member .tag').click();
+    await page.locator('.details-hero-membership').filter({hasText:'Favourites / Romance'}).click();
     await expect(page).toHaveURL(/\/library\?collection=personal%3A/);
     await expect(page.locator('.book-card')).toHaveCount(1);
     await expect(page.locator('.book-card')).toContainText('The Lantern Archive');
@@ -1013,22 +1016,26 @@ test('personal favourites are accessible, persisted and curated only on Home', a
   await expect(page.locator('.book-favourite')).toHaveCount(0);
 });
 
-test('manual chapter completion persists and never alters chapter reading navigation', async ({ page }) => {
+test('manual chapter completion is explicit, persists and does not alter navigation',async({page})=>{
   await page.goto('/manga/mng_lanternarchive');
-  await expect(page.getByText('0 of 3 chapters explicitly marked completed on this device.')).toBeVisible();
-  const first=page.getByRole('button',{name:'Mark chapter 1 completed'});
-  await expect(first).toHaveAttribute('aria-pressed','false');
-  await first.click();
-  await expect(page.getByRole('button',{name:'Mark chapter 1 incomplete'})).toHaveAttribute('aria-pressed','true');
-  await expect(page.getByText('1 of 3 chapters explicitly marked completed on this device.')).toBeVisible();
+  await page.locator('.manga-chapter-completion summary').click();
+  const completion=page.locator('.manga-chapter-completion');
+  await expect(completion).toContainText('0 of 3 chapters explicitly marked completed.');
+  const first=completion.getByRole('checkbox',{name:'Chapter 1'});
+  await expect(first).not.toBeChecked();
+  await first.check();
+  await expect(first).toBeChecked();
+  await expect(completion).toContainText('1 of 3 chapters explicitly marked completed.');
   await page.reload();
-  await expect(page.getByRole('button',{name:'Mark chapter 1 incomplete'})).toBeVisible();
-  await page.getByRole('button',{name:'Mark chapter 1 incomplete'}).click();
-  await expect(page.getByText('0 of 3 chapters explicitly marked completed on this device.')).toBeVisible();
+  await page.locator('.manga-chapter-completion summary').click();
+  await expect(page.locator('.manga-chapter-completion').getByRole('checkbox',{name:'Chapter 1'})).toBeChecked();
+  await page.locator('.manga-chapter-completion').getByRole('checkbox',{name:'Chapter 1'}).uncheck();
+  await expect(page.locator('.manga-chapter-completion')).toContainText('0 of 3 chapters explicitly marked completed.');
   await page.getByRole('link',{name:/Read from beginning/}).click();
   await expect(page.getByRole('button',{name:/Next chapter/})).toBeEnabled();
   await page.getByRole('link',{name:/Series details/}).click();
-  await expect(page.getByText('0 of 3 chapters explicitly marked completed on this device.')).toBeVisible();
+  await page.locator('.manga-chapter-completion summary').click();
+  await expect(page.locator('.manga-chapter-completion')).toContainText('0 of 3 chapters explicitly marked completed.');
 });
 
 test('mock authenticated empty HF dataset replaces sample catalogue with a truthful private view', async ({page}) => {
@@ -1414,12 +1421,12 @@ test('Novel-style collection picker opens from the manga hero and preserves memb
   await page.keyboard.press('Escape');
   await expect(modal).toHaveCount(0);
   await expect(opener).toBeFocused();
-  await expect(page.locator('.collection-member')).toContainText('Favourites');
+  await expect(page.locator('.details-hero-membership')).toContainText('Favourites');
   await opener.click();
   await modal.getByRole('checkbox',{name:'Favourites'}).uncheck();
   await expect(modal.getByRole('checkbox',{name:'Favourites'})).not.toBeChecked();
   await modal.getByRole('button',{name:'Done'}).click();
-  await expect(page.locator('.collection-member')).toHaveCount(0);
+  await expect(page.locator('.details-hero-membership')).toHaveCount(0);
   await assertNoHorizontalOverflow(page);
 });
 
