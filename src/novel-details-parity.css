@@ -195,8 +195,13 @@
   .app-shell .manga-details-hero{grid-template-columns:minmax(105px,38%) minmax(0,1fr);gap:12px;padding:19px 13px}
   .app-shell .manga-details-hero .detail-content h1{font-size:clamp(26px,6vw,39px)}
   .app-shell .manga-details-columns{grid-template-columns:1fr}
-  .app-shell .manga-details-sidebar{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
-  .app-shell .manga-collections-card{grid-column:1/-1}
+  /* 2 cards side-by-side cause text and select overflow on 375-430px phones.
+     Follow the Novel Library's single readable sidebar stack. */
+  .app-shell .manga-details-sidebar{display:flex;flex-direction:column;min-width:0}
+  .app-shell .manga-collections-card{grid-column:auto}
+  .app-shell .manga-detail-card{min-width:0;max-width:100%}
+  .app-shell .manga-detail-card :is(input,select,textarea){max-width:100%;min-width:0;box-sizing:border-box}
+  .app-shell .manga-details-hero .detail-cover{min-width:0;max-width:100%}
   .app-shell .page-navigation{gap:7px}
   .app-shell .page-navigation>button{padding:8px;font-size:11px}
 }
