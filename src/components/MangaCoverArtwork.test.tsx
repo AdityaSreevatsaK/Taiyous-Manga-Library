@@ -5,9 +5,9 @@ import {demoEntries} from '../data/fixtures';
 
 describe('private manga cover presentation',()=>{
  it('uses the canonical authenticated same-origin endpoint without exposing dataset URLs',()=>{
-   const item={...demoEntries[0]!,coverAsset:{
+   const item={...demoEntries[0]!,cover:{
      assetPath:'covers/'+demoEntries[0]!.id+'.webp',mimeType:'image/webp' as const,
-     byteSize:128,sha256:'a'.repeat(64)}};
+     width:800,height:1200,byteSize:128,sha256:'a'.repeat(64)}};
    const html=renderToStaticMarkup(<MangaCoverArtwork entry={item}/>);
    expect(html).toContain('/api/media/cover?mangaId=');
    expect(html).toContain('loading="lazy"');
