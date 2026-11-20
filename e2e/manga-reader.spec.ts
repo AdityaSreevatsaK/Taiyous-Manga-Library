@@ -1363,3 +1363,30 @@ test('Novel Library details keep source and personal tags together, separate fro
     await assertNoHorizontalOverflow(page);
   }
 });
+
+test('Novel-style collection picker opens from the manga hero and preserves membership on mobile',async({page})=>{
+  await page.setViewportSize({width:390,height:850});
+  await page.goto('/library');
+  await page.getByText('Manage my collections (0)').click();
+  await page.getByRole('textbox',{name:'New collection name'}).fill('Favourites');
+  await page.getByRole('button',{name:'Create collection'}).click();
+  await page.goto('/manga/mng_lanternarchive');
+  const opener=page.getByRole('button',{name:'Add to collection'});
+  await opener.click();
+  const modal=page.getByRole('dialog',{name:'Collections for The Lantern Archive'});
+  await expect(modal).toBeVisible();
+  await expect(modal.getByRole('button',{name:'Close collection picker'})).toBeFocused();
+  await modal.getByRole('checkbox',{name:'Favourites'}).check();
+  await expect(modal.getByRole('checkbox',{name:'Favourites'})).toBeChecked();
+  await expect(page.locator('.success-toast')).toContainText('Added manga to collection');
+  await page.keyboard.press('Escape');
+  await expect(modal).toHaveCount(0);
+  await expect(opener).toBeFocused();
+  await expect(page.locator('.collection-member')).toContainText('Favourites');
+  await opener.click();
+  await modal.getByRole('checkbox',{name:'Favourites'}).uncheck();
+  await expect(modal.getByRole('checkbox',{name:'Favourites'})).not.toBeChecked();
+  await modal.getByRole('button',{name:'Done'}).click();
+  await expect(page.locator('.collection-member')).toHaveCount(0);
+  await assertNoHorizontalOverflow(page);
+});
