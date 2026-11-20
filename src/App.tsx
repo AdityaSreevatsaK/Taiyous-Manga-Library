@@ -14,6 +14,7 @@ import { SearchIcon, HashIcon, LibraryIcon, ChevronDownIcon } from './components
 import { MangaThemeSwatches } from './components/MangaThemeSwatches';
 import { VerticalReader } from './components/VerticalReader';
 import { MangaChapterPicker } from './components/MangaChapterPicker';
+import { MangaCollectionPicker } from './components/MangaCollectionPicker';
 import { MangaCoverArtwork } from './components/MangaCoverArtwork';
 import { CATALOGUE_SECTIONS, parseAppRoute, routeHref, type AppRoute, type CatalogueSection } from './domain/routes';
 import { loadShelves, saveShelf, type PersonalShelf, type ShelfSelection } from './domain/personalShelves';
@@ -125,6 +126,10 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
   });
   const [chapterQuery, setChapterQuery] = useState('');
   const [chapterPickerOpen,setChapterPickerOpen] = useState(false);
+  const [collectionPickerOpen,setCollectionPickerOpen] = useState(false);
+  useEffect(()=>{
+    if(screen.kind!=='details')setCollectionPickerOpen(false);
+  },[screen.kind]);
   const [compactNav, setCompactNav] = useState(() => typeof window !== 'undefined' &&
     window.matchMedia?.('(max-width: 740px)').matches || false);
   const [personalShelves, setPersonalShelves] = useState<Record<string, PersonalShelf>>(() =>
@@ -1150,9 +1155,8 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
               aria-pressed={personalShelves[entry.id]==='trying'}
               onClick={()=>changeShelf(entry,personalShelves[entry.id]==='trying'?null:'trying')}>
               {personalShelves[entry.id]==='trying'?'✓ Trying Out':'Add to Trying Out'}</button>
-            <button className="secondary manga-collection-jump" type="button" onClick={()=>{
-              document.getElementById('manga-detail-collection')?.scrollIntoView({behavior:'smooth',block:'center'});
-              document.getElementById('manga-detail-collection')?.focus();}}>+ Add to collection</button></div>
+            <button className="secondary manga-collection-jump" type="button"
+              onClick={()=>setCollectionPickerOpen(true)}>+ Add to collection</button></div>
             
           </div>
         </section>
@@ -1357,6 +1361,14 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
           </div>
         </div>
       </div>
+      <MangaCollectionPicker open={collectionPickerOpen} title={entry.title}
+        items={sortedPersonalCollections.map(folder=>({
+          id:folder.id,label:collectionBreadcrumb(collections,folder.id),
+          selected:folder.mangaIds.includes(entry.id),
+        }))}
+        onToggle={(collectionId,selected)=>updateMembership(entry,collectionId,selected)}
+        onClose={()=>setCollectionPickerOpen(false)}
+        onManage={()=>{setCollectionPickerOpen(false);goCatalogue('library');}}/>
       </>}
       {screen.kind === 'reader' && entry && location && <section className="reader-shell" ref={readerRef} tabIndex={0}
         aria-label="Manga reader, continuous chapter view">
