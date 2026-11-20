@@ -1018,7 +1018,6 @@ test('personal favourites are accessible, persisted and curated only on Home', a
 
 test('manual chapter completion is explicit, persists and does not alter navigation',async({page})=>{
   await page.goto('/manga/mng_lanternarchive');
-  await page.locator('.manga-chapter-completion summary').click();
   const completion=page.locator('.manga-chapter-completion');
   await expect(completion).toContainText('0 of 3 chapters explicitly marked completed.');
   const first=completion.getByRole('checkbox',{name:'Chapter 1'});
@@ -1027,14 +1026,12 @@ test('manual chapter completion is explicit, persists and does not alter navigat
   await expect(first).toBeChecked();
   await expect(completion).toContainText('1 of 3 chapters explicitly marked completed.');
   await page.reload();
-  await page.locator('.manga-chapter-completion summary').click();
   await expect(page.locator('.manga-chapter-completion').getByRole('checkbox',{name:'Chapter 1'})).toBeChecked();
   await page.locator('.manga-chapter-completion').getByRole('checkbox',{name:'Chapter 1'}).uncheck();
   await expect(page.locator('.manga-chapter-completion')).toContainText('0 of 3 chapters explicitly marked completed.');
   await page.getByRole('link',{name:/Read from beginning/}).click();
   await expect(page.getByRole('button',{name:/Next chapter/})).toBeEnabled();
   await page.getByRole('link',{name:/Series details/}).click();
-  await page.locator('.manga-chapter-completion summary').click();
   await expect(page.locator('.manga-chapter-completion')).toContainText('0 of 3 chapters explicitly marked completed.');
 });
 
@@ -1330,7 +1327,8 @@ test('private manga cover and metadata refresh preserve local reading records on
   await expect(page.locator('.manga-details-hero .manga-cover-image')).toHaveCount(0);
   await page.evaluate(id=>localStorage.setItem('taiyou-manga:progress:v1:'+id,'saved-do-not-replace'),mangaId);
   enrichedNow=true;
-  await page.getByRole('button',{name:'Refresh publication metadata'}).click();
+  await page.locator('.manga-cloud-menu > summary').click();
+  await page.getByRole('button',{name:'Refresh cloud'}).click();
   await expect(page.locator('.manga-info-card')).toContainText('Example Writer');
   await expect(page.locator('.manga-info-card')).toContainText('Example Illustrator');
   await expect(page.locator('.manga-info-card')).toContainText('Another Title');
