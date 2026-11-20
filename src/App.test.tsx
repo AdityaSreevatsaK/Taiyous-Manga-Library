@@ -5,7 +5,13 @@ import App from './App';
 describe('accessible catalogue baseline (server-rendered markup)', () => {
   it('shows a clearly identified synthetic sample catalogue and functional navigation targets', () => {
     const html = renderToStaticMarkup(<App />);
-    expect(html).toContain('Fictional demonstration');
+    expect(html).toContain('Sample stories are fictional.');
+    expect(html).toContain('PERSONAL MANGA LIBRARY');
+    expect(html).toContain('Search all manga');
+    expect(html).toContain('Cloud settings, disconnected');
+    expect(html).toContain('manga-theme-swatches');
+    expect(html).toContain('manga-nav-links');
+    expect(html).not.toContain('editorial-source-switcher');
     expect(html).toContain('The Lantern Archive');
     expect(html).toContain('The Silver Garden');
     expect(html).toContain('Clockwork Shore');
