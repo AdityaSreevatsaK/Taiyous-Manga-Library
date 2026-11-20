@@ -7,6 +7,9 @@ import { OfflineChapterControl } from './components/OfflineChapterControl';
 import { CollectionManager } from './components/CollectionManager';
 import { LocalBackupControl } from './components/LocalBackupControl';
 import { MangaCloudMenu } from './components/MangaCloudMenu';
+import { MangaBrandMark } from './components/MangaBrandMark';
+import { MangaOwnerTools } from './components/MangaOwnerTools';
+import { SearchIcon, HashIcon, LibraryIcon, ChevronDownIcon } from './components/SharedLibraryIcons';
 import { MangaThemeSwatches } from './components/MangaThemeSwatches';
 import { VerticalReader } from './components/VerticalReader';
 import { CATALOGUE_SECTIONS, parseAppRoute, routeHref, type AppRoute, type CatalogueSection } from './domain/routes';
@@ -611,11 +614,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
       <div className="manga-topbar">
         <a className="wordmark" href={routeHref({kind:'home'},import.meta.env.BASE_URL)}
           onClick={event=>followLink(event,()=>goCatalogue('home'))} aria-label="Taiyou Manga home">
-          <span className="manga-logo-frame">
-            <img className="brand-sun" src={import.meta.env.BASE_URL + 'branding/sun-' +
-              (['charcoal','midnight','plum'].includes(preferences.theme) ? 'dark' : 'light') + '.webp'}
-              width="36" height="36" alt="" aria-hidden="true" />
-          </span>
+          <span className="manga-logo-frame"><MangaBrandMark theme={preferences.theme} size={36}/></span>
           <span className="manga-wordmark-text"><strong>TAIYOU'S</strong><small>PERSONAL MANGA LIBRARY</small></span>
         </a>
         <MangaCloudMenu cloud={cloud} online={online} demo={demo} count={remoteEntries.length}
@@ -634,8 +633,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
         </MangaCloudMenu>
         <div className="manga-top-actions">
           <label className="manga-global-search">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-              aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg>
+            <SearchIcon size={16}/>
             <input type="search" aria-label="Search all manga" placeholder="Search all manga…"
               value={query} onChange={event=>{
                 setQuery(event.target.value);
@@ -645,11 +643,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
           <button type="button" className="manga-advanced-button" aria-label="Advanced search"
             title="Advanced search" aria-expanded={advancedOpen&&selectedSection==='library'}
             onClick={()=>{setAdvancedOpen(value=>!value);goCatalogue('library');}}>
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
-              <circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/>
-              <path d="M3 3h3M4.5 1.5v3M18 3h3"/>
-            </svg>
+            <SearchIcon size={17}/>
           </button>
           <MangaThemeSwatches value={preferences.theme}
             onChange={theme=>updatePreferences({...preferences,theme})}/>
@@ -680,14 +674,14 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
           </details>}
         </div>
         <div className="manga-nav-tools">
-          <details className="header-menu"><summary>Tags</summary>
+          <details className="header-menu"><summary><HashIcon size={15}/> Tags <ChevronDownIcon size={13}/></summary>
             <div className="header-menu-content">
               <button type="button" onClick={event=>{setTag('');goCatalogue('library');event.currentTarget.closest('details')?.removeAttribute('open');}}>All tags</button>
               {allTags.map(value=><button type="button" key={value}
                 onClick={event=>{jumpToFilter('tag',value);event.currentTarget.closest('details')?.removeAttribute('open');}}>{value}</button>)}
             </div>
           </details>
-          <details className="header-menu"><summary>Collections</summary>
+          <details className="header-menu"><summary><LibraryIcon size={15}/> Collections <ChevronDownIcon size={13}/></summary>
             <div className="header-menu-content">
               <button type="button" onClick={event=>{setCollection('');goCatalogue('library');event.currentTarget.closest('details')?.removeAttribute('open');}}>All collections</button>
               {sortedPersonalCollections.map(folder=><button type="button" key={folder.id}
@@ -697,6 +691,9 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
                 onClick={event=>{jumpToFilter('collection',name);event.currentTarget.closest('details')?.removeAttribute('open');}}>{name} (source)</button>)}
             </div>
           </details>
+          <MangaOwnerTools connected={cloud.status==='connected'}
+            owner={cloud.status==='connected'?cloud.owner:undefined}
+            openPrivate={()=>changeDemo(false)}/>
         </div>
       </nav>
     </header>
