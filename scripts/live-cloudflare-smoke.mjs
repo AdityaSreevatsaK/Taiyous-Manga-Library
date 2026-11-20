@@ -88,7 +88,9 @@ async function main() {
 
   // Security boundary: a public SPA shell must never replace a private API response.
   await check('Private HF API rejects anonymous reads', async () => {
-    for (const route of ['/api/auth/session','/api/library']) {
+    for (const route of ['/api/auth/session','/api/library',
+      '/api/media/manifest?mangaId=mng_aaaaaaaa&chapterId=ch_aaaaaaaa',
+      '/api/media/page?mangaId=mng_aaaaaaaa&chapterId=ch_aaaaaaaa&pageId=pg_aaaaaaaa&revision='+('a'.repeat(40))]) {
       const response = await fetch(origin+route,{
         redirect:'manual',signal:AbortSignal.timeout(15000),cache:'no-store',
       });
