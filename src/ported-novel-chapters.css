@@ -49,15 +49,9 @@
 }
 .app-shell .novel-chapter-browser .details-section-header{display:flex;align-items:center;justify-content:space-between}
 .app-shell .novel-chapter-browser .details-label{font-size:9px;font-weight:800;letter-spacing:.15em;color:var(--md-muted)}
-.app-shell .novel-chapter-browser .chapter-list-item{height:auto;border-radius:0;min-height:48px}
-.app-shell .novel-chapter-browser .chapter-search input{
- min-height:0;background:transparent;border:0;padding:12px 0;color:var(--md-ink)
-}
-.app-shell .novel-chapter-browser .chapter-jump input{
- width:72px;min-height:0;padding:11px 9px;border:1px solid var(--md-line)
-}
+ .app-shell .novel-chapter-browser .chapter-search input{min-height:0}
+ .app-shell .novel-chapter-browser .chapter-jump input{min-height:0}
 .app-shell .novel-chapter-browser .chapter-jump button{min-height:43px}
-.app-shell .novel-chapter-browser .chapter-list-item:hover{color:var(--md-ink)}
 .novel-chapter-browser .manga-chapter-completion{margin-top:15px;padding:12px;border:1px solid var(--md-line);border-radius:8px}
 .novel-chapter-browser .manga-chapter-completion summary{cursor:pointer;font-size:12px;font-weight:650}
 .novel-chapter-browser .manga-completion-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px}
