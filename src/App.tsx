@@ -16,6 +16,7 @@ import { VerticalReader } from './components/VerticalReader';
 import { MangaChapterPicker } from './components/MangaChapterPicker';
 import { MangaCollectionPicker } from './components/MangaCollectionPicker';
 import { MangaCoverArtwork } from './components/MangaCoverArtwork';
+import {ratingLabel,ratingSummary,ratingToneClass} from './domain/ratings';
 import { CATALOGUE_SECTIONS, parseAppRoute, resolveAppRoute, routeHref, type AppRoute, type CatalogueSection } from './domain/routes';
 import { loadShelves, saveShelf, type PersonalShelf, type ShelfSelection } from './domain/personalShelves';
 import { collectionBreadcrumb, loadCollections, saveCollections, setCollectionMembership,
@@ -145,6 +146,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
     loadAnnotations(initialDemo ? demoEntries : realEntries).annotations);
   const [noteDraft, setNoteDraft] = useState('');
   const [tagDraft, setTagDraft] = useState('');
+  const [ratingDraft,setRatingDraft]=useState<number|undefined>(undefined);
   const [confirmRemoveTag, setConfirmRemoveTag] = useState<string | null>(null);
   const [preferences, setPreferences] = useState<ReaderPreferences>(() => {
     const read = loadPreferences();
@@ -327,6 +329,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
 
   useEffect(() => {
     setNoteDraft(entry ? annotations[entry.id]?.notes ?? '' : '');
+    setRatingDraft(entry ? annotations[entry.id]?.rating : undefined);
     setTagDraft('');
     setConfirmRemoveTag(null);
   // Changing a rating must not erase unsaved notes; only change drafts when the manga changes.
@@ -1126,23 +1129,34 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
             <div className="tag-row">{entry.tags.map(value=><button type="button" className="tag" key={value}
               onClick={()=>jumpToFilter('tag',value)} title={'Filter All Manga by ' + value}>{value}</button>)}</div>
             <div className="stat-strip"><span><strong>{entry.chapters.length}</strong> chapters</span>
-              <span><strong>{annotations[entry.id]?.rating ?? entry.rating ?? '–'}</strong> {annotations[entry.id]?.rating ? 'my' : 'source'} rating / 10</span>
+
               <span><strong>Scroll</strong> continuous chapter view</span></div>
-            <div className="manga-hero-rating"><div className="personal-rating">
-            <strong>Personal rating</strong>
-            <div className="rating-stars" role="group" aria-label="Personal rating">
-              {Array.from({length:10},(_,index)=>index+1).map(value=>
-                <button key={value} type="button" aria-label={'Rate ' + value + ' out of 10'}
-                  aria-pressed={annotations[entry.id]?.rating === value}
-                  style={{opacity: annotations[entry.id]?.rating && value <= annotations[entry.id]!.rating!
-                    ? Math.min(1,0.74+annotations[entry.id]!.rating!*0.026) : 0.72}}
-                  onClick={()=>changeAnnotation(entry,{rating:value},'Rating saved')}>★</button>)}
-              <span aria-live="polite">{annotations[entry.id]?.rating ? annotations[entry.id]!.rating + ' / 10' : 'No personal rating'}</span>
-            </div>
-            {annotations[entry.id]?.rating && <button className="secondary" type="button"
-              onClick={()=>changeAnnotation(entry,{rating:null},'Personal rating cleared')}>Clear rating</button>}
-          </div>
-          </div>
+            <form className="hero-rating manga-hero-rating" aria-label="Personal manga rating"
+              onSubmit={event=>{
+                event.preventDefault();
+                if(changeAnnotation(entry,{rating:ratingDraft??null},
+                  ratingDraft===undefined?'Personal rating cleared':'Rating saved'))
+                  setShelfNotice(ratingDraft===undefined?'Personal rating cleared':
+                    'Rating saved: '+ratingSummary(ratingDraft));
+              }}>
+              <fieldset className="hero-rating-fieldset">
+                <legend><span className={'rating-star '+ratingToneClass(ratingDraft)} aria-hidden="true">★</span>
+                  My rating {annotations[entry.id]?.rating!==undefined &&
+                    <span className="hero-rating-saved">· {ratingSummary(annotations[entry.id]?.rating)}</span>}
+                </legend>
+                <div className="hero-rating-choices" role="group" aria-label="Select personal rating">
+                  {Array.from({length:10},(_,index)=>index+1).map(value=>
+                    <button key={value} className={'hero-rating-choice'+(ratingDraft===value?' selected':'')}
+                      type="button" aria-pressed={ratingDraft===value}
+                      aria-label={'Rate '+value+' out of 10: '+ratingLabel(value)}
+                      title={ratingLabel(value)} onClick={()=>setRatingDraft(value)}>{value}</button>)}
+                  <button type="button" className="hero-rating-clear"
+                    disabled={ratingDraft===undefined} onClick={()=>setRatingDraft(undefined)}>Clear</button>
+                </div>
+              </fieldset>
+              <button type="submit" className="hero-rating-save"
+                disabled={ratingDraft===(annotations[entry.id]?.rating)}>Save rating</button>
+            </form>
             <div className="detail-actions">
               {demo ? <>
               <a className="primary" href={routeHref({kind:'reader',mangaId:entry.id,
