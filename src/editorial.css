@@ -91,38 +91,18 @@
 }
 .app-shell .editorial-primary-link:focus-visible,
 .app-shell .editorial-secondary-action:focus-visible{outline:3px solid var(--editorial-accent);outline-offset:3px}
-.app-shell .editorial-hero-art {
+.app-shell .editorial-hero-art{
   position:relative;isolation:isolate;display:grid;place-items:center;
-  width:100%;height:290px;min-width:0;overflow:hidden;
-  border:1px solid var(--editorial-line);border-radius:18px;
-  background:
-    radial-gradient(circle at 49% 8%,#ffffff55,transparent 47%),
-    repeating-linear-gradient(90deg,transparent 0 39px,var(--editorial-line) 40px 40.5px),
-    linear-gradient(150deg,var(--editorial-surface),var(--editorial-paper));
-  box-shadow:var(--editorial-shadow);
+  width:100%;height:290px;min-width:0;border-radius:18px
 }
-.app-shell .editorial-hero-art:after{
-  content:'';position:absolute;z-index:-1;
-  bottom:48px;left:-10%;width:120%;height:14px;
-  background:linear-gradient(180deg,var(--editorial-line),var(--editorial-soft));
-  opacity:.65;
-}
-.app-shell .editorial-book-stack {display:flex;align-items:end;justify-content:center;gap:10px;
-  padding:24px 24px 20px;height:100%;width:100%;overflow:hidden}
+.app-shell .editorial-book-stack{width:100%}
 .app-shell .editorial-display-book{
-  width:30%;max-width:120px;height:85%;min-width:0;display:flex;flex-direction:column;align-items:center;
-  justify-content:space-between;padding:25px 12px 18px;border:1px solid #fff5;
-  color:#f6efe1;border-radius:3px 8px 6px 3px;
-  box-shadow:7px 11px 18px #0003,inset 6px 0 5px #0002;
-  transform:rotate(-7deg) translateY(13px);text-align:center;
-  background:linear-gradient(135deg,#715c62,#283746);
+  display:flex;flex-direction:column;align-items:center;justify-content:space-between;
+  border:1px solid #fff5;color:#f6efe1;text-align:center;
+  background:linear-gradient(135deg,#715c62,#283746)
 }
-.app-shell .editorial-display-book.book-1{
-  height:96%;transform:rotate(2deg) translateY(8px);
-  background:linear-gradient(135deg,#4e706e,#203b48)}
-.app-shell .editorial-display-book.book-2{
-  transform:rotate(9deg) translateY(20px);
-  background:linear-gradient(135deg,#73627b,#303849)}
+.app-shell .editorial-display-book.book-1{background:linear-gradient(135deg,#4e706e,#203b48)}
+.app-shell .editorial-display-book.book-2{background:linear-gradient(135deg,#73627b,#303849)}
 .app-shell .editorial-book-glyph{font-size:20px;opacity:.8}
 .app-shell .editorial-book-title{font:500 clamp(13px,1.45vw,20px)/1.2 Georgia,serif;
   overflow:hidden;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical}
