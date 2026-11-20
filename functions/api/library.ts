@@ -60,18 +60,18 @@ export async function onRequest({request,env}:Context):Promise<Response>{
        return json({error:'Recovery required: private data exists but library.json is missing'},409);
      const legacy=await hfFetch('/datasets/'+REPO+'/resolve/'+snapshot.sha+'/catalogue.json',session.access);
      if(legacy.status===404)
-       return json({connected:true,repo:REPO,revision:snapshot.sha,empty:true,entries:[]});
+       return json({connected:true,owner:session.owner,repo:REPO,revision:snapshot.sha,empty:true,entries:[]});
      if(!legacy.ok)return json({error:'Legacy private catalogue could not be read'},502);
      let legacyEntries;
      try{legacyEntries=parseLegacyCatalogue(JSON.parse(await boundedText(legacy)));}
      catch{return json({error:'Legacy private catalogue is invalid. No data changed.'},409);}
-     return json({connected:true,repo:REPO,revision:snapshot.sha,empty:legacyEntries.length===0,
+     return json({connected:true,owner:session.owner,repo:REPO,revision:snapshot.sha,empty:legacyEntries.length===0,
        legacyReadOnly:true,entries:legacyEntries});
    }
    if(!response.ok)return json({error:'Private catalogue could not be read'},502);
    let entries;
    try{entries=parseCloudCatalogue(JSON.parse(await boundedText(response)));}
    catch{return json({error:'Private catalogue has invalid or unsupported metadata. No data changed.'},409);}
-   return json({connected:true,repo:REPO,revision:snapshot.sha,empty:entries.length===0,entries});
+   return json({connected:true,owner:session.owner,repo:REPO,revision:snapshot.sha,empty:entries.length===0,entries});
  }catch{return json({error:'Private dataset is temporarily unavailable'},502);}
 }
