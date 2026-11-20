@@ -1,4 +1,4 @@
-import type { ChapterManifest, MangaChapter, MangaEntry, MangaPage, MangaProgress, SourceRights } from './types';
+import type { ChapterManifest, MangaChapter, MangaEntry, MangaPage, MangaProgress, SourceRights, MangaCover, MangaCreatorRole, MangaMetadataSources, MangaPublicationField } from './types';
 
 /** Runtime validation at trust boundaries, not just TypeScript assertions. */
 export class DomainValidationError extends Error {
@@ -70,16 +70,75 @@ export function parseMangaChapter(value: unknown): MangaChapter {
   if (pageCount !== undefined) chapter.pageCount = pageCount;
   return chapter;
 }
-/** Canonical private cover: exactly the pre-documented data/covers/<manga-id>.webp. */
-export function parseMangaCoverAsset(value:unknown,mangaId:string){
- const cover=record(value,'entry.coverAsset');
- const path='covers/'+mangaId+'.webp';
- if(cover.assetPath!==path)throw new DomainValidationError('entry.coverAsset.assetPath','cover does not belong to manga');
- if(cover.mimeType!=='image/webp')throw new DomainValidationError('entry.coverAsset.mimeType','only verified WebP covers are accepted');
- if(typeof cover.sha256!=='string'||!/^[a-f0-9]{64}$/.test(cover.sha256))
-   throw new DomainValidationError('entry.coverAsset.sha256','expected lowercase SHA-256');
- return {assetPath:path,mimeType:'image/webp' as const,
-   byteSize:integer(cover.byteSize,'entry.coverAsset.byteSize',1,5_000_000),sha256:cover.sha256};
+/** Controller-managed artwork: data/covers/<manga-id>.<source-extension>. */
+export function parseMangaCover(value: unknown, mangaId: string): MangaCover {
+  const cover = record(value, 'entry.cover');
+  if (Object.keys(cover).sort().join(',') !==
+    'assetPath,byteSize,height,mimeType,sha256,width')
+    throw new DomainValidationError('entry.cover', 'unexpected cover descriptor');
+  const pattern = new RegExp('^covers/' + mangaId + '\\.(png|jpg|jpeg|webp|avif)$');
+  const path = cover.assetPath;
+  if (typeof path !== 'string' || !pattern.test(path))
+    throw new DomainValidationError('entry.cover.assetPath', 'cover does not belong to manga');
+  const suffix = path.split('.').at(-1)!;
+  const expectedMime = suffix === 'jpg' || suffix === 'jpeg' ? 'image/jpeg' : 'image/' + suffix;
+  if (cover.mimeType !== expectedMime)
+    throw new DomainValidationError('entry.cover.mimeType', 'cover format mismatch');
+  if (typeof cover.sha256 !== 'string' || !/^[a-f0-9]{64}$/.test(cover.sha256))
+    throw new DomainValidationError('entry.cover.sha256', 'expected lowercase SHA-256');
+  const width = integer(cover.width, 'entry.cover.width', 1, 16000);
+  const height = integer(cover.height, 'entry.cover.height', 1, 16000);
+  if (width * height > 70_000_000)
+    throw new DomainValidationError('entry.cover.dimensions', 'pixel budget exceeded');
+  return {assetPath:path,mimeType:expectedMime as MangaCover['mimeType'],width,height,
+    byteSize:integer(cover.byteSize,'entry.cover.byteSize',1,5_000_000),sha256:cover.sha256};
+}
+function parseCreatorRoles(value: unknown): MangaCreatorRole[] {
+  const roles = list(value,'entry.creatorRoles',24).map((item,index):MangaCreatorRole=>{
+    const part=record(item,'entry.creatorRoles['+index+']');
+    if(Object.keys(part).sort().join(',')!=='name,role')
+      throw new DomainValidationError('entry.creatorRoles','unexpected creator role');
+    return {name:text(part.name,'entry.creatorRoles.name',120),
+      role:literal(part.role,['author','artist'] as const,'entry.creatorRoles.role')};
+  });
+  const identifiers=roles.map(r=>r.name.toLocaleLowerCase()+'|'+r.role);
+  unique(identifiers,'entry.creatorRoles');
+  return roles;
+}
+const METADATA_FIELDS = ['aliases','creators','creatorRoles','tags',
+  'synopsis','publicationStatus','cover'] as const;
+function parseMetadataSource(value: unknown) {
+  const part=record(value,'entry.metadataSources.source');
+  if(Object.keys(part).sort().join(',')!=='provider,retrievedAt,sourceId,sourceUrl')
+    throw new DomainValidationError('entry.metadataSources','unexpected source fields');
+  const provider=text(part.provider,'entry.metadataSources.provider',60);
+  if(!/^[A-Za-z0-9_-]{2,60}$/.test(provider))
+    throw new DomainValidationError('entry.metadataSources.provider','invalid provider');
+  const sourceId=text(part.sourceId,'entry.metadataSources.sourceId',180);
+  const sourceUrl=text(part.sourceUrl,'entry.metadataSources.sourceUrl',500);
+  let url:URL;
+  try{url=new URL(sourceUrl);}catch{
+    throw new DomainValidationError('entry.metadataSources.sourceUrl','invalid HTTPS provenance');
+  }
+  if(url.protocol!=='https:'||!url.hostname.includes('.')||url.username||url.password
+      ||url.search||url.hash||!(url.port===''||url.port==='443'))
+    throw new DomainValidationError('entry.metadataSources.sourceUrl','unsafe source URL');
+  const retrievedAt=text(part.retrievedAt,'entry.metadataSources.retrievedAt',40);
+  if(!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(retrievedAt)||
+      !Number.isFinite(Date.parse(retrievedAt))||
+      new Date(retrievedAt).toISOString().replace('.000','')!==retrievedAt)
+    throw new DomainValidationError('entry.metadataSources.retrievedAt','invalid UTC timestamp');
+  return {provider,sourceId,sourceUrl,retrievedAt};
+}
+function parseMetadataSources(value: unknown,entry:Record<string,unknown>):MangaMetadataSources {
+  const sources=record(value,'entry.metadataSources');
+  const checked:MangaMetadataSources={};
+  for(const [key,origin] of Object.entries(sources)){
+    if(!(METADATA_FIELDS as readonly string[]).includes(key)||!(key in entry))
+      throw new DomainValidationError('entry.metadataSources','unknown or absent publication field');
+    checked[key as MangaPublicationField]=parseMetadataSource(origin);
+  }
+  return checked;
 }
 export function parseMangaEntry(value: unknown): MangaEntry {
   const item = record(value, 'entry');
@@ -101,9 +160,9 @@ export function parseMangaEntry(value: unknown): MangaEntry {
   const rating = optionalInteger(item.rating, 'entry.rating', 1, 10);
   if (synopsis !== undefined) result.synopsis = synopsis;
   if (rating !== undefined) result.rating = rating;
-  if(item.authors!==undefined)result.authors=textList(item.authors,'entry.authors',24);
-  if(item.artists!==undefined)result.artists=textList(item.artists,'entry.artists',24);
-  if(item.coverAsset!==undefined)result.coverAsset=parseMangaCoverAsset(item.coverAsset,result.id);
+  if(item.creatorRoles!==undefined)result.creatorRoles=parseCreatorRoles(item.creatorRoles);
+  if(item.cover!==undefined)result.cover=parseMangaCover(item.cover,result.id);
+  if(item.metadataSources!==undefined)result.metadataSources=parseMetadataSources(item.metadataSources,item);
   if (item.collections !== undefined) result.collections = textList(item.collections, 'entry.collections', 32);
   return result;
 }
