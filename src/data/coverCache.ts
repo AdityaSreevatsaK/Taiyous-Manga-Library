@@ -12,6 +12,11 @@ interface RecordCover {key:string;blob:Blob;size:number;savedAt:number}
 
 let database:Promise<IDBDatabase>|null=null;
 let generation=0;
+let verifiedCatalogueRevision:string|null=null;
+/** Revision obtained from the already authenticated /api/library response. */
+export function setCoverCatalogueRevision(value:unknown):void{
+ verifiedCatalogueRevision=typeof value==='string'&&/^[a-f0-9]{40}$/.test(value)?value:null;
+}
 const inflight=new Map<string,Promise<Blob|null>>();
 /** A small session-only LRU avoids IndexedDB round-trips when navigating shelves.
  * The persistent IndexedDB store remains the source across page refreshes. */
@@ -135,7 +140,18 @@ export function loadMangaCover(entry:MangaEntry):Promise<Blob|null>{
   if(epoch!==generation)return null;
   if(cached){rememberCover(key,cached);return cached;}
   if(typeof navigator!=='undefined'&&!navigator.onLine)return null;
-  const response=await fetch('/api/media/cover?'+new URLSearchParams({mangaId:entry.id}),{
+  // A pinned immutable revision is available after /api/library authenticates the owner.
+  // Tell the gateway the already validated descriptor, avoiding extra HF catalogue
+  // and revision lookups for cold covers. The gateway still authenticates each GET.
+  const query=new URLSearchParams({mangaId:entry.id});
+  if(verifiedCatalogueRevision&&entry.cover){
+   query.set('revision',verifiedCatalogueRevision);
+   query.set('sha256',entry.cover.sha256);
+   query.set('mimeType',entry.cover.mimeType);
+   query.set('byteSize',String(entry.cover.byteSize));
+   query.set('extension',entry.cover.assetPath.split('.').at(-1)??'');
+  }
+  const response=await fetch('/api/media/cover?'+query,{
    credentials:'same-origin',cache:'no-store',
   });
   if(!response.ok)return null;
@@ -156,6 +172,7 @@ export async function clearMangaCoverCache():Promise<boolean>{
  generation++;
  inflight.clear();
  hotCovers.clear();hotBytes=0;
+ verifiedCatalogueRevision=null;
  try{
   if(typeof indexedDB==='undefined')return true;
   const db=await openDatabase();
