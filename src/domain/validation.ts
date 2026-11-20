@@ -70,6 +70,17 @@ export function parseMangaChapter(value: unknown): MangaChapter {
   if (pageCount !== undefined) chapter.pageCount = pageCount;
   return chapter;
 }
+/** Canonical private cover: exactly the pre-documented data/covers/<manga-id>.webp. */
+export function parseMangaCoverAsset(value:unknown,mangaId:string){
+ const cover=record(value,'entry.coverAsset');
+ const path='covers/'+mangaId+'.webp';
+ if(cover.assetPath!==path)throw new DomainValidationError('entry.coverAsset.assetPath','cover does not belong to manga');
+ if(cover.mimeType!=='image/webp')throw new DomainValidationError('entry.coverAsset.mimeType','only verified WebP covers are accepted');
+ if(typeof cover.sha256!=='string'||!/^[a-f0-9]{64}$/.test(cover.sha256))
+   throw new DomainValidationError('entry.coverAsset.sha256','expected lowercase SHA-256');
+ return {assetPath:path,mimeType:'image/webp' as const,
+   byteSize:integer(cover.byteSize,'entry.coverAsset.byteSize',1,5_000_000),sha256:cover.sha256};
+}
 export function parseMangaEntry(value: unknown): MangaEntry {
   const item = record(value, 'entry');
   const chapters = list(item.chapters, 'entry.chapters', 2000).map(parseMangaChapter);
@@ -90,6 +101,9 @@ export function parseMangaEntry(value: unknown): MangaEntry {
   const rating = optionalInteger(item.rating, 'entry.rating', 1, 10);
   if (synopsis !== undefined) result.synopsis = synopsis;
   if (rating !== undefined) result.rating = rating;
+  if(item.authors!==undefined)result.authors=textList(item.authors,'entry.authors',24);
+  if(item.artists!==undefined)result.artists=textList(item.artists,'entry.artists',24);
+  if(item.coverAsset!==undefined)result.coverAsset=parseMangaCoverAsset(item.coverAsset,result.id);
   if (item.collections !== undefined) result.collections = textList(item.collections, 'entry.collections', 32);
   return result;
 }
