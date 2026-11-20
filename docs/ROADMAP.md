@@ -1,4 +1,9 @@
-# Manga Library: current roadmap, 19 November 2026
+# Manga Library: roadmap and archived development checkpoints
+
+> **Current release, 20 November 2026:** UI/metadata/covers/permalinks PR #47 and private catalogue latency PR #48 are merged into `master`, with passing TypeScript, unit, Chromium, Firefox/WebKit and Cloudflare live deployment smoke. The private Controller read-only audit confirmed five manga, five covers, 587 chapters and 14,635 pages. Owner-authenticated browser rendering of originals remains a manual acceptance check. Private offline media and cross-device progress sync are not yet implemented.
+>
+> **Historical archive below:** The 19 November checkpoints and initial scaffold plan are preserved for provenance. Claims below that say OAuth, chapter image delivery or Cloudflare deployment are not implemented describe earlier project states and are **not current**. Use [README](../README.md), [deployment runbook](DEPLOYMENT.md) and [private HF connection](HF_READONLY_CONNECTION.md) for the current contracts.
+
 
 **Development checkpoint:** PRs #32–#35 merged on `master`. CI passed for each feature. The live Cloudflare page and physical Android/iOS devices have not been independently reverified against the latest four merges in this handover. Earlier live smoke results remain valid historical evidence. The original scaffold planning text below is retained solely for historical evidence.
 
