@@ -110,6 +110,15 @@ export function MangaChapterBrowser({chapters,mangaId,currentChapterId,busy,
         onClick={()=>setPage(pageCount-1)}>Last page ›</button>
     </div>
   </nav>}
+  {/* Only synthetic sample chapters support offline storage. Keep those actions
+      visible in a separate compact section, not alongside every chapter link. */}
+  {renderOfflineControl&&<section className="manga-sample-offline-controls" aria-label="Offline sample chapters">
+    <h3>Offline sample chapters</h3>
+    {chapters.map((chapter,index)=><div key={chapter.id} className="manga-offline-sample-row">
+      <span>Chapter {index+1}</span>
+      {renderOfflineControl(chapter)}
+    </div>)}
+  </section>}
   {/* Preserve Manga's explicit completion feature without 50 prominent row buttons. */}
   {chapters.length>0&&<details className="manga-chapter-completion" open={!!renderOfflineControl}>
     <summary>Manage completed chapters</summary>
@@ -119,7 +128,6 @@ export function MangaChapterBrowser({chapters,mangaId,currentChapterId,busy,
       <input type="checkbox" checked={completedChapterIds.includes(item.id)}
         onChange={()=>onToggleComplete(item.id)}/>
       Chapter {item.number}
-      {renderOfflineControl?.(item)}
     </label>)}
     </div>
   </details>}
