@@ -14,7 +14,7 @@ let database:Promise<IDBDatabase>|null=null;
 let generation=0;
 const inflight=new Map<string,Promise<Blob|null>>();
 function openDatabase():Promise<IDBDatabase>{
- if(!database)database=new Promise((resolve,reject)=>{
+ if(!database)database=new Promise<IDBDatabase>((resolve,reject)=>{
    if(typeof indexedDB==='undefined'){reject(Error('IndexedDB unavailable'));return;}
    const request=indexedDB.open(DB_NAME,1);
    request.onupgradeneeded=()=>{
@@ -28,7 +28,7 @@ function openDatabase():Promise<IDBDatabase>{
      resolve(db);
    };
  }).catch(error=>{database=null;throw error;});
- return database;
+ return database!;
 }
 function requestValue<T>(request:IDBRequest<T>):Promise<T>{
  return new Promise((resolve,reject)=>{
@@ -117,7 +117,7 @@ export function loadMangaCover(entry:MangaEntry):Promise<Blob|null>{
   if(!isValidCoverBlob(entry,blob)||epoch!==generation)return null;
   // Paint immediately. Verification and IndexedDB persistence should not
   // lengthen the first visible image's loading time.
-  void persistVerified(entry,key,blob,epoch);
+  void persistVerified(entry,key,blob,epoch).catch(()=>{});
   return epoch===generation?blob:null;
  })().catch(()=>null);
  inflight.set(key,task);
