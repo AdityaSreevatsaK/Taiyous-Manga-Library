@@ -1156,7 +1156,7 @@ test('Novel Library brand assets and chrome render without the invented logo til
     expect(style.border,'framed logo should be removed').toBe('0px');
     expect(style.background,'logo must float freely').toBe('rgba(0, 0, 0, 0)');
     expect(style.image).toBe('contain');
-    const cloud=page.locator('.manga-cloud-icon');
+    const cloud=page.locator('.cloud-status-icon');
     const svg=await cloud.locator('svg').boundingBox();
     const dot=await cloud.locator('.cloud-status-dot').boundingBox();
     expect(svg&&dot).toBeTruthy();
@@ -1243,7 +1243,7 @@ test('private ReLIFE-style chapter list opens verified images without endless sc
   await expect(page.locator('.chapter-entry')).toHaveCount(50);
   await page.getByRole('searchbox',{name:'Search chapters'}).fill('Chapter 87');
   await expect(page.locator('.chapter-entry')).toHaveCount(1);
-  await page.getByRole('button',{name:/Chapter 87.*Read/}).click();
+  await page.getByRole('button',{name:/Chapter 87/}).click();
   await expect(page.locator('.vertical-page-image')).toBeVisible();
   await expect(page.locator('.vertical-page-image')).toHaveAttribute('alt','Manga page 1 of 1');
   await expect(page.getByRole('button',{name:'Next chapter →'})).toBeEnabled();
