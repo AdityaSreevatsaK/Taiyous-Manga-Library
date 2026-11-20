@@ -21,10 +21,7 @@
   border-radius:17px;background:#243c5b;
   color:#fff7e9;box-shadow:0 16px 38px #0924412f;
 }
-.app-shell .manga-details-hero .detail-cover{
-  width:100%;max-width:235px;aspect-ratio:2/3;padding:clamp(16px,2.5vw,26px);
-  border:1px solid #e8ddce99;border-radius:7px;box-shadow:10px 15px 25px #00162d88;
-}
+.app-shell .manga-details-hero .detail-cover{width:100%;max-width:235px;aspect-ratio:2/3}
 .app-shell .manga-details-hero .detail-cover .cover-title{font-size:clamp(25px,3vw,43px);max-width:100%;color:#fff4df}
 .app-shell .manga-details-hero .detail-content{padding:0;min-width:0}
 .app-shell .manga-details-hero .detail-content .eyebrow{color:#f1d49e}
@@ -33,8 +30,6 @@
   color:#fff9ef;text-shadow:0 3px 12px #0009;margin:0 0 9px;
 }
 .app-shell .manga-details-hero .detail-sub{color:#e7ecf5;font:italic 14px/1.5 Georgia,serif;text-transform:none}
-.app-shell .manga-details-hero .stat-strip{padding:9px 0;margin:7px 0 14px;border:0;gap:17px;color:#e5edf4}
-.app-shell .manga-details-hero .stat-strip strong{display:inline;font:700 17px Georgia,serif;margin:0 4px 0 0;color:#fff2da}
 .app-shell .manga-details-hero .tag-row{margin:0 0 12px;gap:7px}
 .app-shell .manga-details-hero .tag{
   border-radius:6px;min-height:30px;padding:6px 10px;color:#fff;border:1px solid #f5f7fbd0;
