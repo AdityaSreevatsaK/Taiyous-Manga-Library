@@ -282,3 +282,8 @@
   background:linear-gradient(110deg,#0814269a,#08142639 85%)
  }
  }
+
+/* Covers use IndexedDB-first blob URLs; the placeholder remains until decoded. */
+.app-shell :is(.book-cover,.detail-cover,.editorial-display-book) .manga-cover-loader{
+ position:absolute;inset:0;pointer-events:none
+}
