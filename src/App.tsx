@@ -431,7 +431,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
       navigateTo({kind:'reader',mangaId:item.id,chapterId:target.chapterId,pageIndex:target.pageIndex});
       return;
     }
-    const selected=chapterId ?? (resume && progress[item.id]?.chapterId) ?? orderedChapters(item)[0]?.id ?? '';
+    const selected=chapterId ?? (resume ? progress[item.id]?.chapterId : undefined) ?? orderedChapters(item)[0]?.id ?? '';
     if (!item.chapters.some(chapter=>chapter.id===selected)) {
       setNotice('This chapter is not in your private library.');
       return;
