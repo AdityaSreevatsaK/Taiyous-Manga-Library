@@ -1141,7 +1141,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
           onClick={event=>followLink(event,()=>goCatalogue())}>← Back to the shelf</a>
         <section className="series-detail manga-details-hero">
           <div className={'detail-cover cover-'+(demoEntries.findIndex(d=>d.id===entry.id)%3+1)} aria-hidden="true">
-            {!demo && <MangaCoverArtwork key={entry.cover?.sha256??'none'} entry={entry}/>}
+            {!demo && <MangaCoverArtwork key={entry.cover?.sha256??'none'} entry={entry} priority/>}
             {entry.publicationStatus !== 'unknown' &&
               <span className={'status-ribbon status-'+entry.publicationStatus}>
                 {publicationCaption[entry.publicationStatus]}</span>}
@@ -1153,7 +1153,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
               onClick={()=>jumpToFilter('tag',value)} title={'Filter All Manga by ' + value}>{value}</button>)}</div>
             <div className="stat-strip"><span><strong>{entry.chapters.length}</strong> chapters</span>
 
-              <span><strong>Scroll</strong> continuous chapter view</span></div>
+</div>
             <form className="hero-rating manga-hero-rating" aria-label="Personal manga rating"
               onSubmit={event=>{
                 event.preventDefault();
@@ -1244,7 +1244,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
                 {entry.aliases.length>0&&<div><dt>Also known as</dt><dd>{entry.aliases.join('; ')}</dd></div>}
                 <div><dt>Chapters</dt><dd>{chapters.length}</dd></div>
                 <div><dt>Publication</dt><dd>{publicationCaption[entry.publicationStatus]}</dd></div>
-                <div><dt>Reading</dt><dd>Continuous scroll</dd></div>
+                
               </dl>
               <div className="personal-shelf-selector">
               <label>Personal reading shelf
