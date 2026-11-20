@@ -152,6 +152,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
   const [personalTagDraft,setPersonalTagDraft]=useState<string[]>([]);
   const [ratingDraft,setRatingDraft]=useState<number|undefined>(undefined);
   const [confirmSaveTags,setConfirmSaveTags]=useState(false);
+  const [confirmRemoveTag,setConfirmRemoveTag]=useState<string|null>(null);
   const [preferences, setPreferences] = useState<ReaderPreferences>(() => {
     const read = loadPreferences();
     return read.status === 'ok' ? read.value : defaultReaderPreferences;
@@ -334,6 +335,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
     setTagDraft('');
     setPersonalTagDraft(entry ? annotations[entry.id]?.tags??[] : []);
     setConfirmSaveTags(false);
+    setConfirmRemoveTag(null);
   // Changing a rating must not erase unsaved notes; only change drafts when the manga changes.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entry?.id]);
@@ -1284,7 +1286,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
             </section>
             <section className="manga-detail-card manga-tags-card" aria-label="Publication genres and tags">
               <p className="manga-card-overline">ORGANISE YOUR READING</p><h2>Tags &amp; genres</h2>
-              <p>Browse all tags together and add personal tags here. To remove personal tags, use Master Controls. Imported genres are protected.</p>
+              <p>Browse all tags together and add personal tags here. To remove personal tags, use Manage this manga below. Imported genres are protected.</p>
               <div className="tag-row details-tag-row" aria-label="All manga tags">
                 {entry.tags.map(value=><button key={'source:'+value} type="button" className="tag imported-tag"
                   title="Imported publication genre" onClick={()=>jumpToFilter('tag',value)}>{value}</button>)}
@@ -1338,6 +1340,17 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
               <p>The original cover and pages remain protected in your private library.
                 Uploads, metadata edits, deletion and backups belong to Master Controls on the main library page.</p>
               <p>Private chapter offline downloads are not yet available.</p>
+              {(annotations[entry.id]?.tags??[]).length>0&&
+                <details className="manga-personal-tag-management">
+                  <summary>Manage personal tags</summary>
+                  <p>Removing a tag does not alter the imported genres or the manga itself.</p>
+                  <div className="manga-tag-management-actions">
+                    {(annotations[entry.id]?.tags??[]).map(tag=>
+                      <button type="button" className="secondary" key={tag}
+                        onClick={()=>setConfirmRemoveTag(tag)}
+                        aria-label={'Remove personal tag '+tag}>Remove {tag}</button>)}
+                  </div>
+                </details>}
             </section>
           </aside>
           <section className="manga-detail-card manga-mobile-rating" aria-label="Personal manga rating on mobile">
@@ -1498,6 +1511,23 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
               onClick={()=>setConfirmMembershipRemoval(null)}>Cancel</button>
             <button className="primary" type="button"
               onClick={()=>updateMembership(entry,confirmMembershipRemoval.collectionId,false)}>Remove manga</button>
+          </div>
+        </div>
+      </div>}
+      {confirmRemoveTag && entry && screen.kind==='details' && <div className="dialog-scrim"
+        onKeyDown={event=>{if(event.key==='Escape')setConfirmRemoveTag(null);}}>
+        <div className="app-dialog" role="dialog" aria-modal="true" aria-labelledby="remove-personal-tag-title">
+          <h2 id="remove-personal-tag-title">Remove this personal tag?</h2>
+          <p>Remove “{confirmRemoveTag}” from this manga only? The imported publication genres remain unchanged.</p>
+          <div className="dialog-actions">
+            <button className="secondary" type="button" autoFocus
+              onClick={()=>setConfirmRemoveTag(null)}>Cancel</button>
+            <button className="primary" type="button" onClick={()=>{
+              const updated=(annotations[entry.id]?.tags??[]).filter(tag=>tag!==confirmRemoveTag);
+              if(changeAnnotation(entry,{tags:updated},'Personal tag removed')){
+                setPersonalTagDraft(updated);setTagDraft('');setConfirmRemoveTag(null);
+              }
+            }}>Remove personal tag</button>
           </div>
         </div>
       </div>}
