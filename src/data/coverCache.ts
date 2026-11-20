@@ -13,6 +13,30 @@ interface RecordCover {key:string;blob:Blob;size:number;savedAt:number}
 let database:Promise<IDBDatabase>|null=null;
 let generation=0;
 const inflight=new Map<string,Promise<Blob|null>>();
+/** A small session-only LRU avoids IndexedDB round-trips when navigating shelves.
+ * The persistent IndexedDB store remains the source across page refreshes. */
+const hotCovers=new Map<string,Blob>();
+let hotBytes=0;
+const HOT_MAX_BYTES=16*1024*1024;
+const HOT_MAX_COUNT=24;
+function rememberCover(key:string,blob:Blob):void{
+ const previous=hotCovers.get(key);
+ if(previous){hotBytes-=previous.size;hotCovers.delete(key);}
+ if(blob.size>HOT_MAX_BYTES)return;
+ hotCovers.set(key,blob);hotBytes+=blob.size;
+ while(hotCovers.size>HOT_MAX_COUNT||hotBytes>HOT_MAX_BYTES){
+  const oldest=hotCovers.keys().next().value;
+  if(oldest===undefined)break;
+  hotBytes-=hotCovers.get(oldest)!.size;hotCovers.delete(oldest);
+ }
+}
+function fromHotCache(key:string):Blob|null{
+ const blob=hotCovers.get(key);
+ if(!blob)return null;
+ hotCovers.delete(key);hotCovers.set(key,blob);
+ return blob;
+}
+
 function openDatabase():Promise<IDBDatabase>{
  if(!database)database=new Promise<IDBDatabase>((resolve,reject)=>{
    if(typeof indexedDB==='undefined'){reject(Error('IndexedDB unavailable'));return;}
@@ -101,13 +125,15 @@ async function persistVerified(entry:MangaEntry,key:string,blob:Blob,epoch:numbe
 export function loadMangaCover(entry:MangaEntry):Promise<Blob|null>{
  const key=mangaCoverKey(entry);
  if(!key)return Promise.resolve(null);
+ const hot=fromHotCache(key);
+ if(hot&&isValidCoverBlob(entry,hot))return Promise.resolve(hot);
  const pending=inflight.get(key);
  if(pending)return pending;
  const epoch=generation;
  const task=(async()=>{
   const cached=await readLocal(entry,key);
   if(epoch!==generation)return null;
-  if(cached)return cached;
+  if(cached){rememberCover(key,cached);return cached;}
   if(typeof navigator!=='undefined'&&!navigator.onLine)return null;
   const response=await fetch('/api/media/cover?'+new URLSearchParams({mangaId:entry.id}),{
    credentials:'same-origin',cache:'no-store',
@@ -118,6 +144,7 @@ export function loadMangaCover(entry:MangaEntry):Promise<Blob|null>{
   // Paint immediately. Verification and IndexedDB persistence should not
   // lengthen the first visible image's loading time.
   void persistVerified(entry,key,blob,epoch).catch(()=>{});
+  rememberCover(key,blob);
   return epoch===generation?blob:null;
  })().catch(()=>null);
  inflight.set(key,task);
@@ -128,6 +155,7 @@ export function loadMangaCover(entry:MangaEntry):Promise<Blob|null>{
 export async function clearMangaCoverCache():Promise<boolean>{
  generation++;
  inflight.clear();
+ hotCovers.clear();hotBytes=0;
  try{
   if(typeof indexedDB==='undefined')return true;
   const db=await openDatabase();
