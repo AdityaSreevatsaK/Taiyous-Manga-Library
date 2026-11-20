@@ -218,6 +218,7 @@ test.describe('five-chapter continuous scroll trial', () => {
 test.describe('browser history and deep links', () => {
   test('direct chapter URL restores exact page after refresh', async ({ page }) => {
     await page.goto('/manga/mng_lanternarchive/chapters/ch_lanternrooftop?page=3');
+    await expect(page).toHaveURL(/\/manga\/the-lantern-archive\/chapters\/02-above-the-rooftops\?page=3$/);
     await expect(page.locator('.reader-heading')).toContainText('The Lantern Archive');
     await expect(page.getByRole('button', { name: 'Choose chapter' })).toContainText('Above the rooftops');
     await expect(page.locator('.page-navigation')).toContainText('Page 3 of 4');
@@ -1265,6 +1266,8 @@ test('Novel Library series layout, card order, chapter picker and clear button h
     await expect(page.locator('.manga-details-columns .manga-synopsis-card')).toBeVisible();
     await expect(page.locator('.manga-details-main .chapter-section')).toBeVisible();
     await expect(page.locator('.manga-details-sidebar .personal-annotations')).toBeVisible();
+    if(width<=700)await expect(page.locator('.manga-mobile-rating')).toBeVisible();
+    else await expect(page.locator('.manga-hero-rating')).toBeVisible();
   await expect(page.locator('.manga-details-sidebar .manga-tags-card')).toBeVisible();
   await expect(page.locator('.manga-details-sidebar .manga-management-card')).toBeVisible();
 
@@ -1401,4 +1404,16 @@ test('Novel-style collection picker opens from the manga hero and preserves memb
   await modal.getByRole('button',{name:'Done'}).click();
   await expect(page.locator('.collection-member')).toHaveCount(0);
   await assertNoHorizontalOverflow(page);
+});
+
+test('mobile rating uses Novel Library compact selector and retains saved value',async({page})=>{
+  await page.setViewportSize({width:390,height:820});
+  await page.goto('/manga/mng_lanternarchive');
+  const rating=page.getByRole('combobox',{name:'Rate this manga'});
+  await expect(rating).toBeVisible();
+  await rating.selectOption('9');
+  await page.locator('.manga-mobile-rating').getByRole('button',{name:'Save rating'}).click();
+  await page.reload();
+  await expect(page.getByRole('combobox',{name:'Rate this manga'})).toHaveValue('9');
+  await expect(page.locator('.manga-mobile-rating')).toContainText('9/10');
 });
