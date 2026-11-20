@@ -1102,8 +1102,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
               {Array.from({length:10},(_,index)=>index+1).map(value=>
                 <button key={value} type="button" aria-label={'Rate ' + value + ' out of 10'}
                   aria-pressed={annotations[entry.id]?.rating === value}
-                  style={{opacity: annotations[entry.id]?.rating && value <= annotations[entry.id]!.rating!
-                    ? Math.min(1,0.38 + annotations[entry.id]!.rating! * 0.062) : 0.26}}
+                  style={{opacity: annotations[entry.id]?.rating && value <= annotations[entry.id]!.rating! ? 1 : 0.72}}
                   onClick={()=>changeAnnotation(entry,{rating:value},'Rating saved')}>★</button>)}
               <span aria-live="polite">{annotations[entry.id]?.rating ? annotations[entry.id]!.rating + ' / 10' : 'No personal rating'}</span>
             </div>
@@ -1133,12 +1132,6 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
                   annotations[entry.id]?.favourite?'Removed from favourites':'Added to favourites')}>
                 {annotations[entry.id]?.favourite?'★ Remove from favourites':'☆ Add to favourites'}
               </button><button className="secondary manga-trying-button" type="button"
-              aria-pressed={personalShelves[entry.id]==='trying'}
-              onClick={()=>changeShelf(entry,personalShelves[entry.id]==='trying'?null:'trying')}>
-              {personalShelves[entry.id]==='trying'?'✓ Trying Out':'Add to Trying Out'}</button>
-            <button className="secondary manga-collection-jump" type="button" onClick={()=>{
-              document.getElementById('manga-detail-collection')?.scrollIntoView({behavior:'smooth',block:'center'});
-              document.getElementById('manga-detail-collection')?.focus();}}>+ Add to collection</button><button className="secondary manga-trying-button" type="button"
               aria-pressed={personalShelves[entry.id]==='trying'}
               onClick={()=>changeShelf(entry,personalShelves[entry.id]==='trying'?null:'trying')}>
               {personalShelves[entry.id]==='trying'?'✓ Trying Out':'Add to Trying Out'}</button>
