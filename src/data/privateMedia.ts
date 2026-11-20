@@ -1,5 +1,6 @@
 import {parseChapterManifest} from '../domain/validation';
-import type {ChapterManifest} from '../domain/types';
+import type {ChapterManifest,MangaEntry} from '../domain/types';
+import {browserStorage,progressKey} from '../domain/localReaderStorage';
 import type {PageSource} from './pageSource';
 
 export interface PrivateChapter {manifest:ChapterManifest;revision:string}
@@ -60,4 +61,28 @@ export async function resolvePrivatePage(manifest:ChapterManifest,index:number,
  if(hash!==page.sha256)throw Error('Private image checksum mismatch');
  const src=URL.createObjectURL(new Blob([bytes],{type:page.mimeType}));
  return {src,fromOfflineCopy:false,release:()=>URL.revokeObjectURL(src)};
+}
+
+/** A deliberately untrusted navigation hint. The saved page is *never* treated
+ * as read until the corresponding protected manifest validates its page ID.
+ * Corrupt records remain unchanged for the existing backup/recovery flow.
+ */
+export function privateResumeChapter(entry:MangaEntry):string|null{
+ const store=browserStorage();
+ if(!store)return null;
+ try{
+   const raw=store.getItem(progressKey(entry.id));
+   if(!raw)return null;
+   const data:unknown=JSON.parse(raw);
+   if(!data||typeof data!=='object'||Array.isArray(data))return null;
+   const envelope=data as Record<string,unknown>;
+   if(envelope.schemaVersion!==1||envelope.mediaKind!=='manga'||
+      !envelope.progress||typeof envelope.progress!=='object')return null;
+   const saved=envelope.progress as Record<string,unknown>;
+   if(saved.mangaId!==entry.id||typeof saved.chapterId!=='string'||
+     !id(saved.chapterId)||typeof saved.pageId!=='string'||!id(saved.pageId)||
+     typeof saved.pageIndex!=='number'||!Number.isSafeInteger(saved.pageIndex)||
+     saved.pageIndex<0||saved.pageIndex>=1000)return null;
+   return entry.chapters.some(ch=>ch.id===saved.chapterId)?saved.chapterId:null;
+ }catch{return null;}
 }
