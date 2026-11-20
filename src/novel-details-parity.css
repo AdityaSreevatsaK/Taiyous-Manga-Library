@@ -77,7 +77,6 @@
 .app-shell .manga-details-hero .detail-actions .secondary[aria-pressed=true]{
   background:#fff;color:#10283f;border-color:#fff;
 }
-.app-shell .manga-details-hero .detail-actions .fine-print{flex:1 1 100%;order:10;margin:2px 0;color:#e8edf6}
 .app-shell .manga-details-columns{
   display:grid;grid-template-columns:minmax(225px,.33fr) minmax(0,.67fr);
   align-items:start;gap:16px;padding:20px clamp(7px,2.5vw,30px);
@@ -109,16 +108,11 @@
 .app-shell .manga-detail-card :is(input,textarea)::placeholder{color:var(--md-muted)}
 .app-shell .manga-detail-card .detail-description{margin:0;max-height:210px;overflow:auto;color:var(--md-ink);font:400 13px/1.7 Georgia,serif}
 .app-shell .manga-detail-card .collection-membership{margin:0}
-.app-shell .manga-detail-card .chapter-search input{width:100%;max-width:none;min-height:42px}
 .app-shell .manga-details-main .chapter-section{max-width:none;padding:22px}
-.app-shell .manga-details-main .chapter-section h2{font-size:24px}
-.app-shell .manga-details-main .chapter-section .shelf-heading{margin:0 0 13px}
 /* Novel ChapterBrowser hierarchy and compact list. */
 .app-shell .chapter-browser .details-section-header,.app-shell .chapter-topline,.app-shell .chapter-paging{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .app-shell .chapter-browser .details-section-header h2{margin:0}
 .app-shell .chapter-topline{margin:12px 0 14px}
-.app-shell .chapter-topline strong,.app-shell .chapter-current-link{font-size:12px}
-.app-shell .chapter-current-link{border:0;background:transparent;color:var(--md-ink)}
 .app-shell .chapter-tools{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:15px}
 .app-shell .chapter-tools .chapter-search{display:flex;align-items:center;gap:9px;flex:1 1 220px;min-width:0;padding:0 12px;border:1px solid var(--md-line);border-radius:9px;background:var(--md-soft)}
 .app-shell .chapter-tools .chapter-search input{width:100%;min-height:43px;border:0;background:transparent;outline:none}
@@ -127,7 +121,6 @@
 .app-shell .chapter-jump input{width:75px;min-height:43px;border-radius:8px}
 .app-shell .chapter-jump button{min-height:43px;border:0;border-radius:8px;background:#315f86;color:#fff}
 .app-shell .chapter-jump button:hover{background:#173e62}
-.app-shell .chapter-validation{color:#a14f45}
 .app-shell .chapter-list{border:1px solid var(--md-line);border-radius:11px;overflow:hidden}
 .app-shell .manga-details-main .chapter-entry{display:flex;gap:4px;align-items:center;min-width:0;border-bottom:1px solid var(--md-line)}
 .app-shell .manga-details-main .chapter-entry:last-child{border-bottom:0}
@@ -140,7 +133,6 @@
 .app-shell .chapter-list-badge{font-size:10px;padding:5px 7px;border-radius:5px;background:var(--md-soft);white-space:nowrap}
 .app-shell .manga-details-main .chapter-completion-toggle{flex:none;margin-right:5px;min-height:35px;font-size:10px}
 .app-shell .chapter-paging{margin-top:15px}
-.app-shell .chapter-paging span{font-size:11px;color:var(--md-muted)}
 .app-shell .chapter-page-actions{display:flex;gap:8px}
 .app-shell .chapter-paging button{min-height:39px;border:1px solid var(--md-line);border-radius:8px;background:var(--md-soft);color:var(--md-ink)}
 .app-shell .chapter-paging button:hover{background:#244b72;color:#fff}
