@@ -1276,3 +1276,68 @@ test('Novel Library series layout, card order, chapter picker and clear button h
   await page.locator('.manga-picker-result').nth(1).click();
   await expect(page.locator('.reader-heading')).toContainText('Above the rooftops');
 });
+
+
+test('private manga cover and metadata refresh preserve local reading records on mobile',async({page})=>{
+  const mangaId='mng_metadatademo001',chapterId='ch_metadatademo001';
+  const baseline={kind:'manga',id:mangaId,title:'Metadata Demo',aliases:[],creators:[],tags:[],
+    publicationStatus:'unknown',direction:'vertical',chapters:[{id:chapterId,label:'Chapter 1',sequence:1,pageCount:1}]};
+  const cover={assetPath:'covers/'+mangaId+'.webp',mimeType:'image/webp',
+    byteSize:62,sha256:'a'.repeat(64)};
+  const enriched={...baseline,authors:['Example Writer'],artists:['Example Illustrator'],
+    aliases:['Another Title'],tags:['Romance'],synopsis:'An accurate enriched synopsis.',
+    publicationStatus:'completed',coverAsset:cover};
+  let enrichedNow=false;
+  const cloud={connected:true,owner:'AdityaSreevatsaK',repo:'AdityaSreevatsaK/Taiyous-Manga'};
+  await page.route('**/api/auth/session',route=>route.fulfill({
+    status:200,contentType:'application/json',body:JSON.stringify(cloud),
+  }));
+  await page.route('**/api/library',route=>route.fulfill({
+    status:200,contentType:'application/json',body:JSON.stringify({...cloud,entries:[enrichedNow?enriched:baseline]}),
+  }));
+  const webp=Buffer.from('UklGRjYAAABXRUJQVlA4ICoAAACQAQCdASoCAAMAAUAmJaACdLoAA5gA/vDEC/8pX7svSTqy/zs9lsayAAA=','base64');
+  await page.route('**/api/media/cover?*',route=>route.fulfill({
+    status:200,contentType:'image/webp',body:webp,
+  }));
+  await page.setViewportSize({width:390,height:850});
+  await page.goto('/library');
+  await page.locator('.book-card').filter({hasText:'Metadata Demo'}).click();
+  await expect(page.locator('.manga-details-hero')).toBeVisible();
+  await expect(page.locator('.manga-details-hero .manga-cover-image')).toHaveCount(0);
+  await page.evaluate(id=>localStorage.setItem('taiyou-manga:progress:v1:'+id,'saved-do-not-replace'),mangaId);
+  enrichedNow=true;
+  await page.getByRole('button',{name:'Refresh publication metadata'}).click();
+  await expect(page.locator('.manga-info-card')).toContainText('Example Writer');
+  await expect(page.locator('.manga-info-card')).toContainText('Example Illustrator');
+  await expect(page.locator('.manga-info-card')).toContainText('Another Title');
+  await expect(page.locator('.manga-synopsis-card')).toContainText('An accurate enriched synopsis.');
+  await expect(page.locator('.manga-tags-card')).toContainText('Romance');
+  await expect(page.locator('.manga-details-hero .manga-cover-image')).toHaveJSProperty('naturalWidth',2);
+  expect(await page.evaluate(id=>localStorage.getItem('taiyou-manga:progress:v1:'+id),mangaId))
+    .toBe('saved-do-not-replace');
+  await assertNoHorizontalOverflow(page);
+});
+
+test('failed authenticated cover request leaves readable placeholder and metadata',async({page})=>{
+  const mangaId='mng_coverfallback001';
+  const cloud={connected:true,owner:'AdityaSreevatsaK',repo:'AdityaSreevatsaK/Taiyous-Manga'};
+  const entry={kind:'manga',id:mangaId,title:'Missing Cover Demo',aliases:[],creators:[],
+    authors:['Example Author'],artists:[],tags:[],publicationStatus:'unknown',
+    direction:'vertical',chapters:[],coverAsset:{assetPath:'covers/'+mangaId+'.webp',
+      mimeType:'image/webp',byteSize:100,sha256:'b'.repeat(64)}};
+  await page.route('**/api/auth/session',route=>route.fulfill({
+    status:200,contentType:'application/json',body:JSON.stringify(cloud),
+  }));
+  await page.route('**/api/library',route=>route.fulfill({
+    status:200,contentType:'application/json',body:JSON.stringify({...cloud,entries:[entry]}),
+  }));
+  await page.route('**/api/media/cover?*',route=>route.fulfill({status:404}));
+  await page.setViewportSize({width:320,height:850});
+  await page.goto('/library');
+  await page.locator('.book-card').filter({hasText:'Missing Cover Demo'}).click();
+  await expect(page.locator('.detail-cover .manga-cover-image')).toHaveCount(0);
+  await expect(page.locator('.detail-cover .cover-title')).toContainText('Missing Cover Demo');
+  await expect(page.locator('.manga-info-card')).toContainText('Example Author');
+  await expect(page.locator('.manga-synopsis-card')).toContainText('A synopsis has not been added yet.');
+  await assertNoHorizontalOverflow(page);
+});
