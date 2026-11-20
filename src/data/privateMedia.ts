@@ -2,6 +2,7 @@ import {parseChapterManifest} from '../domain/validation';
 import type {ChapterManifest,MangaEntry} from '../domain/types';
 import {browserStorage,progressKey} from '../domain/localReaderStorage';
 import type {PageSource} from './pageSource';
+import {canFastReadCanonicalPages} from './coverCache';
 
 export interface PrivateChapter {manifest:ChapterManifest;revision:string}
 const NO_CACHE:RequestInit={credentials:'same-origin',cache:'no-store'};
@@ -47,6 +48,17 @@ export async function resolvePrivatePage(manifest:ChapterManifest,index:number,
  if(!page.assetPath.startsWith('manga/'+mangaId+'/'+manifest.chapterId+'/'))
    throw Error('Page ownership does not match the manga');
  const params=new URLSearchParams({mangaId,chapterId:manifest.chapterId,pageId:page.id,revision});
+ // The owner-verified catalogue and validated chapter manifest already provide
+ // everything needed for SHA-pinned canonical page delivery. This avoids two
+ // redundant HF metadata round trips per page, preserving the legacy fallback.
+ const extension=page.assetPath.split('.').at(-1)??'';
+ const canonicalPath='manga/'+mangaId+'/'+manifest.chapterId+'/'+page.id+'.'+extension;
+ if(canFastReadCanonicalPages(revision)&&page.sha256&&page.assetPath===canonicalPath){
+   params.set('sha256',page.sha256);
+   params.set('mimeType',page.mimeType);
+   params.set('byteSize',String(page.byteSize));
+   params.set('extension',extension);
+ }
  const response=await fetch('/api/media/page?'+params,{...NO_CACHE,signal});
  if(!response.ok)fail(response.status);
  if(response.headers.get('Content-Type')?.split(';')[0]!==page.mimeType)
