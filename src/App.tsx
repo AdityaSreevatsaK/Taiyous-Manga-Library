@@ -754,6 +754,20 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
   function removePersonalTag(value:string){
     setPersonalTagDraft(previous=>previous.filter(tag=>tag!==value));
   }
+  /** A single metadata-only reload shared by Details and Cloud settings. */
+  async function refreshPrivateCatalogue(){
+    if(refreshingMetadata)return;
+    setRefreshingMetadata(true);
+    try{
+      const result=await fetchPrivateLibrary();
+      if(result.status!=='connected')throw new Error(result.message);
+      setRemoteEntries([...result.entries]);
+      setCloud(result);
+      setNotice('Publication metadata refreshed. Your saved reading data is unchanged.');
+    }catch(error){
+      setNotice(error instanceof Error?error.message:'Unable to refresh publication metadata.');
+    }finally{setRefreshingMetadata(false);}
+  }
   function savePersonalTags(item:MangaEntry){
     if(changeAnnotation(item,{tags:personalTagDraft},'Personal tag changes saved'))
       setConfirmSaveTags(false);
@@ -779,7 +793,8 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
         </a>
         <MangaCloudMenu cloud={cloud} online={online} demo={demo} count={remoteEntries.length}
           onSample={()=>changeDemo(true)} onPrivate={()=>changeDemo(false)}
-          onLogout={()=>{void disconnectCloud();}}>
+          onLogout={()=>{void disconnectCloud();}}
+          onRefresh={()=>{void refreshPrivateCatalogue();}} refreshing={refreshingMetadata}>
           <LocalBackupControl entries={catalogue} manifests={manifests}
             onRestored={()=>{
               setProgress(loadAllProgress(catalogue, manifests).progress);
@@ -1327,16 +1342,9 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
               <p className="manga-card-overline">MANGA STORAGE</p><h2>Manage this manga</h2>
               <p>Private manga images are accessed securely from Hugging Face. Offline copies of private chapters are not yet supported.</p>
               {!demo&&<button className="secondary manga-refresh-metadata" type="button"
-                disabled={refreshingMetadata} onClick={()=>{
-                  setRefreshingMetadata(true);
-                  void fetchPrivateLibrary().then(result=>{
-                    if(result.status!=='connected')throw Error(result.message);
-                    setRemoteEntries([...result.entries]);
-                    setCloud(result);
-                    setNotice('Manga publication metadata refreshed. Your saved reading data is unchanged.');
-                  }).catch(error=>setNotice(error instanceof Error?error.message:
-                    'Unable to refresh publication metadata.')).finally(()=>setRefreshingMetadata(false));
-                }}>{refreshingMetadata?'Refreshing metadata…':'Refresh publication metadata'}</button>}
+                disabled={refreshingMetadata} onClick={()=>{void refreshPrivateCatalogue();}}>
+                {refreshingMetadata?'Refreshing metadata…':'Refresh publication metadata'}
+              </button>}
               {!demo&&<a className="secondary manga-storage-link"
                 href="https://github.com/AdityaSreevatsaK/Taiyou-Manga-Storage-Controller/actions"
                 target="_blank" rel="noopener noreferrer">Open Manga Storage Controller ↗</a>}
