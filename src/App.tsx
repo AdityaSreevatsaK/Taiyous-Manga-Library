@@ -1274,10 +1274,11 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
                 {!entry.tags.length&&!personalTagDraft.length&&<span className="manga-metadata-missing">No tags yet. Add one below.</span>}
               </div>
               <form className="tag-entry details-tag-form" onSubmit={event=>{event.preventDefault();addTag(entry);}}>
-                <label htmlFor="new-manga-tag">Add a personal tag</label>
-                <input id="new-manga-tag" type="text" value={tagDraft} maxLength={48}
-                  list="personal-tag-suggestions" onChange={event=>setTagDraft(event.target.value)}
-                  placeholder="e.g. Favourite, Romance, Slow burn..." />
+                <label htmlFor="new-manga-tag">Add a personal tag
+                  <input id="new-manga-tag" type="text" value={tagDraft} maxLength={48}
+                    list="personal-tag-suggestions" onChange={event=>setTagDraft(event.target.value)}
+                    placeholder="e.g. Favourite, Romance, Slow burn..." />
+                </label>
                 <datalist id="personal-tag-suggestions">{allTags.map(value=>
                   <option key={value} value={value}/>)}</datalist>
                 <button type="submit" className="primary" disabled={!tagDraft.trim()}>+ Add tag</button>
