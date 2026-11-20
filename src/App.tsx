@@ -230,7 +230,36 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
         setPersonalShelves(loadShelves(result.entries).shelves);
         setAnnotations(loadAnnotations(result.entries).annotations);
         setProgress(loadAllProgress(result.entries,new Map()).progress);
-        setScreen(previous=>previous.kind==='catalogue'?previous:{kind:'catalogue',section:'home'});
+        const bookmarked=currentBrowserRoute();
+        if(bookmarked.kind==='details'){
+          const item=result.entries.find(value=>value.id===bookmarked.mangaId);
+          setScreen(item?{kind:'details',id:item.id}:{kind:'not-found'});
+        }else if(bookmarked.kind==='reader'){
+          const item=result.entries.find(value=>value.id===bookmarked.mangaId);
+          if(!item||!item.chapters.some(ch=>ch.id===bookmarked.chapterId)){
+            setScreen({kind:'not-found'});
+          }else{
+            setChapterLoading(bookmarked.chapterId);
+            void fetchPrivateChapter(item.id,bookmarked.chapterId,controller.signal).then(loaded=>{
+              if(!live)return;
+              if(bookmarked.pageIndex>=loaded.manifest.pages.length){
+                setScreen({kind:'not-found'});return;
+              }
+              setPrivateManifests(new Map([[loaded.manifest.chapterId,loaded.manifest]]));
+              setPrivateRevision(loaded.revision);
+              setLocation({chapterId:bookmarked.chapterId,pageIndex:bookmarked.pageIndex});
+              setScreen({kind:'reader',id:item.id});
+            }).catch(error=>{
+              if(!live)return;
+              setScreen({kind:'details',id:item.id});
+              setNotice(error instanceof Error?error.message:'Unable to open the bookmarked chapter.');
+            }).finally(()=>{if(live)setChapterLoading(null);});
+          }
+        }else if(bookmarked.kind==='not-found'){
+          setScreen({kind:'not-found'});
+        }else{
+          setScreen({kind:'catalogue',section:bookmarked.kind});
+        }
       }
     }).catch(() => { if (live) setCloud({status:'unavailable',message:'Unable to reach private library.'}); });
     return () => { live=false; controller.abort(); };
@@ -521,6 +550,27 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
       return;
     }
     const verified = manifests.get(route.chapterId);
+    if(!demo&&!verified&&item.chapters.some(chapter=>chapter.id===route.chapterId)){
+      const operation=++chapterOpenRequest.current;
+      setChapterLoading(route.chapterId);
+      void fetchPrivateChapter(item.id,route.chapterId).then(loaded=>{
+        if(operation!==chapterOpenRequest.current)return;
+        if(route.pageIndex>=loaded.manifest.pages.length){
+          setScreen({kind:'not-found'});return;
+        }
+        setPrivateManifests(previous=>new Map(previous).set(route.chapterId,loaded.manifest));
+        setPrivateRevision(loaded.revision);
+        setLocation({chapterId:route.chapterId,pageIndex:route.pageIndex});
+        setScreen({kind:'reader',id:item.id});
+      }).catch(error=>{
+        if(operation!==chapterOpenRequest.current)return;
+        setScreen({kind:'details',id:item.id});
+        setNotice(error instanceof Error?error.message:'Chapter cannot be opened.');
+      }).finally(()=>{
+        if(operation===chapterOpenRequest.current)setChapterLoading(null);
+      });
+      return;
+    }
     if (!item.chapters.some(chapter => chapter.id === route.chapterId) ||
         !verified || route.pageIndex >= verified.pages.length) {
       exitImmersive(); setScreen({ kind: 'not-found' }); setLocation(null); return;
