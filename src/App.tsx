@@ -13,6 +13,7 @@ import { MangaOwnerTools } from './components/MangaOwnerTools';
 import { SearchIcon, HashIcon, LibraryIcon, ChevronDownIcon } from './components/SharedLibraryIcons';
 import { MangaThemeSwatches } from './components/MangaThemeSwatches';
 import { VerticalReader } from './components/VerticalReader';
+import { MangaChapterPicker } from './components/MangaChapterPicker';
 import { CATALOGUE_SECTIONS, parseAppRoute, routeHref, type AppRoute, type CatalogueSection } from './domain/routes';
 import { loadShelves, saveShelf, type PersonalShelf, type ShelfSelection } from './domain/personalShelves';
 import { collectionBreadcrumb, loadCollections, saveCollections, setCollectionMembership,
@@ -29,6 +30,7 @@ import type { ChapterManifest, MangaEntry, MangaProgress, PublicationStatus } fr
 import './styles.css';
 import './editorial.css';
 import './novel-parity.css';
+import './novel-details-parity.css';
 
 /** These ribbons describe publication status, never the reader's Finished shelf. */
 const publicationCaption:Record<PublicationStatus,string>={
@@ -112,6 +114,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
       key!=='unused');
   });
   const [chapterQuery, setChapterQuery] = useState('');
+  const [chapterPickerOpen,setChapterPickerOpen] = useState(false);
   const [compactNav, setCompactNav] = useState(() => typeof window !== 'undefined' &&
     window.matchMedia?.('(max-width: 740px)').matches || false);
   const [personalShelves, setPersonalShelves] = useState<Record<string, PersonalShelf>>(() =>
@@ -1282,10 +1285,14 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
                   {(['sepia','paper','charcoal','midnight','ocean','plum'] as const).map(theme =>
                     <option key={theme} value={theme}>{theme.charAt(0).toUpperCase()+theme.slice(1)}</option>)}
                 </select></label>
-              <label>Choose chapter
-                <select value={location.chapterId} onChange={event=>openChapter(entry,event.target.value)}>
-                  {chapters.map(chapter=><option key={chapter.id} value={chapter.id}>{chapter.label}</option>)}</select>
-              </label>
+              <div className="reader-chapter-shortcut">
+                <span>Chapter navigation</span>
+                <button type="button" className="reader-open-chapter-picker" aria-label="Choose chapter"
+                  disabled={chapterLoading!==null} aria-haspopup="dialog"
+                  aria-expanded={chapterPickerOpen} onClick={()=>setChapterPickerOpen(true)}>
+                  {activeChapter?.label??'Choose chapter'} <span aria-hidden="true">⌄</span>
+                </button>
+              </div>
               {manifest && <label>Jump within chapter
                 <select value={location.pageIndex} onChange={event=>{
                   const pageIndex = Number(event.target.value);
@@ -1318,11 +1325,14 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
               (demo?!stepChapter(entry,manifests,location,-1):chapters[0]?.id===location.chapterId)}
             onClick={()=>move(-1)}>← Previous chapter</button>
           <div className="bottom-chapter-picker">
-            <label>Chapter
-              <select aria-label="Bottom chapter selection" value={location.chapterId}
-                onChange={event=>openChapter(entry,event.target.value)}>
-                {chapters.map(chapter=><option key={chapter.id} value={chapter.id}>{chapter.label}</option>)}
-              </select></label>
+            <button type="button" className="reader-footer-jump" aria-label="Jump to chapter"
+              aria-haspopup="dialog" aria-expanded={chapterPickerOpen}
+              disabled={chapterLoading!==null||!chapters.length}
+              onClick={()=>setChapterPickerOpen(true)}>
+              <span>{chapters.findIndex(chapter=>chapter.id===location.chapterId)+1} / {chapters.length}
+                <span aria-hidden="true"> · </span> {activeChapter?.label??'Choose chapter'}</span>
+              <span aria-hidden="true">⌄</span>
+            </button>
             <p aria-live="polite">Chapter {chapters.findIndex(chapter=>chapter.id===location.chapterId)+1} of {chapters.length}
               <span aria-hidden="true"> · </span> Page {location.pageIndex+1} of {manifest?.pages.length ?? '?'}</p>
           </div>
@@ -1330,6 +1340,10 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
               (demo?!stepChapter(entry,manifests,location,1):chapters.at(-1)?.id===location.chapterId)}
             onClick={()=>move(1)}>Next chapter →</button>
         </div>
+        <MangaChapterPicker open={chapterPickerOpen} chapters={chapters}
+          currentChapterId={location.chapterId} disabled={chapterLoading!==null}
+          onClose={()=>setChapterPickerOpen(false)}
+          onSelect={chapterId=>{void openChapter(entry,chapterId);}}/>
         {notice && <p className="reader-notice" role="status">{notice}</p>}
         <p className="reader-hint">Scroll down to read every page in this chapter. Previous and Next move between chapters only. Nearby images load on demand.</p>
         <p className="fine-print">{demo
