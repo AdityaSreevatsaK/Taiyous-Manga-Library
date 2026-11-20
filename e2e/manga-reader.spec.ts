@@ -1252,7 +1252,10 @@ test('Novel Library series layout, card order, chapter picker and clear button h
     await expect(page.locator('.manga-details-columns .manga-info-card')).toBeVisible();
     await expect(page.locator('.manga-details-columns .manga-synopsis-card')).toBeVisible();
     await expect(page.locator('.manga-details-main .chapter-section')).toBeVisible();
-    await expect(page.locator('.manga-details-main .personal-annotations')).toBeVisible();
+    await expect(page.locator('.manga-details-sidebar .personal-annotations')).toBeVisible();
+  await expect(page.locator('.manga-details-sidebar .manga-tags-card')).toBeVisible();
+  await expect(page.locator('.manga-details-sidebar .manga-management-card')).toBeVisible();
+
     await assertNoHorizontalOverflow(page);
   }
   const read=page.locator('.manga-details-hero .detail-actions .primary').first();
