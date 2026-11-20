@@ -203,10 +203,7 @@
  * This image is decorative, never derived from private metadata.
  */
 .app-shell .manga-details-hero .manga-novel-backdrop{
- position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden;
- background:radial-gradient(ellipse at 78% 31%,
-  var(--novel-hero-glow,#365c85),var(--novel-hero-mid,#243c5b) 48%,
-  var(--novel-hero-shadow,#14253f))
+ position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden
 }
 .app-shell .manga-details-hero .manga-novel-backdrop img{
  position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:1
