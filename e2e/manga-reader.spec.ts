@@ -1078,3 +1078,50 @@ test('editorial theme tokens cover all six approved app palettes', async ({page}
     expect(tokens.every(Boolean),theme+' editorial palette incomplete').toBe(true);
   }
 });
+
+test('novel-style masthead keeps logo, real cloud, search, themes and all manga sections reachable',async({page})=>{
+  for(const width of [320,390,740,900,1280,1536]){
+    await page.setViewportSize({width,height:820});
+    await page.goto('/');
+    await expect(page.locator('.manga-topbar')).toBeVisible();
+    await expect(page.locator('.manga-nav-links')).toBeVisible();
+    await expect(page.locator('.manga-nav-tools')).toBeVisible();
+    await expect(page.locator('.wordmark .manga-wordmark-text')).toContainText("TAIYOU'S");
+    await expect(page.locator('.manga-cloud-menu > summary')).toBeVisible();
+    await expect(page.getByRole('searchbox',{name:'Search all manga'})).toBeVisible();
+    await expect(page.locator('.manga-theme-swatch')).toHaveCount(6);
+    await expect(page.locator('.mode-bar')).toHaveCount(0);
+    await assertNoHorizontalOverflow(page);
+  }
+  await expect(page.locator('.editorial-hero')).toBeVisible();
+  await expect(page.locator('.editorial-overview')).toBeVisible();
+  const background=await page.locator('.editorial-hero').evaluate(node=>getComputedStyle(node).backgroundImage);
+  expect(background).toContain('linear-gradient');
+  await page.getByRole('button',{name:'Use Paper theme'}).click();
+  await expect(page.locator('.app-shell')).toHaveClass(/theme-paper/);
+  await page.getByRole('searchbox',{name:'Search all manga'}).fill('Lantern');
+  await expect(page).toHaveURL('/library');
+  await expect(page.locator('.book-card')).toHaveCount(1);
+  await expect(page.getByRole('searchbox',{name:'Search series or aliases'})).toHaveValue('Lantern');
+});
+test('cloud icon consolidates sample, private connection and versioned backup tools',async({page})=>{
+  await page.setViewportSize({width:320,height:820});
+  await page.goto('/');
+  await page.locator('.manga-cloud-menu > summary').click();
+  const panel=page.locator('.manga-cloud-panel');
+  await expect(panel).toBeVisible();
+  await expect(panel.getByRole('button',{name:'Try the sample reader'})).toHaveAttribute('aria-pressed','true');
+  await expect(panel.getByRole('button',{name:'My library (0)'})).toHaveAttribute('aria-pressed','false');
+  await expect(panel.getByText('Transfer reading progress between devices')).toBeVisible();
+  const rect=await panel.boundingBox();
+  expect(rect).toBeTruthy();
+  expect(rect!.x).toBeGreaterThanOrEqual(0);
+  expect(rect!.x+rect!.width).toBeLessThanOrEqual(321);
+  await panel.getByRole('button',{name:'My library (0)'}).click();
+  await expect(page.locator('.book-card')).toHaveCount(0);
+  await page.locator('.manga-cloud-menu > summary').click();
+  await page.locator('.manga-cloud-menu > summary').click();
+  await panel.getByRole('button',{name:'Try the sample reader'}).click();
+  await expect(page.locator('.book-card')).toHaveCount(4);
+  await assertNoHorizontalOverflow(page);
+});
