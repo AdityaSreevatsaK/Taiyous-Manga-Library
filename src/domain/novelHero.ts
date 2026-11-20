@@ -21,7 +21,7 @@ export function novelHeroPalette(id: string): typeof NOVEL_HERO_PALETTES[number]
     hash ^= char.charCodeAt(0);
     hash = Math.imul(hash, 16777619);
   }
-  return NOVEL_HERO_PALETTES[(hash >>> 0) % NOVEL_HERO_PALETTES.length];
+  return NOVEL_HERO_PALETTES[(hash >>> 0) % NOVEL_HERO_PALETTES.length]!;
 }
 
 export function novelHeroStyle(id: string): CSSProperties {
@@ -114,7 +114,7 @@ export function novelHeroBackdrop(id: string) {
     hash ^= char.charCodeAt(0);
     hash = Math.imul(hash, 16777619);
   }
-  return NOVEL_HERO_BACKDROPS[(hash >>> 0) % NOVEL_HERO_BACKDROPS.length];
+  return NOVEL_HERO_BACKDROPS[(hash >>> 0) % NOVEL_HERO_BACKDROPS.length]!;
 }
 
 /** Only vetted static Unsplash photo IDs; never form an external URL from novel metadata. */
