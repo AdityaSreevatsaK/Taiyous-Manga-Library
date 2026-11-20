@@ -1160,7 +1160,7 @@ test('author links browse attributed manga without nested anchors or losing dire
   await first.locator('.manga-author-link').first().click();
   await expect(page).toHaveURL(/\/library\?creator=Taiyou/);
   await expect(page.locator('.book-card')).toHaveCount(4);
-  await expect(page.getByRole('textbox',{name:'Creator or artist'})).toHaveValue('Taiyou Studio (fictional)');
+  await expect(page.getByRole('searchbox',{name:'Creator'})).toHaveValue('Taiyou Studio (fictional)');
   await page.locator('.book-card').filter({hasText:'The Lantern Archive'}).locator('.book-card-cover-link').click();
   await expect(page.locator('.manga-info-card .manga-author-link')).toHaveCount(1);
   await page.locator('.manga-info-card .manga-author-link').click();
