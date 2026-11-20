@@ -133,8 +133,6 @@
 .app-shell .manga-detail-card :is(.primary,.secondary):disabled{opacity:.55;filter:none}
 .app-shell .manga-detail-card .tag{background:var(--md-soft);color:var(--md-ink);border-color:var(--md-line)}
 .app-shell .manga-detail-card .tag:hover{background:#284f74;color:#fff}
-.app-shell .manga-details-main .personal-annotations{max-width:none}
-.app-shell .manga-details-main .personal-annotations h2{font-size:24px}
 /* Novel reader footer pattern: chapter number opens the searchable modal. */
 .app-shell :is(.reader-footer-jump,.reader-open-chapter-picker){
   display:flex;align-items:center;justify-content:space-between;gap:10px;
@@ -219,39 +217,12 @@
 .app-shell .manga-cloud-dot{width:9px;height:9px;min-width:9px;min-height:9px;left:51%;top:57%}
 
 
-/* Real private artwork retains the same cover proportions and publication ribbons.
- * Missing, inaccessible and corrupt covers gracefully reveal the existing paper artwork.
- */
+/* Protected artwork overlays the existing fallback and preserves publication ribbons. */
 .app-shell .book-cover,.app-shell .manga-details-hero .detail-cover{aspect-ratio:2/3}
-.app-shell :is(.book-cover,.manga-details-hero .detail-cover) .manga-cover-image{
-  position:absolute;inset:0;width:100%;height:100%;display:block;object-fit:cover;
-  z-index:2;border-radius:inherit;
-}
-.app-shell :is(.book-cover,.manga-details-hero .detail-cover) .status-ribbon{z-index:5}
+.app-shell :is(.book-cover,.detail-cover,.editorial-display-book) .manga-cover-image{
+ position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:2}
+.app-shell :is(.book-cover,.detail-cover) .status-ribbon{z-index:5}
 .app-shell .manga-details-sidebar .personal-annotations{
-  margin:0;max-width:none;padding:22px;background:var(--md-panel);
-  color:var(--md-ink);border-color:var(--md-line);box-shadow:0 5px 15px #163d5810;
-}
-.app-shell .manga-details-sidebar .personal-annotations>p{opacity:1}
-.app-shell .manga-details-sidebar :is(.manga-tags-card,.manga-management-card) .tag-row{
-  display:flex;flex-wrap:wrap;gap:7px;margin:12px 0;
-}
-.app-shell .manga-metadata-missing{font-size:12px;color:var(--md-muted)}
-.app-shell .manga-storage-link{
-  display:inline-flex;min-height:44px;align-items:center;justify-content:center;
-  border:1px solid var(--md-line);border-radius:8px;padding:9px 12px;
-  text-decoration:none;font-size:12px;background:var(--md-soft);color:var(--md-ink);
-}
-.app-shell .manga-storage-link:hover{background:#244b72;color:#fff;border-color:#244b72}
-.app-shell .manga-info-card dd{max-width:62%;overflow-wrap:anywhere}
-@media(max-width:610px){
- .app-shell .manga-details-sidebar .personal-annotations{padding:17px}
- .app-shell .manga-details-sidebar .manga-tags-card .tag-row{gap:6px}
-}
-
-/* Cover-forward home gallery remains typographic until private artwork exists. */
+ margin:0;padding:20px;background:var(--md-panel);color:var(--md-ink);border-color:var(--md-line)}
 .app-shell .editorial-display-book{position:relative;overflow:hidden;isolation:isolate}
-.app-shell .editorial-display-book .manga-cover-image{
-  position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:2;
-}
-.app-shell .manga-refresh-metadata{display:block;margin:10px 0;min-height:44px}
+.app-shell .manga-info-card dd{overflow-wrap:anywhere}
