@@ -10,17 +10,30 @@ export interface MangaChapter {
   /** Count is informational until matched against a validated manifest. */
   pageCount?: number;
 }
+/** Draft cross-repository metadata contract. Controller confirmation required before merge. */
+export interface MangaCoverAsset {
+  /** Relative to the private HF dataset's data/ directory. Never a URL. */
+  assetPath: string;
+  mimeType: 'image/webp';
+  byteSize: number;
+  sha256: string;
+}
 export interface MangaEntry {
   kind: 'manga';
   id: string;
   title: string;
   aliases: string[];
   creators: string[];
+  /** Structured credits are optional to preserve existing canonical entries. */
+  authors?: string[];
+  artists?: string[];
   tags: string[];
   publicationStatus: PublicationStatus;
   direction: ReadingDirection;
   chapters: MangaChapter[];
   synopsis?: string;
+  /** Authenticated same-origin cover endpoint resolves and verifies this asset. */
+  coverAsset?: MangaCoverAsset;
   /** Only synthetic fixture ratings may appear in this static demo bundle. */
   rating?: number;
   collections?: string[];
