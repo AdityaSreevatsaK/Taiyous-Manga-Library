@@ -27,7 +27,7 @@ describe('runtime media schemas', () => {
     expect(result.authors).toEqual(['Example Writer']);
     expect(result.artists).toEqual(['Example Illustrator']);
     expect(result.coverAsset?.assetPath).toBe('covers/mng_example001.webp');
-    expect(result.chapters[0]?.id).toBe(entry.chapters[0].id);
+    expect(result.chapters[0]?.id).toBe(entry.chapters[0]?.id);
     expect(parseMangaEntry(entry).coverAsset).toBeUndefined();
   });
   it('rejects forged cover URLs, path traversal, bad hashes and mismatched MIME',()=>{
