@@ -1036,12 +1036,12 @@ test('manual chapter completion persists and never alters chapter reading naviga
 test('mock authenticated empty HF dataset replaces sample catalogue with a truthful private view', async ({page}) => {
   await page.route('**/api/auth/session', route => route.fulfill({
     status:200,contentType:'application/json',body:JSON.stringify({
-      connected:true,repo:'AdityaSreevatsaK/Taiyous-Manga',owner:'AdityaSreevatsaK',
+      connected:true,owner:'AdityaSreevatsaK',repo:'AdityaSreevatsaK/Taiyous-Manga',owner:'AdityaSreevatsaK',
     }),
   }));
   await page.route('**/api/library', route => route.fulfill({
     status:200,contentType:'application/json',body:JSON.stringify({
-      connected:true,repo:'AdityaSreevatsaK/Taiyous-Manga',empty:true,
+      connected:true,owner:'AdityaSreevatsaK',repo:'AdityaSreevatsaK/Taiyous-Manga',empty:true,
       revision:'a'.repeat(40),entries:[],
     }),
   }));
@@ -1183,7 +1183,7 @@ test('verified manga owner sees useful Master controls without unsafe upload API
   }));
   await page.route('**/api/library',route=>route.fulfill({
     status:200,contentType:'application/json',body:JSON.stringify({
-      connected:true,repo:'AdityaSreevatsaK/Taiyous-Manga',revision:'a'.repeat(40),
+      connected:true,owner:'AdityaSreevatsaK',repo:'AdityaSreevatsaK/Taiyous-Manga',revision:'a'.repeat(40),
       empty:true,entries:[],
     }),
   }));
@@ -1219,7 +1219,7 @@ test('private ReLIFE-style chapter list opens verified images without endless sc
   }));
   await page.route('**/api/library',route=>route.fulfill({
     status:200,contentType:'application/json',body:JSON.stringify({
-      connected:true,repo:'AdityaSreevatsaK/Taiyous-Manga',revision:sha,empty:false,entries:[entry],
+      connected:true,owner:'AdityaSreevatsaK',repo:'AdityaSreevatsaK/Taiyous-Manga',revision:sha,empty:false,entries:[entry],
     }),
   }));
   await page.route('**/api/media/manifest?*',route=>{
