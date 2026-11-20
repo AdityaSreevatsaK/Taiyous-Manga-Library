@@ -1066,7 +1066,7 @@ test('editorial cover grid stays readable, accessible and unbroken across device
   await expect(page.locator('.status-ribbon').filter({hasText:'Updating'})).toHaveCount(1);
   await expect(page.locator('.status-ribbon').filter({hasText:'On Hiatus'})).toHaveCount(1);
   await page.getByRole('link',{name:/The Lantern Archive/}).first().click();
-  await expect(page.locator('.detail-synopsis')).toBeVisible();
+  await expect(page.locator('.manga-synopsis-card .detail-description')).toBeVisible();
   await expect(page.getByRole('link',{name:/Read from beginning/})).toBeVisible();
 });
 test('editorial theme tokens cover all six approved app palettes', async ({page}) => {
