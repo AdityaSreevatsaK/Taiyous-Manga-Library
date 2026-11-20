@@ -185,11 +185,11 @@ test.describe('five-chapter continuous scroll trial', () => {
     await expect(page.getByRole('heading', { name: 'Five Chapter Scroll Trial' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Download chapter' })).toHaveCount(5);
     await page.getByRole('link', { name: /Read from beginning/ }).click();
-    const ids = ['ch_trialawakening', 'ch_trialcrossroad', 'ch_trialskybridge', 'ch_trialstarlight', 'ch_trialnewdawn'];
+    const slugs = ['01-the-awakening','02-the-crossroads','03-the-sky-bridge','04-a-spark-of-light','05-the-new-dawn'];
     const pages = [7,6,9,8,6];
     for (let i = 0; i < ids.length; i++) {
-      expect(new URL(page.url()).pathname).toContain('/chapters/' + ids[i]);
-      expect(new URL(page.url()).searchParams.get('page')).toBe('1');
+      expect(new URL(page.url()).pathname).toContain('/chapters/' + slugs[i]);
+      expect(new URL(page.url()).searchParams.has('page')).toBe(false);
       await expect(page.locator('.vertical-page')).toHaveCount(pages[i]!);
       await expect(page.locator('.page-navigation')).toContainText('Chapter ' + (i+1) + ' of 5');
       if (i === 0) {
@@ -228,11 +228,11 @@ test.describe('browser history and deep links', () => {
   test('native links preserve Back/Forward and page selection URLs', async ({ page }) => {
     await page.goto('/');
     await page.locator('.book-card').filter({ hasText: 'The Lantern Archive' }).click();
-    await expect(page).toHaveURL(/\/manga\/mng_lanternarchive$/);
+    await expect(page).toHaveURL(/\/manga\/the-lantern-archive$/);
     await page.getByRole('link', { name: /Read from beginning/ }).click();
-    await expect(page).toHaveURL(/\/chapters\/ch_lanternopening\?page=1$/);
+    await expect(page).toHaveURL(/\/chapters\/01-the-forgotten-key$/);
     await page.getByRole('button', { name: /Next chapter/ }).click();
-    await expect(page).toHaveURL(/\/chapters\/ch_lanternrooftop\?page=1$/);
+    await expect(page).toHaveURL(/\/chapters\/02-above-the-rooftops$/);
     await page.goBack();
     await expect(page.locator('.reader-heading')).toContainText('The forgotten key');
     await page.goBack();
@@ -245,7 +245,7 @@ test.describe('browser history and deep links', () => {
     await page.goto('/');
     const card = page.locator('.book-card').filter({ hasText: 'The Lantern Archive' });
     const href = await card.getAttribute('href');
-    expect(href).toBe('/manga/mng_lanternarchive');
+    expect(href).toBe('/manga/the-lantern-archive');
     const newTab = await context.newPage();
     await newTab.goto(href!);
     await expect(newTab.getByRole('heading', { name: 'The Lantern Archive' })).toBeVisible();
