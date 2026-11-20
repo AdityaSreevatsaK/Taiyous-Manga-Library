@@ -101,6 +101,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
   const [privateRevision, setPrivateRevision] = useState('');
   const [chapterLoading, setChapterLoading] = useState<string | null>(null);
   const chapterOpenRequest = useRef(0);
+  const lastAutoCatalogueCheck = useRef(Date.now());
   const [cloud, setCloud] = useState<CloudRead | {status:'checking';message:string}>({
     status:'checking',message:'Checking private library connection…',
   });
@@ -753,16 +754,16 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
       setPersonalTagDraft(tags);setTagDraft('');
     }catch(error){setStorageNotice(error instanceof Error?error.message:'Invalid personal tag.');}
   }
-  /** Detect newly uploaded Controller catalogues when the owner returns to this tab.
-   * Avoid polling while reading; never replace personal metadata or progress. */
+  /** Detect Controller uploads both on tab return and periodically while
+   * browsing the catalogue. Never poll while reading or replace local progress. */
   useEffect(()=>{
-    if(demo||cloud.status!=='connected')return;
+    if(demo||cloud.status!=='connected'||screen.kind==='reader')return;
     let active=true;
-    let lastChecked=Date.now();
     let running=false;
     const refresh=()=>{
-      if(!active||running||Date.now()-lastChecked<60_000||document.hidden)return;
-      lastChecked=Date.now();running=true;
+      if(!active||running||Date.now()-lastAutoCatalogueCheck.current<60_000||
+        document.hidden)return;
+      lastAutoCatalogueCheck.current=Date.now();running=true;
       void fetchPrivateLibrary().then(result=>{
         if(!active||result.status!=='connected')return;
         setRemoteEntries(previous=>{
@@ -771,11 +772,14 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
         });
       }).catch(()=>{}).finally(()=>{running=false;});
     };
+    const interval=window.setInterval(refresh,90_000);
     window.addEventListener('focus',refresh);
     document.addEventListener('visibilitychange',refresh);
-    return ()=>{active=false;window.removeEventListener('focus',refresh);
+    refresh();
+    return ()=>{active=false;window.clearInterval(interval);
+      window.removeEventListener('focus',refresh);
       document.removeEventListener('visibilitychange',refresh);};
-  },[demo,cloud.status]);
+  },[demo,cloud.status,screen.kind]);
 
   /** A single metadata-only reload shared by Details and Cloud settings. */
   async function refreshPrivateCatalogue(){
@@ -786,6 +790,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
       if(result.status!=='connected')throw new Error(result.message);
       setRemoteEntries([...result.entries]);
       setCloud(result);
+      lastAutoCatalogueCheck.current=Date.now();
       setNotice('Publication metadata refreshed. Your saved reading data is unchanged.');
     }catch(error){
       setNotice(error instanceof Error?error.message:'Unable to refresh publication metadata.');
