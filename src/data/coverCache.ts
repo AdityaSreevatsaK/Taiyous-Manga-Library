@@ -115,7 +115,9 @@ export function loadMangaCover(entry:MangaEntry):Promise<Blob|null>{
   if(!response.ok)return null;
   const blob=await response.blob();
   if(!isValidCoverBlob(entry,blob)||epoch!==generation)return null;
-  await persistVerified(entry,key,blob,epoch);
+  // Paint immediately. Verification and IndexedDB persistence should not
+  // lengthen the first visible image's loading time.
+  void persistVerified(entry,key,blob,epoch);
   return epoch===generation?blob:null;
  })().catch(()=>null);
  inflight.set(key,task);
