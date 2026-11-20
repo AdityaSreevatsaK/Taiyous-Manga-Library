@@ -410,24 +410,10 @@ a.book-card:focus-visible,a.back:focus-visible,a.primary:focus-visible,a.seconda
 @media(max-width:370px){.site-nav-link{font-size:9px}.wordmark>span{font-size:12px}}
 @media(prefers-reduced-motion:reduce){.book-card,.continue-card,.offline-series-link{transition:none}.book-card:hover{transform:none}}
 
-/* Private-to-device personal metadata. No private data is bundled in the catalogue. */
-.personal-annotations{padding:25px clamp(18px,3vw,36px) 35px;border:1px solid var(--line,#586879);border-radius:13px;margin:16px 0 35px;background:var(--panel,#192b34)}
-.personal-annotations h2{font-size:clamp(22px,3vw,30px);margin-bottom:9px}
-.personal-annotations>p,.personal-notes-editor label{font-size:12px;color:inherit}
-.personal-annotations>p{line-height:1.6;opacity:.8}
-.personal-notes-editor{margin-top:12px}
-.tag-entry{display:flex;align-items:flex-end;gap:9px;flex-wrap:wrap;max-width:600px}
-.tag-entry label,.personal-notes-editor label{display:flex;flex-direction:column;gap:8px;font-size:12px}
-.tag-entry label{flex:1 1 200px}
-.personal-notes-editor textarea{font:inherit;line-height:1.6;padding:12px 14px;border-radius:9px;border:1px solid var(--line,#57656d);background:var(--panel,#192b34);color:inherit;max-width:100%;resize:vertical;min-height:110px}
-.personal-notes-editor textarea:focus-visible{outline:3px solid #a38e68;outline-offset:2px}
-.personal-notes-editor label{max-width:850px}
-.notes-actions,.dialog-actions{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:12px}
+/* Novel detail cards now own personal notes/tag styling in novel-details-parity.css. */
 .dialog-scrim{position:fixed;z-index:110;inset:0;display:grid;place-items:center;padding:22px;background:#000a}
 .app-dialog{background:var(--panel,#26343a);color:var(--ink,#f2e7d5);padding:28px;border:1px solid var(--line,#647480);border-radius:12px;width:min(100%,440px);box-shadow:0 30px 80px #0006}
-:is(.theme-charcoal,.theme-midnight,.theme-plum) .personal-annotations,:is(.theme-charcoal,.theme-midnight,.theme-plum) .app-dialog{background:var(--dark-panel);color:#f5f0e8;border-color:var(--dark-line)}
-:is(.theme-charcoal,.theme-midnight,.theme-plum) .personal-notes-editor textarea{background:var(--dark-paper);border-color:var(--dark-line);color:#f5f0e8}
-@media(max-width:520px){.personal-annotations{padding:19px}.tag-entry button{min-width:100px}}
+:is(.theme-charcoal,.theme-midnight,.theme-plum) .app-dialog{background:var(--dark-panel);color:#f5f0e8;border-color:var(--dark-line)}
 
 /* Personal collections and menu dropdowns */
 .header-explore{display:flex;gap:6px;align-items:center}
