@@ -29,6 +29,12 @@ async function boundedText(response:Response):Promise<string>{
  for(const chunk of chunks){combined.set(chunk,off);off+=chunk.length;}
  return new TextDecoder('utf-8',{fatal:true}).decode(combined);
 }
+/** Read-only compatibility for previously uploaded Controller v1 catalogues.
+ * Never write this format or treat it as the canonical HF schema.
+ */
+export function parseLegacyCatalogue(raw:unknown){
+ return parseCatalogue(raw);
+}
 export function parseCloudCatalogue(raw:unknown){
  if(!raw||typeof raw!=='object'||Array.isArray(raw))throw Error('Invalid manga catalogue envelope');
  const obj=raw as Partial<CloudCatalogue>;
@@ -48,9 +54,19 @@ export async function onRequest({request,env}:Context):Promise<Response>{
    // Always request an immutable revision, not a moving /main response.
    const response=await hfFetch('/datasets/'+REPO+'/resolve/'+snapshot.sha+'/data/library.json',session.access);
    if(response.status===404){
+     // Only consult the read-only legacy file when the canonical data/ tree is empty.
+     // If data/ has any files, an absent canonical catalogue is a recovery conflict.
      if(!(await emptyDataTree(snapshot.sha,session.access)))
        return json({error:'Recovery required: private data exists but library.json is missing'},409);
-     return json({connected:true,repo:REPO,revision:snapshot.sha,empty:true,entries:[]});
+     const legacy=await hfFetch('/datasets/'+REPO+'/resolve/'+snapshot.sha+'/catalogue.json',session.access);
+     if(legacy.status===404)
+       return json({connected:true,repo:REPO,revision:snapshot.sha,empty:true,entries:[]});
+     if(!legacy.ok)return json({error:'Legacy private catalogue could not be read'},502);
+     let legacyEntries;
+     try{legacyEntries=parseLegacyCatalogue(JSON.parse(await boundedText(legacy)));}
+     catch{return json({error:'Legacy private catalogue is invalid. No data changed.'},409);}
+     return json({connected:true,repo:REPO,revision:snapshot.sha,empty:legacyEntries.length===0,
+       legacyReadOnly:true,entries:legacyEntries});
    }
    if(!response.ok)return json({error:'Private catalogue could not be read'},502);
    let entries;
