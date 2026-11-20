@@ -10,30 +10,47 @@ export interface MangaChapter {
   /** Count is informational until matched against a validated manifest. */
   pageCount?: number;
 }
-/** Draft cross-repository metadata contract. Controller confirmation required before merge. */
-export interface MangaCoverAsset {
-  /** Relative to the private HF dataset's data/ directory. Never a URL. */
+/** Canonical metadata fields agreed with the Manga Storage Controller draft contract. */
+export interface MangaCover {
+  /** Relative to data/ in the private Hugging Face dataset, never a URL. */
   assetPath: string;
-  mimeType: 'image/webp';
+  mimeType: ImageMime;
+  width: number;
+  height: number;
   byteSize: number;
   sha256: string;
 }
+export interface MangaCreatorRole {
+  name: string;
+  role: 'author' | 'artist';
+}
+export type MangaPublicationField =
+  | 'aliases' | 'creators' | 'creatorRoles' | 'tags'
+  | 'synopsis' | 'publicationStatus' | 'cover';
+export interface MangaMetadataSource {
+  provider: string;
+  sourceId: string;
+  sourceUrl: string;
+  retrievedAt: string;
+}
+export type MangaMetadataSources = Partial<Record<MangaPublicationField, MangaMetadataSource>>;
 export interface MangaEntry {
   kind: 'manga';
   id: string;
   title: string;
   aliases: string[];
   creators: string[];
-  /** Structured credits are optional to preserve existing canonical entries. */
-  authors?: string[];
-  artists?: string[];
+  /** Structured role credits, retaining creators for older consumers. */
+  creatorRoles?: MangaCreatorRole[];
+  /** Field-level publication provenance, never personal annotations. */
+  metadataSources?: MangaMetadataSources;
   tags: string[];
   publicationStatus: PublicationStatus;
   direction: ReadingDirection;
   chapters: MangaChapter[];
   synopsis?: string;
-  /** Authenticated same-origin cover endpoint resolves and verifies this asset. */
-  coverAsset?: MangaCoverAsset;
+  /** Verified cover under data/covers, served only by the authenticated gateway. */
+  cover?: MangaCover;
   /** Only synthetic fixture ratings may appear in this static demo bundle. */
   rating?: number;
   collections?: string[];
