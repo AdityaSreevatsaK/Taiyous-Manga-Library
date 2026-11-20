@@ -746,9 +746,6 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
       setPersonalTagDraft(tags);setTagDraft('');
     }catch(error){setStorageNotice(error instanceof Error?error.message:'Invalid personal tag.');}
   }
-  function removePersonalTag(value:string){
-    setPersonalTagDraft(previous=>previous.filter(tag=>tag!==value));
-  }
   /** A single metadata-only reload shared by Details and Cloud settings. */
   async function refreshPrivateCatalogue(){
     if(refreshingMetadata)return;
@@ -764,7 +761,12 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
     }finally{setRefreshingMetadata(false);}
   }
   function savePersonalTags(item:MangaEntry){
-    if(changeAnnotation(item,{tags:personalTagDraft},'Personal tag changes saved'))
+    // Port Novel BookDetails add-only contract. Concurrent/stale drafts cannot
+    // silently remove tags; deletion belongs to dedicated Master Controls.
+    const existing=annotations[item.id]?.tags??[];
+    const additions=personalTagDraft.filter(tag=>!existing.some(saved=>
+      saved.toLocaleLowerCase('en')===tag.toLocaleLowerCase('en')));
+    if(changeAnnotation(item,{tags:[...existing,...additions]},'Personal tags saved'))
       setConfirmSaveTags(false);
   }
   function jumpToFilter(kind: 'tag' | 'collection', value: string) {
@@ -1266,16 +1268,14 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
             </section>
             <section className="manga-detail-card manga-tags-card" aria-label="Publication genres and tags">
               <p className="manga-card-overline">ORGANISE YOUR READING</p><h2>Tags &amp; genres</h2>
-              <p>Browse all tags together. Imported genres are protected; personal tags can be added or removed.</p>
+              <p>Browse all tags together and add personal tags here. To remove personal tags, use Master Controls. Imported genres are protected.</p>
               <div className="tag-row details-tag-row" aria-label="All manga tags">
                 {entry.tags.map(value=><button key={'source:'+value} type="button" className="tag imported-tag"
                   title="Imported publication genre" onClick={()=>jumpToFilter('tag',value)}>{value}</button>)}
                 {personalTagDraft.filter(value=>!entry.tags.some(imported=>
                   imported.toLocaleLowerCase('en')===value.toLocaleLowerCase('en')))
-                  .map(value=><span className="personal-tag" key={'personal:'+value}>
-                    <button className="tag" type="button" onClick={()=>jumpToFilter('tag',value)}>{value}</button>
-                    <button className="tag-remove" type="button" aria-label={'Remove tag '+value}
-                      onClick={()=>removePersonalTag(value)}>×</button></span>)}
+                  .map(value=><button key={'personal:'+value} className="tag" type="button"
+                    onClick={()=>jumpToFilter('tag',value)}>{value}</button>)}
                 {!entry.tags.length&&!personalTagDraft.length&&<span className="manga-metadata-missing">No tags yet. Add one below.</span>}
               </div>
               <form className="tag-entry details-tag-form" onSubmit={event=>{event.preventDefault();addTag(entry);}}>
@@ -1489,7 +1489,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
         onKeyDown={event=>{if(event.key==='Escape')setConfirmSaveTags(false);}}>
         <div className="app-dialog" role="dialog" aria-modal="true" aria-labelledby="confirm-tag-title">
           <h2 id="confirm-tag-title">Save tag changes?</h2>
-          <p>All personal tag additions and removals will be saved together. Imported genres remain unchanged.</p>
+          <p>Your personal tag additions will be saved together. Existing tags and imported genres remain unchanged.</p>
           <div className="dialog-actions">
             <button autoFocus className="secondary" type="button"
               onClick={()=>setConfirmSaveTags(false)}>Cancel</button>
