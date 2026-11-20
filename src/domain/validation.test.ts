@@ -18,6 +18,30 @@ describe('runtime media schemas', () => {
     expect(parseMangaEntry(entry).chapters[0]?.id).toBe('ch_example001');
     expect(parseChapterManifest(manifest).pages).toHaveLength(2);
   });
+  it('accepts optional accurate credits and a verified private cover without changing chapter IDs',()=>{
+    const withMetadata={...entry,authors:['Example Writer'],artists:['Example Illustrator'],
+      synopsis:'A verified story description.',tags:['Romance'],aliases:['Another title'],
+      coverAsset:{assetPath:'covers/mng_example001.webp',mimeType:'image/webp',
+        byteSize:1234,sha256:'a'.repeat(64)}};
+    const result=parseMangaEntry(withMetadata);
+    expect(result.authors).toEqual(['Example Writer']);
+    expect(result.artists).toEqual(['Example Illustrator']);
+    expect(result.coverAsset?.assetPath).toBe('covers/mng_example001.webp');
+    expect(result.chapters[0]?.id).toBe(entry.chapters[0].id);
+    expect(parseMangaEntry(entry).coverAsset).toBeUndefined();
+  });
+  it('rejects forged cover URLs, path traversal, bad hashes and mismatched MIME',()=>{
+    const base={assetPath:'covers/mng_example001.webp',mimeType:'image/webp',
+      byteSize:1234,sha256:'a'.repeat(64)};
+    for(const cover of [
+      {...base,assetPath:'https://huggingface.co/secret'},
+      {...base,assetPath:'covers/mng_another000.webp'},
+      {...base,assetPath:'../private.webp'},
+      {...base,mimeType:'image/svg+xml'},
+      {...base,byteSize:10_000_000},
+      {...base,sha256:'invalid'},
+    ])expect(()=>parseMangaEntry({...entry,coverAsset:cover})).toThrow();
+  });
   it('rejects duplicate immutable IDs and ordering conflicts', () => {
     expect(() => parseCatalogue([entry, entry])).toThrow(/duplicate/);
     expect(() => parseMangaEntry({ ...entry, chapters: [entry.chapters[0], entry.chapters[0]] })).toThrow(/duplicate/);
