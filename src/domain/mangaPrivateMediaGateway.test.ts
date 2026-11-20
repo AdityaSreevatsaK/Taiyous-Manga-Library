@@ -1,5 +1,5 @@
 import {afterEach,describe,expect,it,vi} from 'vitest';
-import {onRequest} from '../../functions/api/media/[kind]';
+import {onRequest,clearPrivateMediaMetadataCacheForTests} from '../../functions/api/media/[kind]';
 import {REPO,ORIGIN,sessionCookie,type Env} from '../../functions/_lib/mangaAuth';
 import {demoEntries} from '../data/fixtures';
 
@@ -15,6 +15,7 @@ const digest=async()=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',pn
  .map(b=>b.toString(16).padStart(2,'0')).join('');
 const cookie=async()=> (await sessionCookie({access:token,owner:'AdityaSreevatsaK',expires:Date.now()+120000},env)).split(';')[0]!;
 async function setup(overrides?:{hash?:string,missing?:boolean,private?:boolean}){
+ clearPrivateMediaMetadataCacheForTests();
  const manifest={schemaVersion:1,mediaKind:'manga',chapterId,pages:[{
    id:pageId,assetPath:file,mimeType:'image/png',width:1,height:1,byteSize:png.byteLength,
    sha256:overrides?.hash??await digest(),
@@ -40,7 +41,7 @@ const request=async(kind:string,query:string,auth=true,method='GET')=>{
 };
 const params=new URLSearchParams({mangaId:id,chapterId});
 const pageParams=new URLSearchParams({mangaId:id,chapterId,pageId,revision:sha});
-afterEach(()=>vi.restoreAllMocks());
+afterEach(()=>{clearPrivateMediaMetadataCacheForTests();vi.restoreAllMocks();});
 
 describe('owner-only verified private manga image gateway',()=>{
  it('denies unauthenticated, wrong-method and malformed requests before any provider reads',async()=>{
@@ -71,6 +72,20 @@ describe('owner-only verified private manga image gateway',()=>{
    expect(new Uint8Array(await response.arrayBuffer())).toEqual(png);
    expect(spy.mock.calls.some(x=>String(x[0]).includes('/assets/'+file))).toBe(true);
  });
+ it('reuses verified catalogue and manifest by immutable SHA but still checks every owner request',async()=>{
+   const spy=await setup();
+   expect((await request('manifest',String(params))).status).toBe(200);
+   expect((await request('page',String(pageParams))).status).toBe(200);
+   expect((await request('page',String(pageParams))).status).toBe(200);
+   const urls=spy.mock.calls.map(call=>String(call[0]));
+   expect(urls.filter(url=>url.includes('/catalogue.json'))).toHaveLength(1);
+   expect(urls.filter(url=>url.includes('/manifests/'+chapterId+'.json'))).toHaveLength(1);
+   expect(urls.filter(url=>url.includes('/assets/'+file))).toHaveLength(2);
+   expect(urls.filter(url=>url.endsWith('/api/datasets/'+REPO))).toHaveLength(3);
+   expect((await request('page',String(pageParams),false)).status).toBe(401);
+   expect(spy.mock.calls.map(call=>String(call[0])).filter(url=>
+     url.includes('/assets/'+file))).toHaveLength(2);
+ });
  it('rejects a wrong revision, image identity or tampered image',async()=>{
    await setup();
    const wrong=new URLSearchParams(pageParams);wrong.set('revision','a'.repeat(40));
@@ -94,6 +109,8 @@ describe('owner-only verified private manga image gateway',()=>{
  it('serves only verified original cover types from private immutable HF data',async()=>{
    const query=new URLSearchParams({mangaId:id}).toString();
    for(const sample of coverSamples){
+     // Each fixture simulates a different immutable HF revision despite the reused fake SHA.
+     clearPrivateMediaMetadataCacheForTests();
      const digest=[...new Uint8Array(await crypto.subtle.digest('SHA-256',sample.bytes.buffer))]
        .map(x=>x.toString(16).padStart(2,'0')).join('');
      const cover={assetPath:'covers/'+id+'.'+sample.suffix,mimeType:sample.mime,
