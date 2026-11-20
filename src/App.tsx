@@ -1207,7 +1207,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
             </section>
             <section className="manga-detail-card manga-tags-card" aria-label="Publication genres and tags">
               <p className="manga-card-overline">ORGANISE YOUR READING</p><h2>Tags &amp; genres</h2>
-              <p>Imported publication tags are separate from your personal tags.</p>
+              <p>Imported genres are protected. Add or remove your own personal tags below.</p>
               <div className="tag-row" aria-label="Imported manga genres">
                 {entry.tags.length?entry.tags.map(value=>
                   <button type="button" key={value} className="tag"
@@ -1215,7 +1215,44 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
                   <span className="manga-metadata-missing">No imported genres supplied yet.</span>}
               </div>
 
+          <div className="personal-tag-editor">
+            <strong>Personal tags</strong>
+            <div className="tag-row">
+              {(annotations[entry.id]?.tags ?? []).map(value=><span className="personal-tag" key={value}>
+                <button className="tag" type="button" onClick={()=>jumpToFilter('tag',value)}>{value}</button>
+                <button className="tag-remove" type="button" aria-label={'Remove tag ' + value}
+                  onClick={()=>setConfirmRemoveTag(value)}>×</button>
+              </span>)}
+            </div>
+            <div className="tag-entry">
+              <label>Add a personal tag
+                <input type="text" value={tagDraft} maxLength={48} list="personal-tag-suggestions"
+                  onChange={event=>setTagDraft(event.target.value)}
+                  onKeyDown={event=>{if(event.key === 'Enter'){event.preventDefault();addTag(entry);}}}
+                  placeholder="e.g. Romance" /></label>
+              <datalist id="personal-tag-suggestions">{allTags.map(value=><option key={value} value={value}/>)}</datalist>
+              <button type="button" className="secondary" disabled={!tagDraft.trim()} onClick={()=>addTag(entry)}>Add tag</button>
+            </div>
+          </div>
             </section>
+            <section className="personal-annotations manga-detail-card" aria-label="Personal manga annotations">
+          <p className="manga-card-overline">YOUR PERSONAL IMPRESSIONS</p><h2>Comments &amp; reading notes</h2>
+          <p>These are private to this browser. They are not part of the public demonstration catalogue.</p>
+          <div className="personal-notes-editor">
+            <label>Personal notes
+              <textarea value={noteDraft} maxLength={5000} rows={4}
+                onChange={event=>setNoteDraft(event.target.value)} placeholder="Your thoughts about this manga..." />
+            </label>
+            <div className="notes-actions">
+              <button className="primary" type="button"
+                disabled={noteDraft === (annotations[entry.id]?.notes ?? '')}
+                onClick={()=>changeAnnotation(entry,{notes:noteDraft},'Notes saved')}>Save notes</button>
+              <button className="secondary" type="button"
+                disabled={noteDraft === (annotations[entry.id]?.notes ?? '')}
+                onClick={()=>setNoteDraft(annotations[entry.id]?.notes ?? '')}>Discard edits</button>
+            </div>
+          </div>
+        </section>
             <section className="manga-detail-card manga-collections-card">
               <p className="manga-card-overline">YOUR ORGANISATION</p><h2>Collections</h2>
               <div className="collection-membership">
@@ -1243,43 +1280,6 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
             </div>
             
             </section>
-            <section className="personal-annotations manga-detail-card" aria-label="Personal manga annotations">
-          <p className="manga-card-overline">YOUR PERSONAL IMPRESSIONS</p><h2>Comments &amp; reading notes</h2>
-          <p>These are private to this browser. They are not part of the public demonstration catalogue.</p>
-          <div className="personal-tag-editor">
-            <strong>Personal tags</strong>
-            <div className="tag-row">
-              {(annotations[entry.id]?.tags ?? []).map(value=><span className="personal-tag" key={value}>
-                <button className="tag" type="button" onClick={()=>jumpToFilter('tag',value)}>{value}</button>
-                <button className="tag-remove" type="button" aria-label={'Remove tag ' + value}
-                  onClick={()=>setConfirmRemoveTag(value)}>×</button>
-              </span>)}
-            </div>
-            <div className="tag-entry">
-              <label>Add a personal tag
-                <input type="text" value={tagDraft} maxLength={48} list="personal-tag-suggestions"
-                  onChange={event=>setTagDraft(event.target.value)}
-                  onKeyDown={event=>{if(event.key === 'Enter'){event.preventDefault();addTag(entry);}}}
-                  placeholder="e.g. Romance" /></label>
-              <datalist id="personal-tag-suggestions">{allTags.map(value=><option key={value} value={value}/>)}</datalist>
-              <button type="button" className="secondary" disabled={!tagDraft.trim()} onClick={()=>addTag(entry)}>Add tag</button>
-            </div>
-          </div>
-          <div className="personal-notes-editor">
-            <label>Personal notes
-              <textarea value={noteDraft} maxLength={5000} rows={4}
-                onChange={event=>setNoteDraft(event.target.value)} placeholder="Your thoughts about this manga..." />
-            </label>
-            <div className="notes-actions">
-              <button className="primary" type="button"
-                disabled={noteDraft === (annotations[entry.id]?.notes ?? '')}
-                onClick={()=>changeAnnotation(entry,{notes:noteDraft},'Notes saved')}>Save notes</button>
-              <button className="secondary" type="button"
-                disabled={noteDraft === (annotations[entry.id]?.notes ?? '')}
-                onClick={()=>setNoteDraft(annotations[entry.id]?.notes ?? '')}>Discard edits</button>
-            </div>
-          </div>
-        </section>
             <section className="manga-detail-card manga-management-card">
               <p className="manga-card-overline">MANGA STORAGE</p><h2>Manage this manga</h2>
               <p>Private manga images are accessed securely from Hugging Face. Offline copies of private chapters are not yet supported.</p>
