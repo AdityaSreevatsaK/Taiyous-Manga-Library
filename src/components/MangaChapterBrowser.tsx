@@ -1,4 +1,4 @@
-import {useEffect,useMemo,useState,type FormEvent} from 'react';
+import {useEffect,useMemo,useState,type FormEvent,type ReactNode} from 'react';
 import type {MangaChapter} from '../domain/types';
 
 /**
@@ -14,10 +14,11 @@ interface Props {
  busy:boolean;
  onReadChapter:(chapterId:string)=>void;
  completedChapterIds:readonly string[];
+ renderOfflineControl?:(chapter:MangaChapter)=>ReactNode;
  onToggleComplete:(chapterId:string)=>void;
 }
 export function MangaChapterBrowser({chapters,mangaId,currentChapterId,busy,
- onReadChapter,completedChapterIds,onToggleComplete}:Props){
+ onReadChapter,completedChapterIds,onToggleComplete,renderOfflineControl}:Props){
  const [search,setSearch]=useState('');
  const [chapterNumber,setChapterNumber]=useState('');
  const [page,setPage]=useState(0);
@@ -49,7 +50,7 @@ export function MangaChapterBrowser({chapters,mangaId,currentChapterId,busy,
   if(currentNumber<1||currentNumber>chapters.length)return;
   setSearch('');setPage(Math.floor((currentNumber-1)/CHAPTERS_PER_PAGE));
  }
- return <section className="manga-detail-card chapter-browser novel-chapter-browser"
+ return <section className="manga-detail-card chapter-section chapter-browser novel-chapter-browser"
   aria-labelledby="detail-chapters-heading">
   <div className="details-section-header">
    <div><span className="details-label">PICK UP ANYWHERE</span>
@@ -118,6 +119,7 @@ export function MangaChapterBrowser({chapters,mangaId,currentChapterId,busy,
       <input type="checkbox" checked={completedChapterIds.includes(item.id)}
         onChange={()=>onToggleComplete(item.id)}/>
       Chapter {item.number}
+      {renderOfflineControl?.(item)}
     </label>)}
     </div>
   </details>}
