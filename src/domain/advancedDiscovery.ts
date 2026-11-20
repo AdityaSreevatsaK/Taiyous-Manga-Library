@@ -47,7 +47,8 @@ export function applyAdvancedDiscovery(entries:readonly MangaEntry[],criteria:Ad
     return [];
   const creator=criteria.creator.trim().normalize('NFKC').toLocaleLowerCase();
   return entries.filter(entry=>
-    (!creator||entry.creators.some(name=>name.normalize('NFKC').toLocaleLowerCase().includes(creator)))&&
+    (!creator||[...entry.creators,...(entry.creatorRoles??[]).map(person=>person.name)]
+      .some(name=>name.normalize('NFKC').toLocaleLowerCase().includes(creator)))&&
     (criteria.minChapters===null||entry.chapters.length>=criteria.minChapters)&&
     (criteria.maxChapters===null||entry.chapters.length<=criteria.maxChapters)&&
     (criteria.minPersonalRating===null||(context.annotations[entry.id]?.rating??0)>=criteria.minPersonalRating)&&
