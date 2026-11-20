@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { resolveSyntheticPage, type PageSource } from '../data/pageSource';
+import { resolvePrivatePage } from '../data/privateMedia';
 import { anchoredPageIndex, pagePrefetchWindow } from '../domain/pageViewport';
 import type { ChapterManifest } from '../domain/types';
 
@@ -10,6 +11,8 @@ import type { ChapterManifest } from '../domain/types';
  */
 interface Props {
   manifest: ChapterManifest;
+  privateMangaId?: string;
+  privateRevision?: string;
   fit?: 'page' | 'width';
   activeIndex: number;
   jumpToken: number;
@@ -19,7 +22,7 @@ interface Props {
   initialOffsetRatio?: number;
 }
 
-export function VerticalReader({ manifest, fit = 'width', activeIndex, jumpToken, onActivePage, onViewedPage, onScrollAnchor, initialOffsetRatio = 0 }: Props) {
+export function VerticalReader({ manifest, privateMangaId, privateRevision, fit = 'width', activeIndex, jumpToken, onActivePage, onViewedPage, onScrollAnchor, initialOffsetRatio = 0 }: Props) {
   const root = useRef<HTMLDivElement>(null);
   const visible = useRef(activeIndex);
   const callbacks = useRef({ onActivePage, onViewedPage, onScrollAnchor });
@@ -47,7 +50,9 @@ export function VerticalReader({ manifest, fit = 'width', activeIndex, jumpToken
     const fetches = wanted.map(async index => {
       if (prior.has(index) && retry === 0) return { index, source: prior.get(index)!, error: false, fresh: false };
       try {
-        const source = await resolveSyntheticPage(manifest, index);
+        const source = privateMangaId && privateRevision
+          ? await resolvePrivatePage(manifest,index,privateMangaId,privateRevision)
+          : await resolveSyntheticPage(manifest, index);
         return { index, source, error: false, fresh: true };
       } catch {
         return { index, source: null, error: true, fresh: false };
@@ -71,7 +76,7 @@ export function VerticalReader({ manifest, fit = 'width', activeIndex, jumpToken
       setErrors(failed);
     });
     return () => { cancelled = true; };
-  }, [manifest, visibleIndex, retry]);
+  }, [manifest, visibleIndex, retry, privateMangaId, privateRevision]);
 
   useEffect(() => () => {
     for (const source of images.current.values()) source.release();
@@ -148,7 +153,8 @@ export function VerticalReader({ manifest, fit = 'width', activeIndex, jumpToken
           </div> :
           sources[index] ?
           <img className="vertical-page-image" src={sources[index]}
-            alt={`Original synthetic manga illustration, page ${index + 1}`}
+            alt={privateMangaId ? `Manga page ${index + 1} of ${manifest.pages.length}` :
+              `Original synthetic manga illustration, page ${index + 1}`}
             decoding="async" onLoad={() => {
               loaded.current.add(index);
               reportViewed(index);
