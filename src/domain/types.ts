@@ -4,6 +4,8 @@ export type ReadingDirection = 'rtl' | 'ltr' | 'vertical';
 export interface MangaChapter {
   id: string;
   label: string;
+  /** Persistent public chapter URL slug; immutable chapter ID remains primary. */
+  slug?: string;
   volume?: string;
   /** Immutable ordering key within its series; titles/labels can change. */
   sequence: number;
@@ -38,6 +40,8 @@ export interface MangaEntry {
   kind: 'manga';
   id: string;
   title: string;
+  /** Persistent public manga URL slug; immutable manga ID remains primary. */
+  slug?: string;
   aliases: string[];
   creators: string[];
   /** Structured role credits, retaining creators for older consumers. */
