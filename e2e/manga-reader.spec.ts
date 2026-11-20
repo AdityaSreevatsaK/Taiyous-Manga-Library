@@ -1242,3 +1242,34 @@ test('private ReLIFE-style chapter list opens verified images without endless sc
   await expect(page.locator('.vertical-page-image')).toBeVisible();
   await expect(page.getByText('Offline copies of private chapters are not yet supported.')).toBeVisible();
 });
+
+test('Novel Library series layout, card order, chapter picker and clear button hover contrast',async({page})=>{
+  for(const width of [320,390,740,1280]){
+    await page.setViewportSize({width,height:850});
+    await page.goto('/manga/mng_lanternarchive');
+    await expect(page.locator('.manga-details-hero')).toBeVisible();
+    await expect(page.locator('.manga-details-columns .manga-journey-card')).toBeVisible();
+    await expect(page.locator('.manga-details-columns .manga-info-card')).toBeVisible();
+    await expect(page.locator('.manga-details-columns .manga-synopsis-card')).toBeVisible();
+    await expect(page.locator('.manga-details-main .chapter-section')).toBeVisible();
+    await expect(page.locator('.manga-details-main .personal-annotations')).toBeVisible();
+    await assertNoHorizontalOverflow(page);
+  }
+  const read=page.locator('.manga-details-hero .detail-actions .primary').first();
+  const before=await read.evaluate(node=>getComputedStyle(node).backgroundColor);
+  await read.hover();
+  const after=await read.evaluate(node=>getComputedStyle(node).backgroundColor);
+  expect(after).not.toBe(before);
+  await read.click();
+  await page.getByRole('button',{name:'Jump to chapter'}).click();
+  const modal=page.getByRole('dialog',{name:'Choose chapter'});
+  await expect(modal).toBeVisible();
+  await expect(modal.getByRole('searchbox',{name:'Search chapters by name or number'})).toBeFocused();
+  await modal.getByRole('searchbox',{name:'Search chapters by name or number'}).fill('rooftops');
+  await expect(page.locator('.manga-picker-result')).toHaveCount(1);
+  await page.keyboard.press('Escape');
+  await expect(modal).toHaveCount(0);
+  await page.getByRole('button',{name:'Jump to chapter'}).click();
+  await page.locator('.manga-picker-result').nth(1).click();
+  await expect(page.locator('.reader-heading')).toContainText('Above the rooftops');
+});
