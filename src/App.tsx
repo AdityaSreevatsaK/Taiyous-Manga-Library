@@ -333,7 +333,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
 
   useEffect(() => {
     setNoteDraft(entry ? annotations[entry.id]?.notes ?? '' : '');
-    setRatingDraft(entry ? annotations[entry.id]?.rating : undefined);
+    setRatingDraft(entry ? annotations[entry.id]?.rating??undefined : undefined);
     setTagDraft('');
     setPersonalTagDraft(entry ? annotations[entry.id]?.tags??[] : []);
     setConfirmSaveTags(false);
@@ -1165,7 +1165,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
               <fieldset className="hero-rating-fieldset">
                 <legend><span className={'rating-star '+ratingToneClass(ratingDraft)} aria-hidden="true">★</span>
                   My rating {annotations[entry.id]?.rating!==undefined &&
-                    <span className="hero-rating-saved">· {ratingSummary(annotations[entry.id]?.rating)}</span>}
+                    <span className="hero-rating-saved">· {ratingSummary(annotations[entry.id]?.rating??undefined)}</span>}
                 </legend>
                 <div className="hero-rating-choices" role="group" aria-label="Select personal rating">
                   {Array.from({length:10},(_,index)=>index+1).map(value=>
