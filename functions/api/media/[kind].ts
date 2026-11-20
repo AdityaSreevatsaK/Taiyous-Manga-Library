@@ -163,6 +163,26 @@ async function serveCover(revision:string,access:string,
    'Cross-Origin-Resource-Policy':'same-origin',
  }});
 }
+/** Direct revision-pinned image serving after the signed-in caller supplies a
+ * descriptor validated by the browser's canonical chapter manifest. The private
+ * HF bearer token remains server-side; integrity is checked before returning. */
+async function servePage(revision:string,access:string,path:string,
+ page:Pick<MangaPage,'mimeType'|'byteSize'|'sha256'>):Promise<Response>{
+ const upstream=await hfFetch('/datasets/'+REPO+'/resolve/'+revision+'/'+path,access);
+ if(!upstream.ok)return json({error:'Private image is unavailable'},502);
+ const bytes=await bounded(upstream,Math.min(PAGE_LIMIT,page.byteSize));
+ const image=new Uint8Array(bytes);
+ if(image.length!==page.byteSize||!imageSignature(image,page))
+   return json({error:'Private image failed format or size verification'},409);
+ if(!page.sha256)return json({error:'Private page lacks verified checksum'},409);
+ const checksum=[...new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))]
+   .map(byte=>byte.toString(16).padStart(2,'0')).join('');
+ if(checksum!==page.sha256)return json({error:'Private image failed checksum verification'},409);
+ return new Response(bytes,{status:200,headers:{
+   ...HEADERS,'Content-Type':page.mimeType,'Content-Length':String(image.length),
+   'Cross-Origin-Resource-Policy':'same-origin',
+ }});
+}
 /** GET only, owner-only and never cached; every image is verified against its manifest.
  * No paths, external URLs or authorization data are accepted from the browser.
  */
@@ -215,6 +235,29 @@ export async function onRequest({request,env}:Context):Promise<Response>{
  const ids=identity(url);
  if(!ids||(kind==='page'&&(!ID.page.test(ids.pageId)||!/^[a-f0-9]{40}$/.test(ids.revision))))
    return json({error:'Invalid chapter or page identity'},400);
+ // Canonical Controller imports are immutable. The authenticated owner has
+ // already loaded and validated this exact manifest; serving a page by its
+ // pinned dataset SHA avoids repeated repository/catalogue/manifest lookups.
+ // Existing legacy requests without a page hash keep the original checks.
+ if(kind==='page'&&url.searchParams.has('sha256')){
+   const sha256=url.searchParams.get('sha256')||'';
+   const mimeType=url.searchParams.get('mimeType')||'';
+   const extension=url.searchParams.get('extension')||'';
+   const rawSize=url.searchParams.get('byteSize')||'';
+   const byteSize=Number(rawSize);
+   const allowed=['png','jpg','jpeg','webp','avif'];
+   const expectedMime=extension==='jpg'||extension==='jpeg'?'image/jpeg':'image/'+extension;
+   if(!/^[a-f0-9]{64}$/.test(sha256)||!allowed.includes(extension)||
+     mimeType!==expectedMime||!/^[1-9][0-9]{0,7}$/.test(rawSize)||
+     byteSize<12||byteSize>PAGE_LIMIT)
+     return json({error:'Invalid canonical page descriptor'},400);
+   try{
+     return await servePage(ids.revision,session.access,
+       'data/manga/'+ids.mangaId+'/'+ids.chapterId+'/'+ids.pageId+'.'+extension,{
+         mimeType:mimeType as MangaPage['mimeType'],byteSize,sha256,
+       });
+   }catch{return json({error:'Private page could not be retrieved'},502);}
+ }
  const snapshot=await privateRepo(session.access);
  if(!snapshot)return json({error:'Private dataset access denied'},403);
  if(kind==='page'&&ids.revision!==snapshot.sha)
@@ -230,21 +273,7 @@ export async function onRequest({request,env}:Context):Promise<Response>{
    const page=manifest.pages.find(item=>item.id===ids.pageId);
    if(!page)return json({error:'Page does not belong to this chapter'},404);
    const path=(layout==='canonical'?'data/':'assets/')+page.assetPath;
-   const upstream=await hfFetch('/datasets/'+REPO+'/resolve/'+snapshot.sha+'/'+path,session.access);
-   if(!upstream.ok)return json({error:'Private image is unavailable'},502);
-   const bytes=await bounded(upstream,Math.min(PAGE_LIMIT,page.byteSize));
-   const image=new Uint8Array(bytes);
-   if(image.length!==page.byteSize||!imageSignature(image,page))
-     return json({error:'Private image failed format or size verification'},409);
-   // The exact checksum is authoritative; never render a mismatched page.
-   if(!page.sha256)return json({error:'Private page lacks verified checksum'},409);
-   const checksum=[...new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))]
-     .map(byte=>byte.toString(16).padStart(2,'0')).join('');
-   if(checksum!==page.sha256)return json({error:'Private image failed checksum verification'},409);
-   return new Response(bytes,{status:200,headers:{
-     ...HEADERS,'Content-Type':page.mimeType,'Content-Length':String(image.length),
-     'Cross-Origin-Resource-Policy':'same-origin',
-   }});
+   return await servePage(snapshot.sha,session.access,path,page);
  }catch{
    return json({error:'The private chapter could not be verified or retrieved'},502);
  }
