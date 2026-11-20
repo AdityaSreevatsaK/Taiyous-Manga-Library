@@ -1,4 +1,5 @@
 import { verifyPrivateCatalogue } from '../domain/privateMediaContracts';
+import {setCoverCatalogueRevision} from './coverCache';
 import type { MangaEntry } from '../domain/types';
 /** Public app gets only validated catalogue metadata. Bearer tokens stay in HttpOnly cookies. */
 export type CloudRead =
@@ -20,11 +21,14 @@ export async function fetchPrivateLibrary(signal?:AbortSignal):Promise<CloudRead
      'Private dataset could not be read. Check Hugging Face access and permissions.'};
    const raw:unknown=await result.json();
    if(!raw||typeof raw!=='object')return {status:'unavailable',message:'Invalid private dataset response.'};
-   const state=raw as {connected?:unknown;owner?:unknown;repo?:unknown;entries?:unknown};
+   const state=raw as {connected?:unknown;owner?:unknown;repo?:unknown;entries?:unknown;revision?:unknown};
    if(state.connected!==true||state.repo!=='AdityaSreevatsaK/Taiyous-Manga'
       ||typeof state.owner!=='string'||state.owner.toLowerCase()!=='adityasreevatsak')
      return {status:'unavailable',message:'Invalid private dataset response.'};
    const entries=verifyPrivateCatalogue(state.entries);
+   // Revision is optional for legacy/test responses; absent revision uses the
+   // original catalogue-backed cover path instead of an unverified shortcut.
+   setCoverCatalogueRevision(state.revision);
    return {status:'connected',owner:state.owner,repo:'AdityaSreevatsaK/Taiyous-Manga',entries};
  }catch(err){
    if(signal?.aborted)throw err;
