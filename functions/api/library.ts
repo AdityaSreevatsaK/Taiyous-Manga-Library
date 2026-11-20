@@ -29,12 +29,29 @@ async function boundedText(response:Response):Promise<string>{
  for(const chunk of chunks){combined.set(chunk,off);off+=chunk.length;}
  return new TextDecoder('utf-8',{fatal:true}).decode(combined);
 }
-export function parseCloudCatalogue(raw:unknown){
+/** The Manga Storage Controller publishes a validated array at /catalogue.json.
+ * The earlier app-only data/library.json envelope remains a read-only fallback.
+ */
+export function parseCloudCatalogue(raw:unknown,format:'controller'|'legacy'='legacy'){
+ if(format==='controller')return parseCatalogue(raw);
  if(!raw||typeof raw!=='object'||Array.isArray(raw))throw Error('Invalid manga catalogue envelope');
  const obj=raw as Partial<CloudCatalogue>;
  if(obj.schemaVersion!==1||obj.mediaKind!=='manga'||!Array.isArray(obj.entries))
    throw Error('Unsupported manga catalogue schema');
  return parseCatalogue(obj.entries);
+}
+export async function hasUnindexedFiles(sha:string,token:string):Promise<boolean>{
+ const response=await hfFetch('/api/datasets/'+REPO+'/tree/'+sha+'?limit=100',token);
+ if(!response.ok)throw Error('Unable to inspect private dataset root');
+ const listing:unknown=await response.json();
+ if(!Array.isArray(listing))throw Error('Unexpected dataset tree response');
+ // README and git metadata do not constitute an imported manga.
+ return listing.some(item=>{
+   if(!item||typeof item!=='object')throw Error('Malformed dataset tree entry');
+   const path=(item as {path?:unknown}).path;
+   if(typeof path!=='string')throw Error('Malformed dataset file path');
+   return !['.gitattributes','README.md','.gitignore','LICENSE','LICENSE.md'].includes(path);
+ });
 }
 export async function onRequest({request,env}:Context):Promise<Response>{
  if(!production(request))return json({error:'Private catalogue is production-only'},403);
@@ -45,17 +62,32 @@ export async function onRequest({request,env}:Context):Promise<Response>{
  const snapshot=await privateRepo(session.access);
  if(!snapshot)return json({error:'Private dataset access denied or unavailable'},403);
  try{
-   // Always request an immutable revision, not a moving /main response.
-   const response=await hfFetch('/datasets/'+REPO+'/resolve/'+snapshot.sha+'/data/library.json',session.access);
-   if(response.status===404){
-     if(!(await emptyDataTree(snapshot.sha,session.access)))
-       return json({error:'Recovery required: private data exists but library.json is missing'},409);
-     return json({connected:true,repo:REPO,revision:snapshot.sha,empty:true,entries:[]});
+   // Prefer the Storage Controller's published root catalogue at an immutable revision.
+   // A staged upload intentionally has no catalogue until all pages are verified.
+   const controller=await hfFetch('/datasets/'+REPO+'/resolve/'+snapshot.sha+'/catalogue.json',session.access);
+   if(controller.status===200){
+     try{
+       const entries=parseCloudCatalogue(JSON.parse(await boundedText(controller)),'controller');
+       return json({connected:true,repo:REPO,revision:snapshot.sha,empty:entries.length===0,entries});
+     }catch{
+       return json({error:'Published manga catalogue is invalid. No data changed.'},409);
+     }
    }
-   if(!response.ok)return json({error:'Private catalogue could not be read'},502);
-   let entries;
-   try{entries=parseCloudCatalogue(JSON.parse(await boundedText(response)));}
-   catch{return json({error:'Private catalogue has invalid or unsupported metadata. No data changed.'},409);}
-   return json({connected:true,repo:REPO,revision:snapshot.sha,empty:entries.length===0,entries});
+   if(controller.status!==404)return json({error:'Private manga catalogue could not be read'},502);
+   // Backwards compatibility for early app-generated catalogues.
+   const legacy=await hfFetch('/datasets/'+REPO+'/resolve/'+snapshot.sha+'/data/library.json',session.access);
+   if(legacy.status===200){
+     try{
+       const entries=parseCloudCatalogue(JSON.parse(await boundedText(legacy)),'legacy');
+       return json({connected:true,repo:REPO,revision:snapshot.sha,empty:entries.length===0,entries});
+     }catch{
+       return json({error:'Legacy private catalogue has invalid metadata. No data changed.'},409);
+     }
+   }
+   if(legacy.status!==404)return json({error:'Legacy private catalogue could not be read'},502);
+   if(!(await emptyDataTree(snapshot.sha,session.access)) ||
+      await hasUnindexedFiles(snapshot.sha,session.access))
+     return json({error:'Private manga upload is staged or unindexed. Wait for its catalogue publication; existing files were not changed.'},409);
+   return json({connected:true,repo:REPO,revision:snapshot.sha,empty:true,entries:[]});
  }catch{return json({error:'Private dataset is temporarily unavailable'},502);}
 }
