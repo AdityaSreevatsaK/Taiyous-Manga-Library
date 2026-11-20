@@ -1079,9 +1079,10 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
         </section></>}
       </>}
       {screen.kind === 'details' && entry && <>
-        <a className="back" href={routeHref({kind:'library'},import.meta.env.BASE_URL)}
+      <div className="manga-detail-page">
+        <a className="back manga-detail-back" href={routeHref({kind:'library'},import.meta.env.BASE_URL)}
           onClick={event=>followLink(event,()=>goCatalogue())}>← Back to the shelf</a>
-        <section className="series-detail">
+        <section className="series-detail manga-details-hero">
           <div className={'detail-cover cover-'+(demoEntries.findIndex(d=>d.id===entry.id)%3+1)} aria-hidden="true">
             {entry.publicationStatus !== 'unknown' &&
               <span className={'status-ribbon status-'+entry.publicationStatus}>
@@ -1090,25 +1091,26 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
           </div>
           <div className="detail-content"><p className="eyebrow">THE STORY / {demo?'READER DEMONSTRATION':'PRIVATE LIBRARY'}</p>
             <h1>{entry.title}</h1><p className="detail-sub">{entry.creators.join(', ')} <span aria-hidden="true">·</span> {entry.publicationStatus}</p>
-            <div className="detail-synopsis"><span className="detail-section-overline">ABOUT THIS MANGA</span>
-              <p className="detail-description">{entry.synopsis || 'A description has not been added yet.'}</p>
-            </div>
             <div className="tag-row">{entry.tags.map(value=><button type="button" className="tag" key={value}
               onClick={()=>jumpToFilter('tag',value)} title={'Filter All Manga by ' + value}>{value}</button>)}</div>
             <div className="stat-strip"><span><strong>{entry.chapters.length}</strong> chapters</span>
               <span><strong>{annotations[entry.id]?.rating ?? entry.rating ?? '–'}</strong> {annotations[entry.id]?.rating ? 'my' : 'source'} rating / 10</span>
               <span><strong>Scroll</strong> continuous chapter view</span></div>
-            <div className="personal-shelf-selector">
-              <label>Personal reading shelf
-                <select aria-label="Personal reading shelf" value={personalShelves[entry.id] ?? ''}
-                  onChange={event=>changeShelf(entry, (event.target.value || null) as ShelfSelection)}>
-                  <option value="">No personal shelf</option>
-                  <option value="trying">Trying Out</option>
-                  <option value="to-read">To Be Read</option>
-                  <option value="finished">Finished</option>
-                </select></label>
-              <p>Stored only on this device. Your publication status is not changed.</p>
+            <div className="manga-hero-rating"><div className="personal-rating">
+            <strong>Personal rating</strong>
+            <div className="rating-stars" role="group" aria-label="Personal rating">
+              {Array.from({length:10},(_,index)=>index+1).map(value=>
+                <button key={value} type="button" aria-label={'Rate ' + value + ' out of 10'}
+                  aria-pressed={annotations[entry.id]?.rating === value}
+                  style={{opacity: annotations[entry.id]?.rating && value <= annotations[entry.id]!.rating!
+                    ? Math.min(1,0.38 + annotations[entry.id]!.rating! * 0.062) : 0.26}}
+                  onClick={()=>changeAnnotation(entry,{rating:value},'Rating saved')}>★</button>)}
+              <span aria-live="polite">{annotations[entry.id]?.rating ? annotations[entry.id]!.rating + ' / 10' : 'No personal rating'}</span>
             </div>
+            {annotations[entry.id]?.rating && <button className="secondary" type="button"
+              onClick={()=>changeAnnotation(entry,{rating:null},'Personal rating cleared')}>Clear rating</button>}
+          </div>
+          </div>
             <div className="detail-actions">
               {demo ? <>
               <a className="primary" href={routeHref({kind:'reader',mangaId:entry.id,
@@ -1130,10 +1132,70 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
                 onClick={()=>changeAnnotation(entry,{favourite:!annotations[entry.id]?.favourite},
                   annotations[entry.id]?.favourite?'Removed from favourites':'Added to favourites')}>
                 {annotations[entry.id]?.favourite?'★ Remove from favourites':'☆ Add to favourites'}
-              </button></div>
-            <div className="collection-membership">
+              </button><button className="secondary manga-trying-button" type="button"
+              aria-pressed={personalShelves[entry.id]==='trying'}
+              onClick={()=>changeShelf(entry,personalShelves[entry.id]==='trying'?null:'trying')}>
+              {personalShelves[entry.id]==='trying'?'✓ Trying Out':'Add to Trying Out'}</button>
+            <button className="secondary manga-collection-jump" type="button" onClick={()=>{
+              document.getElementById('manga-detail-collection')?.scrollIntoView({behavior:'smooth',block:'center'});
+              document.getElementById('manga-detail-collection')?.focus();}}>+ Add to collection</button><button className="secondary manga-trying-button" type="button"
+              aria-pressed={personalShelves[entry.id]==='trying'}
+              onClick={()=>changeShelf(entry,personalShelves[entry.id]==='trying'?null:'trying')}>
+              {personalShelves[entry.id]==='trying'?'✓ Trying Out':'Add to Trying Out'}</button>
+            <button className="secondary manga-collection-jump" type="button" onClick={()=>{
+              document.getElementById('manga-detail-collection')?.scrollIntoView({behavior:'smooth',block:'center'});
+              document.getElementById('manga-detail-collection')?.focus();}}>+ Add to collection</button></div>
+            
+          </div>
+        </section>
+        
+        <div className="manga-details-columns">
+          <aside className="manga-details-sidebar" aria-label="Your reading journey">
+            <section className="manga-detail-card manga-journey-card">
+              <p className="manga-card-overline">YOUR JOURNEY</p><h2>Reading progress</h2>
+              <strong className="manga-progress-percent">{progressForEntry
+                ? Math.round(100*(Math.max(0,chapters.findIndex(ch=>ch.id===progressForEntry.chapterId))+1)
+                  /Math.max(1,chapters.length)) : 0}<small>%</small></strong>
+              <progress aria-label="Manga reading progress" max={Math.max(1,chapters.length)}
+                value={progressForEntry
+                  ? Math.max(0,chapters.findIndex(ch=>ch.id===progressForEntry.chapterId))+1 : 0}/>
+              <p>{progressForEntry?'Reading':'Not yet started'}</p>
+              <div className="manga-progress-last"><span>Chapter</span>
+                <strong>{progressForEntry
+                  ? (chapters.findIndex(ch=>ch.id===progressForEntry.chapterId)+1)+' / '+chapters.length
+                  : 'Not started'}</strong></div>
+              <button type="button" className="primary manga-journey-resume"
+                disabled={!chapters.length||chapterLoading!==null}
+                onClick={()=>{void openChapter(entry,undefined,!!(progress[entry.id]||privateResumeChapter(entry)));}}>
+                {progressForEntry||(!demo&&privateResumeChapter(entry))?'Resume at saved position':'Start reading'} →
+              </button>
+            </section>
+            <section className="manga-detail-card manga-info-card">
+              <p className="manga-card-overline">MANGA INFORMATION</p><h2>Details</h2>
+              <dl>
+                <div><dt>Creator</dt><dd>{entry.creators.join(', ')||'Unknown'}</dd></div>
+                <div><dt>Chapters</dt><dd>{chapters.length}</dd></div>
+                <div><dt>Publication</dt><dd>{publicationCaption[entry.publicationStatus]}</dd></div>
+                <div><dt>Reading</dt><dd>Continuous scroll</dd></div>
+              </dl>
+              <div className="personal-shelf-selector">
+              <label>Personal reading shelf
+                <select aria-label="Personal reading shelf" value={personalShelves[entry.id] ?? ''}
+                  onChange={event=>changeShelf(entry, (event.target.value || null) as ShelfSelection)}>
+                  <option value="">No personal shelf</option>
+                  <option value="trying">Trying Out</option>
+                  <option value="to-read">To Be Read</option>
+                  <option value="finished">Finished</option>
+                </select></label>
+              <p>Stored only on this device. Your publication status is not changed.</p>
+            </div>
+            
+            </section>
+            <section className="manga-detail-card manga-collections-card">
+              <p className="manga-card-overline">YOUR ORGANISATION</p><h2>Collections</h2>
+              <div className="collection-membership">
               <label>Add to collection
-                <select aria-label="Add to collection" value="" onChange={event=>{
+                <select id="manga-detail-collection" aria-label="Add to collection" value="" onChange={event=>{
                   if(event.target.value)updateMembership(entry,event.target.value,true);
                 }}>
                   <option value="">Choose a collection</option>
@@ -1154,61 +1216,15 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
               </div>
               {collections.items.length===0 && <p>No personal collections yet. Create one in All Manga.</p>}
             </div>
-            <p className="fine-print">Reading progress and personal notes stay on this device. Cross-device synchronisation is not enabled.</p>
-          </div>
-        </section>
-        <section className="personal-annotations" aria-label="Personal manga annotations">
-          <h2>My notes and tags</h2>
-          <p>These are private to this browser. They are not part of the public demonstration catalogue.</p>
-          <div className="personal-rating">
-            <strong>Personal rating</strong>
-            <div className="rating-stars" role="group" aria-label="Personal rating">
-              {Array.from({length:10},(_,index)=>index+1).map(value=>
-                <button key={value} type="button" aria-label={'Rate ' + value + ' out of 10'}
-                  aria-pressed={annotations[entry.id]?.rating === value}
-                  style={{opacity: annotations[entry.id]?.rating && value <= annotations[entry.id]!.rating!
-                    ? Math.min(1,0.38 + annotations[entry.id]!.rating! * 0.062) : 0.26}}
-                  onClick={()=>changeAnnotation(entry,{rating:value},'Rating saved')}>★</button>)}
-              <span aria-live="polite">{annotations[entry.id]?.rating ? annotations[entry.id]!.rating + ' / 10' : 'No personal rating'}</span>
-            </div>
-            {annotations[entry.id]?.rating && <button className="secondary" type="button"
-              onClick={()=>changeAnnotation(entry,{rating:null},'Personal rating cleared')}>Clear rating</button>}
-          </div>
-          <div className="personal-tag-editor">
-            <strong>Personal tags</strong>
-            <div className="tag-row">
-              {(annotations[entry.id]?.tags ?? []).map(value=><span className="personal-tag" key={value}>
-                <button className="tag" type="button" onClick={()=>jumpToFilter('tag',value)}>{value}</button>
-                <button className="tag-remove" type="button" aria-label={'Remove tag ' + value}
-                  onClick={()=>setConfirmRemoveTag(value)}>×</button>
-              </span>)}
-            </div>
-            <div className="tag-entry">
-              <label>Add a personal tag
-                <input type="text" value={tagDraft} maxLength={48} list="personal-tag-suggestions"
-                  onChange={event=>setTagDraft(event.target.value)}
-                  onKeyDown={event=>{if(event.key === 'Enter'){event.preventDefault();addTag(entry);}}}
-                  placeholder="e.g. Romance" /></label>
-              <datalist id="personal-tag-suggestions">{allTags.map(value=><option key={value} value={value}/>)}</datalist>
-              <button type="button" className="secondary" disabled={!tagDraft.trim()} onClick={()=>addTag(entry)}>Add tag</button>
-            </div>
-          </div>
-          <div className="personal-notes-editor">
-            <label>Personal notes
-              <textarea value={noteDraft} maxLength={5000} rows={4}
-                onChange={event=>setNoteDraft(event.target.value)} placeholder="Your thoughts about this manga..." />
-            </label>
-            <div className="notes-actions">
-              <button className="primary" type="button"
-                disabled={noteDraft === (annotations[entry.id]?.notes ?? '')}
-                onClick={()=>changeAnnotation(entry,{notes:noteDraft},'Notes saved')}>Save notes</button>
-              <button className="secondary" type="button"
-                disabled={noteDraft === (annotations[entry.id]?.notes ?? '')}
-                onClick={()=>setNoteDraft(annotations[entry.id]?.notes ?? '')}>Discard edits</button>
-            </div>
-          </div>
-        </section>
-        <section className="chapter-section"><div className="shelf-heading"><div><p className="eyebrow">CONTENTS / READING ORDER</p><h2>Chapters &amp; volumes</h2></div></div>
+            
+            </section>
+          </aside>
+          <div className="manga-details-main">
+            <section className="manga-detail-card manga-synopsis-card">
+              <p className="manga-card-overline">ABOUT THE STORY</p><h2>Synopsis</h2>
+              <p className="detail-description">{entry.synopsis||'A synopsis has not been added yet.'}</p>
+            </section>
+            <section className="chapter-section manga-detail-card"><div className="shelf-heading"><div><p className="eyebrow">CONTENTS / READING ORDER</p><h2>Chapters</h2></div></div>
           <label className="chapter-search">Search chapters
             <input type="search" value={chapterQuery} onChange={event=>{
               setChapterQuery(event.target.value);setChapterLimit(25);
@@ -1255,6 +1271,48 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
             </button>}
           {chapterLoading&&<p role="status" className="chapter-loading-note">Verifying chapter pages from your private library…</p>}
         </section>
+
+            <section className="personal-annotations manga-detail-card" aria-label="Personal manga annotations">
+          <h2>My notes and tags</h2>
+          <p>These are private to this browser. They are not part of the public demonstration catalogue.</p>
+          <div className="personal-tag-editor">
+            <strong>Personal tags</strong>
+            <div className="tag-row">
+              {(annotations[entry.id]?.tags ?? []).map(value=><span className="personal-tag" key={value}>
+                <button className="tag" type="button" onClick={()=>jumpToFilter('tag',value)}>{value}</button>
+                <button className="tag-remove" type="button" aria-label={'Remove tag ' + value}
+                  onClick={()=>setConfirmRemoveTag(value)}>×</button>
+              </span>)}
+            </div>
+            <div className="tag-entry">
+              <label>Add a personal tag
+                <input type="text" value={tagDraft} maxLength={48} list="personal-tag-suggestions"
+                  onChange={event=>setTagDraft(event.target.value)}
+                  onKeyDown={event=>{if(event.key === 'Enter'){event.preventDefault();addTag(entry);}}}
+                  placeholder="e.g. Romance" /></label>
+              <datalist id="personal-tag-suggestions">{allTags.map(value=><option key={value} value={value}/>)}</datalist>
+              <button type="button" className="secondary" disabled={!tagDraft.trim()} onClick={()=>addTag(entry)}>Add tag</button>
+            </div>
+          </div>
+          <div className="personal-notes-editor">
+            <label>Personal notes
+              <textarea value={noteDraft} maxLength={5000} rows={4}
+                onChange={event=>setNoteDraft(event.target.value)} placeholder="Your thoughts about this manga..." />
+            </label>
+            <div className="notes-actions">
+              <button className="primary" type="button"
+                disabled={noteDraft === (annotations[entry.id]?.notes ?? '')}
+                onClick={()=>changeAnnotation(entry,{notes:noteDraft},'Notes saved')}>Save notes</button>
+              <button className="secondary" type="button"
+                disabled={noteDraft === (annotations[entry.id]?.notes ?? '')}
+                onClick={()=>setNoteDraft(annotations[entry.id]?.notes ?? '')}>Discard edits</button>
+            </div>
+          </div>
+        </section>
+        
+          </div>
+        </div>
+      </div>
       </>}
       {screen.kind === 'reader' && entry && location && <section className="reader-shell" ref={readerRef} tabIndex={0}
         aria-label="Manga reader, continuous chapter view">
