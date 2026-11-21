@@ -32,6 +32,8 @@ const eventLabel=(event:MangaUsageEvent):string=>{
 /** Live, private analytics from real device-local activity, never reconstructed history. */
 export function MangaAnalyticsPanel({analytics,entries,detailHref,onOpenDetails,onReading}:Props){
   const [usage,setUsage]=useState(readMangaUsage);
+  const [confirmClear,setConfirmClear]=useState(false);
+  const [clearText,setClearText]=useState('');
   useEffect(()=>{
     const update=()=>setUsage(readMangaUsage());
     window.addEventListener('taiyou-manga-usage-changed',update);
@@ -146,10 +148,22 @@ export function MangaAnalyticsPanel({analytics,entries,detailHref,onOpenDetails,
         Record reading activity on this device</label>
       <div className="manga-usage-buttons">
         <button type="button" onClick={downloadAnalytics}>Export analytics JSON</button>
-        <button type="button" onClick={()=>{if(window.confirm('Delete this device’s manga usage history? Reading positions and personal annotations will remain.'))
-          setUsage(clearMangaUsage());}}>Clear analytics</button>
+        <button type="button" disabled={confirmClear} onClick={()=>setConfirmClear(true)}>Clear analytics</button>
         <button className="secondary" type="button" onClick={onReading}>View Currently Reading</button>
       </div>
+      {confirmClear&&<div className="manga-usage-clear" role="group" aria-label="Confirm clearing analytics">
+        <p>This removes your usage statistics and activity journal from this device only.
+          Saved reading positions, ratings and the private manga catalogue remain unchanged.</p>
+        <label htmlFor="manga-clear-analytics">Type CLEAR ANALYTICS to continue</label>
+        <input id="manga-clear-analytics" value={clearText} onChange={event=>setClearText(event.target.value)}
+          autoComplete="off"/>
+        <div className="manga-usage-buttons">
+          <button type="button" disabled={clearText!=='CLEAR ANALYTICS'} onClick={()=>{
+            setUsage(clearMangaUsage());setClearText('');setConfirmClear(false);
+          }}>Confirm clear analytics</button>
+          <button type="button" onClick={()=>{setConfirmClear(false);setClearText('');}}>Cancel</button>
+        </div>
+      </div>}
     </section>
   </section>;
 }
