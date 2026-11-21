@@ -101,8 +101,9 @@ test('shelf notifications match Novel Library appearance, auto-dismiss and leave
   expect(appearance.rightGap).toBeGreaterThanOrEqual(15);
   expect(appearance.top).toBeGreaterThanOrEqual(60);
   await expect(toast).toHaveCount(0,{timeout:7000});
-  await page.getByRole('button',{name:/Remove from Trying Out/}).click();
+  await page.locator('.manga-trying-button').click();
   await expect(toast).toHaveCount(1);
-  await page.goto('/library');
+  await page.locator('.manga-details-brand-link').click();
+  await expect(page).toHaveURL('/');
   await expect(toast).toHaveCount(0);
 });
