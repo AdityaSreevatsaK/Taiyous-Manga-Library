@@ -39,12 +39,9 @@
  border-radius:5px 5px 0 0;min-height:0}
 .app-shell .manga-usage-app-bar{background:#64779c}
 .app-shell .manga-usage-read-bar{background:#b46dac}
-.app-shell .manga-usage-day>.manga-usage-date-label{
- color:var(--editorial-muted);font-size:10px;font-variant-numeric:tabular-nums;
- white-space:nowrap;line-height:14px;min-height:22px;padding:0 0 8px;
-}
-/* Today's tick is right-aligned so its day/month label never clips off screen. */
-.app-shell .manga-usage-day:last-child>.manga-usage-date-label{align-self:flex-end}
+.app-shell .manga-usage-day>span{color:var(--editorial-muted);font-size:10px;
+ padding-bottom:8px;white-space:nowrap}
+.app-shell .manga-usage-day:last-child>span{align-self:flex-end}
 .app-shell .manga-usage-legend{display:flex;gap:22px;margin-top:16px;
  color:var(--editorial-muted);font-size:11px}
 .app-shell .manga-usage-legend span{display:flex;align-items:center;gap:7px}
