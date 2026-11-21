@@ -1,46 +1,57 @@
-# Local Reader Persistence
+# Browser-local progress and personal-data persistence
 
-## Manual backup and transfer (19 November 2026)
+Personal data remains on the current browser/device. It is not automatically uploaded to Hugging Face or synchronised across devices. Browser storage may be cleared or evicted; keep private manual backups.
 
-The library now includes a **Transfer reading progress between devices** panel. It is browser-only and works without Hugging Face:
+## Reader progress and preferences
 
-1. Open Home or Library and expand the transfer panel.
-2. Choose **Download progress backup** to save a small JSON file. Only validated manga IDs, chapter/page progress, anchor offsets and optional reader preferences are included.
-3. On the receiving device, select the JSON file. The app validates the entire document, rejects unsupported versions, duplicate manga IDs, incorrect page identities and malformed preferences, and presents a review before writing.
-4. Select **Confirm restore**. Records with equal or newer local timestamps, or corrupted local records, are never overwritten. Unknown manga IDs are skipped.
-5. Theme and image-fit preferences are restored only if the separate opt-in checkbox is selected.
+- Progress key: taiyou-manga:progress:v1:<mangaId>.
+- Each record is a version-1 manga envelope containing mangaId, chapterId, zero-based pageIndex, immutable pageId, updatedAt and optional readingMode/verticalOffsetRatio.
+- Reader preferences use taiyou-manga:reader-preferences and include theme, image fit and optional reading direction.
+- New profiles default to Sepia. Legacy Dark/Light preferences migrate to Charcoal/Paper.
+- Every read/write validates the stored envelope and manga/chapter/page lineage.
+- A page index without the matching immutable page ID is not safe to restore.
+- Progress writes reject stale timestamps. Invalid existing records are preserved and surfaced for recovery rather than silently overwritten.
+- Per-manga keys isolate corruption; one malformed record must not erase another manga's progress.
+- Vertical offset is an approximate fraction within a tall page, not a promise of pixel-perfect restoration after source dimensions change.
 
-Import files are capped at **256 KB**. Backups are never uploaded to a service. This is not automatic cross-device synchronisation. Media, offline chapter blobs, user accounts, title metadata and private Hugging Face data are not included.
+## Personal shelves and annotations
 
-If a destination write fails, successfully applied individual records remain intact and the UI reports unavailable records. No record is deleted. Restore is a *merge*, not a replacement. Browser storage can be cleared independently by the browser or device, so keep the downloaded JSON somewhere safe.
+Separate versioned local keys store:
+- Personal shelf: Trying Out, Finished or legacy To Be Read.
+- Personal annotation: 1–10 rating, notes, personal tags, favourite flag, explicit completed chapter IDs and updated timestamp.
+- Imported publication status/genres are separate from personal shelf/tags.
+- Currently Reading is derived from actual saved progress and shelf overrides.
+- Chapter completion and Finished status are explicit actions; neither is inferred from scroll position or publication status.
 
-**Tests:** Unit cases for malformed/unknown records, duplicate IDs, stale records, corrupt local data and settings opt-in, plus Playwright download/import and cancellation tests.
+## Nested collections
 
----
+A single revisioned document stores stable collection IDs, names, parent IDs and manga membership. Runtime validation rejects duplicate IDs, missing parents, cycles, duplicate sibling names and duplicate memberships. Stale revision writes fail. Deleting a collection subtree does not delete manga, media, progress, notes or offline chapters.
 
+## Manual JSON backup and transfer
 
-**State:** stacked development branch, not merged or deployed.
+The full personal backup uses schemaVersion 2 and includes progress, preferences, shelves, annotations and optional nested collections. It excludes manga images, private catalogue metadata, OAuth/session data and private media.
 
-## Storage contract
+- Export from the app's backup control.
+- Keep the downloaded file private; it may contain personal notes and reading history.
+- On another device, select the backup, review validation and explicitly confirm import.
+- The importer accepts legacy v1 reader backups and older v2 backups without collections.
+- Import is a guarded merge, not a replace-all operation. Newer local records, invalid records and existing collections are preserved according to the current import rules.
+- Import size is bounded and all content is validated before writing.
 
-- `localStorage` per-manga record: `taiyou-manga:progress:v1:<immutable manga ID>`.
-- Versioned envelope: `{ schemaVersion: 1, mediaKind: "manga", progress: { mangaId, chapterId, pageIndex, pageId, updatedAt, readingMode?, verticalOffsetRatio? } }`.
-- `pageIndex` is zero-based. The immutable `pageId` must match the validated manifest on every read.
-- Preferences stored separately under `taiyou-manga:reader-preferences`: explicit reading direction override, image fitting and visual theme.
-- Every record is validated at read/write; corrupted, unsupported or stale records are preserved, not automatically deleted or migrated destructively.
-- Each series has its own storage key so one malformed record cannot reset every other manga.
-- Stale cross-tab writes are rejected by UTC timestamp comparison. A browser `storage` event reconciles later records with current session state.
-- Browser quota or security failures are surfaced as a warning; the session stays operational. The app does **not** promise survival in private mode or if the user clears site data.
-- Anchor ratio is captured in vertical mode and used when reopening the same page. It is not a promise of pixel-perfect restoration after an asset's dimensions change.
+This is manual transfer, not automatic cross-device sync or a cloud backup.
 
-## Data boundaries
+## Cover cache
 
-No publication status or Finished reading status is derived from page position. No cloud writes, accounts or cross-device sync exist. Personal records stay in the user's browser and are never in the static build. This is designed for later versioned cloud sync, but no provider or conflict policy is approved.
+Verified private cover blobs may be stored in IndexedDB under taiyou-manga-private-covers-v1. Entries are content-addressed by manga ID and cover SHA-256. The cache is bounded to 120 covers / 72 MiB; a smaller session hot cache avoids repeat reads. Actual cover bytes are SHA-verified before persistence. Sign-out clears this private artwork cache.
 
-## Verification
+This cover optimisation does not cache private chapter pages or provide private offline reading.
 
-Run Node 22 `npm ci`, `npm run typecheck`, `npm test`, `npm run build`, `npm run test:e2e`. Browser cases cover reload, new tab, image-fit/theme persistence, incorrect records, stale writes, vertical scrolling and offline progress in an already loaded tab. Genuine offline cold starts and private downloaded chapters are **PR D**, not this feature.
+## Failure and recovery rules
 
-## Rollback
+- Browser storage can be unavailable or quota-limited. Surface a truthful warning and do not pretend the write succeeded.
+- Do not silently clear invalid local records.
+- Do not treat a browser storage event as transactional cross-device sync.
+- Do not clear local progress or personal records during an app rollback.
+- Keep manual backup files private and separate from public repository folders.
 
-A code revert leaves versioned browser records intact. Do not remove or clear per-series keys as part of rollback; previously validated data remains available after restoring this feature.
+See docs/PERSONAL_METADATA.md, docs/COLLECTIONS.md, docs/DATA_CONTRACTS.md and docs/ADVANCED_DISCOVERY_AND_ANALYTICS.md.
