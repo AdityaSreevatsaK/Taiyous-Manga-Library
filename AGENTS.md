@@ -47,7 +47,7 @@ A read-only local catalogue with an explicit no-data state, a chapter manifest v
 The owner authorised public **source code** on 18 November 2026. This is not approval to publish private manga, private datasets, credentials or production access details. Actual GitHub API visibility still needs confirmation; the last report remained private.
 
 ## Approved UI specification, 19 November 2026
-- Eight primary sections in exact order: Home, Currently Reading, Trying Out, Available Offline, Finished, To Be Read, All Manga, Analytics.
+- Six visible shelves in exact order: Home, Currently Reading, Trying Out, Available Offline, Finished, All Manga. Previous To Be Read entries are still preserved internally. Analytics lives under the bookmarkable Master Controls view and needs no separate password; private catalogue management remains authenticated.
 - Mobile displays Currently Reading, Trying Out, Available Offline and a More menu, with no duplicated live links.
 - Six themes: Sepia (default), Paper, Charcoal, Midnight, Ocean, Plum. Persist selection; an open menu must not mutate it.
 - The Taiyou Sun artwork is approved and must remain transparent. Use the theme-specific mark, favicon and PWA icons; footer says Created by Taiyou.
@@ -55,6 +55,42 @@ The owner authorised public **source code** on 18 November 2026. This is not app
 - Personal reading shelf values and publication statuses are independent; shelf state is device-local pending secure cloud sync.
 - Use diagonal text ribbons on covers. No "Unrated" labels, browser-native confirms or fake connectivity.
 - Merge and deploy once CI passes unless the owner explicitly asks to stop. Preserve real user progress, downloaded images and rollback compatibility.
+
+## Novel Library is the authoritative UI design reference (21 November 2026)
+
+**Do not approximate or redesign already-approved Novel Library interface details.**
+For every Manga UI change, inspect the corresponding **current** source under
+`AdityaSreevatsaK/Taiyous-Personal-Library/src/components/` and its CSS.
+Reuse exact Lucide SVGs, spacing, component composition, focus/mobile behaviour,
+control placement and footer text layout. Adapt only the Manga-specific
+data/IDs, chapter image reader and private Hugging Face integration.
+
+- **Catalogue header:** Approved sun and title, the 25px/1.9-stroke Lucide cloud
+  immediately after the wordmark (not silently moved to the far right), with a
+  green/red dot inside. Theme controls belong in the opposite header tools.
+- **Manga details header:** Mirror Novel's `BookDetails.tsx` dedicated small
+  header, not the oversized catalogue masthead. Sun mark 32px, title-case brand,
+  centred `QuickNavigation`, compact theme picker. Novel's details header has
+  no cloud control; cloud settings remain reachable from the catalogue/reader.
+- **Details cards:** Follow Novel's `details-section-header` hierarchy and
+  *real* Lucide Bookmark, Info, Tag, Star, LockKeyhole, List and Pencil glyphs,
+  not glyph substitutes or blank ornament spans. Preserve semantics and actions.
+- **Layout:** Reuse Novel's grid proportions, card spacing, serif typography,
+  compact scrollable synopsis and responsive breakpoints; preserve manga-only
+  concepts. Never remove a functional manga control just for visual matching.
+- **Footer:** Centred `© [year] Taiyou's Personal Manga Library · Created by Taiyou`,
+  not debug statements such as cloud-sync limitations or hub independence.
+- **Master Controls:** Use Novel's Settings2 symbol, direct navigation and
+  accessible analytics section; no separate analytics password.
+- **Regression gates:** Assert paths/size/stroke/placement, real icon paths,
+  mobile and split-screen widths (320, 390, 768, 1280), keyboard focus and
+  footer behaviour. CI DOM assertions alone do not establish pixel-perfect
+  parity: inspect representative screenshots when possible.
+- **Private data:** Never modify Novel Library or either private dataset while
+  porting UI. Keep Manga OAuth, source metadata, downloads, progress and IDs.
+
+See `docs/NOVEL_LIBRARY_UI_PARITY_2026-11-20.md` (historical audit plus
+21 November source-driven addendum).
 
 ## Personal metadata acceptance
 Keep personal rating, notes, tags and shelves strictly in device-local versioned stores until reviewed server-side authorisation. Do not expose them in public static fixtures, telemetry, assets or URLs. Reader and publication statuses must stay independent. All destructive personal data operations require an application confirmation, not a browser alert. Treat invalid existing storage as immutable recovery evidence.
