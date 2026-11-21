@@ -1,28 +1,65 @@
-# Advanced search and reading analytics (19 November 2026)
+# Advanced discovery and reading analytics
 
-## Advanced Search
-The All Manga view combines existing text/genre/publication filters with creator name, minimum and maximum chapter counts, minimum **personal** rating, personal reading state and genuine offline chapter availability. Results use only in-memory catalogue and locally stored user data; no remote search or usage tracking occurs.
+## Advanced local search
 
-Filters are reflected in bookmarkable `/library` query parameters. Invalid chapter ranges show a warning and no results, rather than silently changing inputs.
+The All Manga view filters the full in-memory catalogue. It supports:
+- Text/title and alias search.
+- Publication status and source tags.
+- Creator/author names.
+- Minimum/maximum chapter counts.
+- Minimum personal rating.
+- Personal reading state.
+- Verified local offline chapter availability.
 
-## Analytics
-Metrics are derived solely from local validated reading positions, personal shelves, annotation ratings and actual cached chapter IDs.
+Search and filters run locally. They do not send queries, tags, personal ratings or notes to an external provider. Catalogue filters remain bookmarkable through safe /library query parameters. Invalid chapter ranges return no results with a warning rather than silently changing the user's input.
 
-- Series with a saved position; currently reading; Trying Out; Finished; To Be Read
-- Number of downloaded chapters and series with offline media
-- Count and mean of personal ratings, rating distribution
-- Latest **saved positions**, including chapter, page and date
-- Genres represented among currently reading series
+## Catalogue analytics
 
-Historical usage before this analytics release cannot be reconstructed from a single last-position record. The prospective tracked usage journal is described below.
+The additional manga insights are derived from the current loaded catalogue and validated device-local state:
+- Series with a saved reading position.
+- Currently Reading, Trying Out, Finished and legacy To Be Read counts.
+- Verified downloaded sample chapters and series with offline media.
+- Average personal rating and rating distribution.
+- Recent saved positions, chapter/page and timestamp.
+- Genres among Currently Reading series.
 
-## Release regression
-Continuous chapter scrolling, previous/next chapter navigation, public fixture boundaries and saved reading positions remain unchanged. This feature requires responsive, keyboard and browser checks after merge.
+These are catalogue/progress summaries, not reading-time estimates. A saved position timestamp is not elapsed reading time.
 
+## Prospective device-only usage journal
 
-## Manga reading usage journal, from 21 November 2026
+The usage journal was introduced on 21 November 2026. It records approximate activity prospectively:
+- Active app time while the tab is visible, focused and recently used.
+- Reading time while a manga reader is open.
+- Offline app time while disconnected.
+- Per-manga reading duration.
+- Actions such as chapter opened, page viewed, chapter marked/reopened, shelf changed and personal edit.
 
-The Analytics tab now tracks approximate real foreground, focused and non-idle app time, reading time, per-manga duration, offline time, the past 14 days and verified chapter/page and reading actions. This is device-local and starts with this release; historical minutes cannot be reconstructed from saved progress. Slices are capped at 30 seconds and activity is paused on background tabs or after three minutes of idle time. The journal retains at most 400 days and 500 actions. A checkbox, JSON export and typed-confirmation clearing are available. It sends no personal analytics to Hugging Face. Private progress summaries can show earlier chapters before manifest download, but the reader still validates page IDs against the original protected manifest.
+Implementation is in src/domain/usageAnalytics.ts. Samples are taken every 10 seconds; gaps over 30 seconds are discarded; inactivity beyond 3 minutes pauses counting; each sample is capped at 30 seconds. The journal retains at most 400 daily buckets, 500 actions and 2,500 per-manga duration entries.
 
-### Novel Library UI parity, 21 November 2026
-The Manga Analytics landing view mirrors the current Novel UsageDashboard: four time cards in the order Active app time, Reading time, Offline app time and Today; a 14-day paired-bar chart with blue app bars (#64779c) and purple reading bars (#b46dac), aligned to a shared scale; a top-ten Most read manga list; and one compact privacy-controls card. Zero reading activity must render a zero-height reading bar instead of fabricating a duration. The eight manga catalogue summary metrics, recent positions, reading activity, genres and personal ratings are preserved under a collapsed **More manga insights** disclosure. Keep this optional detail accessible by keyboard and on mobile. Always compare against the Novel Library source, not a screenshot-only approximation.
+Tracking is opt-out and stored only in the browser. The user can export JSON or clear the analytics journal using typed confirmation. Clearing analytics does not clear saved progress, personal annotations, collections or the private catalogue. No third-party analytics or HF upload is used.
+
+Historical reading minutes cannot be reconstructed from existing progress. Tracking starts prospectively with this release.
+
+## Novel-style Analytics dashboard
+
+The landing dashboard in Master Controls has:
+1. Active app time.
+2. Reading time.
+3. Offline app time.
+4. Today.
+
+It also has a rolling 14-day paired bar chart for active app and reading time, a Most read manga list and a compact privacy-controls card. Manga-only catalogue metrics, recent positions, activity journal, genres and personal rating distribution remain under the collapsed More manga insights disclosure.
+
+The two chart series use a shared scale. Reading bars remain zero-height when no reading duration exists; do not invent time to make the graph look populated.
+
+Date labels are calculated from the current 14-day local calendar window. They display day and abbreviated month every three days, anchored to the current day, so the dates roll forward dynamically and remain correct across month/year boundaries.
+
+## Privacy and accuracy invariants
+
+- No analytics leave the device.
+- No tracking while the page is hidden, unfocused or idle.
+- No reconstruction of pre-release minutes.
+- Do not infer page views from an unverified scroll position.
+- Do not infer chapter completion from progress.
+- Do not infer personal Finished state from source publicationStatus.
+- Keep export/clear controls accessible and clearly scoped.
