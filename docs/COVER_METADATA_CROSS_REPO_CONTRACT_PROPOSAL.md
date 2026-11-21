@@ -1,64 +1,51 @@
-# Manga Library ↔ Manga Storage Controller: metadata contract alignment
+# Manga Library and Storage Controller metadata contract
 
-**Status:** Reader implementation aligned with Controller draft PR #26 (20 November 2026). No live HF writes. Do not merge into production until Controller finalises the cross-repository contract and tests real private media.
+**Status:** The Controller contract is implemented and consumed by the Manga Library. This file records the integration boundary; it is no longer an unapproved proposal.
 
-**Reference:** [Storage Controller PR #26](https://github.com/AdityaSreevatsaK/Taiyou-Manga-Storage-Controller/pull/26), `docs/METADATA_RECONCILIATION_CONTRACT.md` on its feature branch.
+**Reader repository:** AdityaSreevatsaK/Taiyous-Manga-Library  
+**Controller repository:** AdityaSreevatsaK/Taiyou-Manga-Storage-Controller  
+**Private dataset:** AdityaSreevatsaK/Taiyous-Manga
 
 ## Canonical catalogue
 
-`data/library.json` remains `{"schemaVersion":1,"mediaKind":"manga","entries":[...]}`. Existing immutable manga, chapter and page IDs remain unchanged. Existing entries without new metadata are still valid.
+The private catalogue is data/library.json with schemaVersion 1, mediaKind manga and entries. Existing manga/chapter/page IDs remain immutable.
 
-The Controller's optional `MangaEntry` fields are:
+The Controller-managed entry fields consumed by this app include:
+- cover: assetPath, mimeType, width, height, byteSize and sha256.
+- creatorRoles: name and role (author or artist), while creators remains for compatibility.
+- metadataSources: field-level provider, sourceId, sourceUrl and retrievedAt.
 
-```json
-{
-  "kind": "manga",
-  "id": "mng_aaaaaaaaaaaa",
-  "creators": ["Writer", "Artist"],
-  "creatorRoles": [
-    {"name": "Writer", "role": "author"},
-    {"name": "Artist", "role": "artist"}
-  ],
-  "aliases": ["Alternative title"],
-  "tags": ["Romance"],
-  "synopsis": "Source-verified summary",
-  "publicationStatus": "completed",
-  "cover": {
-    "assetPath": "covers/mng_aaaaaaaaaaaa.webp",
-    "mimeType": "image/webp",
-    "width": 800,
-    "height": 1200,
-    "byteSize": 12345,
-    "sha256": "<64 lowercase hexadecimal characters>"
-  },
-  "metadataSources": {
-    "cover": {
-      "provider": "mangadex",
-      "sourceId": "source-title-id",
-      "sourceUrl": "https://mangadex.org/title/source-title-id",
-      "retrievedAt": "2026-11-20T08:30:00Z"
-    }
-  }
-}
-```
+Cover assetPath is relative to data/ and must belong to the same immutable manga ID under covers/. The original file format is retained. The reader checks descriptor shape, MIME/extension, dimensions, size and SHA-256 before rendering/caching bytes.
 
-The example shows the additional fields only, not a standalone complete manga entry.
+Canonical paths:
+- data/library.json
+- data/covers/<manga-id>.<ext>
+- data/manifests/<chapter-id>.json
+- data/manga/<manga-id>/<chapter-id>/<page-id>.<ext>
 
-- **Cover:** exact field `cover` with six descriptor properties. Relative to `data/`; must reference `covers/<same-immutable-manga-id>.(png|jpg|jpeg|webp|avif)`. The original format is retained; JPEG accepts `.jpg` or `.jpeg`. Dimensions and SHA-256 are checked. No hotlink, token, public URL, or arbitrary path is allowed.
-- **Credits:** `creatorRoles` with `name` and `role` ('author' or 'artist'). Required `creators` remains the backwards-compatible fallback. No unsupported assumption that a creator is an author.
-- **Provenance:** optional `metadataSources` keys limited to `aliases`, `creators`, `creatorRoles`, `tags`, `synopsis`, `publicationStatus`, `cover`. Each source contains provider, sourceId, uncredentialled HTTPS sourceUrl and UTC retrievedAt. No signed URL is followed or rendered.
-- **Separation:** imported publication genres and release status never overwrite personal tags, ratings, shelves, notes or collections.
+Rights and permission evidence is retained in private Controller-managed control records, not sent to the browser as public source metadata.
 
-## Library integration
+## Reader behaviour
 
-`GET /api/media/cover?mangaId=<immutable-id>` requires a valid owner session, verifies the current private dataset revision, matches `cover` to the catalogued manga, checks image signature, byte size and SHA-256, and returns original bytes with the verified MIME type and `private, no-store` headers. No provider access tokens or private Hugging Face URLs appear in page HTML.
+- GET /api/library reads the complete catalogue at a pinned private dataset revision.
+- Browser search, tags, creator, publication, shelf and collection filters are local.
+- Covers load individually when visible and use a verified bounded browser cache.
+- Chapter manifests and page bytes load only for the chapter being read.
+- The authenticated media gateway validates owner, immutable identity, revision, path, MIME, byte size and digest.
+- Legacy catalogue fallback is read-only. If canonical data exists but the catalogue index is missing, the app returns a recovery error rather than pretending the library is empty.
 
-The UI displays private artwork across the home hero, cards and manga detail page; preserves publication ribbons, reading progress, themes and fallback illustrations. A metadata-only refresh reloads the catalogue without changing personal reading data.
+## Ownership
 
-## Deployment gates and responsibilities
+The Controller owns original media ingestion, archive/image validation, upload, private backup, metadata reconciliation, migration and media deletion.
 
-1. Controller PR #26 must finalise its exact schema with the Retriever; this Library branch follows that draft, not a competing `coverAsset` or `authors`/`artists` format.
-2. Controller must preview and approval-gate any metadata enrichment, preserve existing information and rights evidence, and use revision-safe HF writes. **Library does not write private media**.
-3. Automated parser, gateway, Chromium, Firefox and WebKit checks must pass.
-4. Real signed-in cover retrieval must be verified **only after** the Controller uploads an authorised private cover. A mocked CI cover is not live proof.
-5. Only then merge, deploy and run authenticated Cloudflare smoke. Older bookmarks, progress and offline copies must remain intact.
+The Reader owns display, local personal progress/annotations/collections, authenticated cover/page delivery and a narrow protected Master correction path for title, creators and publicationStatus. Reader-side metadata correction does not upload or delete media.
+
+## Compatibility and safety
+
+- Do not change IDs or rewrite chapter/page manifests for a metadata-only correction.
+- Preserve existing non-empty manual metadata and provenance unless a separately approved reconciliation explicitly changes it.
+- Use the Controller's current canonical contract, not old branch PR drafts.
+- Inspect Controller changes read-only when updating this repository's contract; do not modify the Controller or private HF dataset as part of a Reader task.
+- Keep rights evidence private. A stored cover is not a public redistribution licence.
+
+See the Controller's current docs/METADATA_RECONCILIATION_CONTRACT.md and this repository's docs/DATA_CONTRACTS.md.
