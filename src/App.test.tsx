@@ -18,6 +18,7 @@ describe('accessible catalogue baseline (server-rendered markup)', () => {
     expect(html).toContain('Five Chapter Scroll Trial');
     expect(html).toContain('aria-label="Your library front page"');
     expect(html).toContain('href="#content"');
+    expect(html).toContain('class="editorial-home manga-editorial-home"');
     expect(html).toContain('editorial-grand');
     expect(html).toContain('editorial-journal');
     expect(html).toContain('editorial-shelves');
