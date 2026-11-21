@@ -11,11 +11,12 @@ async function noHorizontalScroll(page: Page) {
 test('home, desktop navigation and transparent brand assets work on both engines', async ({page}) => {
   await page.setViewportSize({width:1280,height:900});
   await page.goto('/');
-  await expect(page.getByRole('heading',{name:'The sample collection'})).toBeVisible();
+  await expect(page.getByRole('heading',{name:/Where worlds unfold/})).toBeVisible();
   await expect(page.locator('.manga-nav-links > .site-nav-link')).toHaveCount(6);
   await expect(page.locator('.wordmark .brand-sun')).toHaveAttribute('src',/sun-light.webp$/);
   await expect(page.locator('.app-shell')).toHaveClass(/theme-sepia/);
-  await expect(page.locator('.book-card')).toHaveCount(4);
+  await expect(page.locator('.editorial-journal')).toBeVisible();
+  await expect(page.locator('.editorial-all-books')).toBeVisible();
   await noHorizontalScroll(page);
 });
 test('mobile More and six themes stay accessible at narrow widths', async ({page}) => {
