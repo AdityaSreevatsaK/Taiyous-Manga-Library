@@ -5,7 +5,7 @@
 **Default branch:** master  
 **Production homepage:** https://taiyous-manga-library.pages.dev/  
 **Language:** TypeScript  
-**Topics to retain/use:** manga, personal-library, react, typescript, reader, cloudflare-pages.
+**Suggested GitHub topics (not verified as currently applied):** manga, personal-library, react, typescript, reader, cloudflare-pages.
 
 ## Current GitHub state snapshot
 
