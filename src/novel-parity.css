@@ -30,6 +30,14 @@
 .app-shell .manga-top-actions{
   display:flex;align-items:center;gap:9px;flex:0 1 auto;min-width:0;margin-left:auto;
 }
+/* Novel Library chrome: cloud belongs beside the theme tools on desktop,
+ * not between the sun logo and the application controls. Mobile keeps its
+ * original separate row, avoiding crowding a 320px viewport. */
+@media(min-width:741px){
+  .app-shell:not(.is-manga-details) .manga-top-actions{order:2;margin-left:auto}
+  .app-shell:not(.is-manga-details) .manga-cloud-menu{order:3}
+}
+
 .app-shell .manga-global-search{
   flex:0 1 300px;width:clamp(156px,21vw,325px);min-width:125px;display:flex;gap:8px;
   align-items:center;border:1px solid var(--editorial-line);border-radius:8px;
