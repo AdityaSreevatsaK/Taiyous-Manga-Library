@@ -10,6 +10,15 @@ describe('stable browser routes', () => {
     }
     expect(parseAppRoute('/unknown-section')).toEqual({kind:'not-found'});
   });
+  it('exposes a dedicated Master route without adding a ninth shelf',()=>{
+    expect(parseAppRoute('/master')).toEqual({kind:'master'});
+    expect(routeHref({kind:'master'})).toBe('/master');
+    expect(parseAppRoute('/Taiyous-Manga-Library/master','','/Taiyous-Manga-Library/'))
+      .toEqual({kind:'master'});
+    expect(routeHref({kind:'master'},'/Taiyous-Manga-Library/'))
+      .toBe('/Taiyous-Manga-Library/master');
+    expect(resolveAppRoute({kind:'master'},demoEntries)).toEqual({kind:'master'});
+  });
   it('distinguishes home, library, details, and chapter page', () => {
     expect(parseAppRoute('/', '')).toEqual({ kind: 'home' });
     expect(parseAppRoute('/library')).toEqual({ kind: 'library' });
