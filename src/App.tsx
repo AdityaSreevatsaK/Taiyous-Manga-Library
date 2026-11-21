@@ -1669,7 +1669,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
       {shelfToasts.length>0 && <div className="collection-toast-stack" aria-label="Recent personal library updates">
         {shelfToasts.map(toast=><MangaSuccessToast key={toast.id} toast={toast}
           onDismiss={()=>setShelfToasts(previous=>previous.filter(item=>item.id!==toast.id))}/>)}
-      </div>
+      </div>}
     </main>
     <footer className="site-credit-footer">
       © {new Date().getFullYear()} Taiyou's Personal Manga Library
