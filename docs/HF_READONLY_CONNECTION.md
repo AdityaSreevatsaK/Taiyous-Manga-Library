@@ -46,6 +46,8 @@ The catalogue is a single full snapshot. The browser performs tags, creator, pub
 
 Covers are requested per visible/prioritised manga, lazily and with deduplication. A chapter manifest is requested when that chapter is opened. Page bytes are requested for the selected chapter using bounded concurrency. These are media-asset requests, not catalogue N+1 calls.
 
+For canonical imports, the browser sends the immutable catalogue revision and page/cover descriptor that it has already validated. The server authenticates the owner, validates ID-derived paths and descriptor bounds, then verifies the returned bytes against MIME, size and SHA-256. This fast path deliberately avoids re-reading the moving main revision, full catalogue or manifest for every image. The supplied revision is immutable; a later catalogue refresh obtains a newer revision. Legacy requests without pinned descriptors use the slower server-side catalogue/manifest membership checks.
+
 Private catalogue, manifest and image responses are no-store. The service worker excludes /api/*.
 
 ## Canonical dataset format
