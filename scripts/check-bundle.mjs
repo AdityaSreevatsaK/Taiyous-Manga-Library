@@ -7,8 +7,10 @@ const assets = readdirSync(root).filter(name => /\.(?:js|css)$/.test(name));
 const budgets = [
   // The private synopsis editor and shared cloud status control add a small
   // measured payload. Retain strict caps, including compressed CSS transfer.
-  { extension: '.js', limit: 304 * 1024 },
-  { extension: '.css', limit: 100 * 1024, gzipLimit: 19 * 1024 },
+  // The dedicated owner workspace is part of the production app. Keep
+  // aggregate JS and compressed CSS bounded at the new measured baseline.
+  { extension: '.js', limit: 306 * 1024 },
+  { extension: '.css', limit: 104 * 1024, gzipLimit: 19.5 * 1024 },
 ];
 for (const { extension, limit, gzipLimit } of budgets) {
   const files = assets.filter(name => name.endsWith(extension));
