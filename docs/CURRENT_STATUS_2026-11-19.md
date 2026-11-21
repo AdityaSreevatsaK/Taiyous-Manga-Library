@@ -1,3 +1,5 @@
+ > **Historical snapshot, 19 November 2026.** This file is retained for chronology only. Its statements about the empty catalogue, missing private integration, eight visible sections and pending deployment were superseded. Read [the current project status](PROJECT_STATUS.md), [architecture](ARCHITECTURE.md) and [project history](PROJECT_HISTORY.md) before acting.
+
 # Current Manga Library status (19 November 2026)
 
 The canonical production branch is `master`; this document records the verified baseline and the active UI upgrade.
