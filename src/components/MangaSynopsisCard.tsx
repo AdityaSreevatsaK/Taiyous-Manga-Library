@@ -69,7 +69,7 @@ export function MangaSynopsisCard({entry}:{entry:MangaEntry}){
       </div>
       <p className="manga-synopsis-hint">This is a personal edit. It does not modify the Hugging Face dataset.</p>
     </>:<>
-      <p className="detail-description">{override??entry.synopsis??'A synopsis has not been added yet.'}</p>
+      <p className="detail-description" role="region" aria-label="Manga synopsis text" tabIndex={0}>{override??entry.synopsis??'A synopsis has not been added yet.'}</p>
       {override!==null&&<p className="manga-synopsis-hint">Personal version, stored on this device.
         <button type="button" onClick={reset}>Restore original</button></p>}
     </>}
