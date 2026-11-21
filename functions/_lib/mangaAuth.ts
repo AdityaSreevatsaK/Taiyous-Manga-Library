@@ -5,7 +5,7 @@ export const SESSION='__Host-taiyou_manga_session';
 export const FLOW='__Host-taiyou_manga_flow';
 const te=new TextEncoder(),td=new TextDecoder();
 export interface Env{HF_REPO_ID?:string;HF_OWNER_USERNAME?:string;HF_CLIENT_ID?:string;HF_CLIENT_SECRET?:string;SESSION_SECRET?:string}
-export interface SessionData{access:string;owner:string;expires:number}
+export interface SessionData{access:string;owner:string;expires:number;scope?:string}
 export interface FlowData{state:string;verifier:string;expires:number}
 export const HEADERS={'Cache-Control':'private, no-store, max-age=0','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','Content-Security-Policy':"default-src 'none'; frame-ancestors 'none'"};
 const owner=(env:Env)=>env.HF_OWNER_USERNAME?.toLowerCase()===REPO.split('/')[0]!.toLowerCase();
