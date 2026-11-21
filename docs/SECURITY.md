@@ -14,7 +14,7 @@ Protect:
 
 Trust boundaries:
 
-1. Public GitHub source and Cloudflare static assets are public. They contain code and synthetic demonstration data only.
+1. Public GitHub source and Cloudflare static assets are public. They contain code, approved brand artwork and public demo imagery only.
 2. Browser JavaScript is never trusted with secrets. Every VITE_* value is public by design.
 3. Cloudflare Pages Functions are the private gateway. They validate session, owner, repository, object identity, revision, content type, byte size and digest.
 4. Hugging Face is the private source of record. The browser must not call private HF dataset URLs or hold a bearer token.
