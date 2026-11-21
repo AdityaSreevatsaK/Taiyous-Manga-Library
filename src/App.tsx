@@ -10,6 +10,7 @@ import { LocalBackupControl } from './components/LocalBackupControl';
 import { MangaCloudMenu } from './components/MangaCloudMenu';
 import { MangaBrandMark } from './components/MangaBrandMark';
 import { MangaBackToTop } from './components/MangaBackToTop';
+import { MangaSuccessToast } from './components/MangaSuccessToast';
 import { MangaOwnerTools } from './components/MangaOwnerTools';
 import { MangaMasterControls } from './components/MangaMasterControls';
 import { SearchIcon, HashIcon, LibraryIcon, BookOpenIcon, ChevronDownIcon, BookmarkIcon, InfoIcon, TagIcon, StarIcon, LockKeyholeIcon } from './components/SharedLibraryIcons';
@@ -182,7 +183,16 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
       { chapterId: initialRoute.chapterId, pageIndex: initialRoute.pageIndex } : null);
   const [progress, setProgress] = useState<Record<string, MangaProgress>>(() =>
     loadAllProgress(initialDemo ? demoEntries : realEntries, initialDemo ? demoManifests : new Map()).progress);
-  const [shelfNotice, setShelfNotice] = useState('');
+  const [shelfToasts,setShelfToasts] = useState<Array<{id:number;message:string}>>([]);
+  const nextToastId=useRef(0);
+  function notifyShelf(message:string){
+    const id=++nextToastId.current;
+    setShelfToasts(previous=>[{id,message},...previous].slice(0,3));
+  }
+  // Novel Library notifications expire independently and leave with the page.
+  const screenToastKey=screen.kind==='catalogue'?screen.kind+':'+screen.section:
+    screen.kind==='details'||screen.kind==='reader'?screen.kind+':'+screen.id:screen.kind;
+  useEffect(()=>{setShelfToasts([]);},[screenToastKey]);
   const [storageNotice, setStorageNotice] = useState(() => {
     const snapshot = loadAllProgress(initialDemo ? demoEntries : realEntries, initialDemo ? demoManifests : new Map());
     return snapshot.invalid > 0 ? 'Some saved reading records could not be verified. They were preserved for recovery.' : '';
@@ -735,7 +745,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
         if (shelf === null) delete next[item.id]; else next[item.id] = shelf;
         return next;
       });
-      setShelfNotice(shelf ? 'Saved to ' + labels[shelf === 'trying' ? 'trying' : shelf === 'finished' ? 'finished' : 'to-read'] : 'Removed from personal shelf');
+      notifyShelf(shelf ? 'Saved to ' + labels[shelf === 'trying' ? 'trying' : shelf === 'finished' ? 'finished' : 'to-read'] : 'Removed from personal shelf');
     } else setStorageNotice(outcome === 'invalid' ?
       'The saved shelf record is invalid and was preserved. Please export your data before recovery.' :
       'Browser storage is unavailable. Your shelf selection was not saved.');
@@ -744,7 +754,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
     const result=saveCollections(next,collections.revision);
     if(result.status==='ok') {
       setCollections(result.value);
-      setShelfNotice(message);
+      notifyShelf(message);
       if(collection.startsWith('personal:') && !result.value.items.some(item=>
         item.id===collection.slice('personal:'.length)))setCollection('');
       return true;
@@ -778,7 +788,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
     const saved = saveAnnotation(item.id, patch);
     if (saved.status === 'ok') {
       setAnnotations(previous => ({...previous, [item.id]:saved.value}));
-      setShelfNotice(message);
+      notifyShelf(message);
       return true;
     }
     setStorageNotice(saved.status === 'invalid' ?
@@ -804,7 +814,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
       const tags=addPersonalTag(personalTagDraft,tagDraft);
       if(tags.length===personalTagDraft.length||
         item.tags.some(value=>value.toLocaleLowerCase('en')===tagDraft.trim().toLocaleLowerCase('en'))){
-        setShelfNotice('That tag is already on this manga.');return;
+        notifyShelf('That tag is already on this manga.');return;
       }
       setPersonalTagDraft(tags);setTagDraft('');
     }catch(error){setStorageNotice(error instanceof Error?error.message:'Invalid personal tag.');}
@@ -1264,7 +1274,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
                 event.preventDefault();
                 if(changeAnnotation(entry,{rating:ratingDraft??null},
                   ratingDraft===undefined?'Personal rating cleared':'Rating saved'))
-                  setShelfNotice(ratingDraft===undefined?'Personal rating cleared':
+                  notifyShelf(ratingDraft===undefined?'Personal rating cleared':
                     'Rating saved: '+ratingSummary(ratingDraft));
               }}>
               <fieldset className="hero-rating-fieldset">
@@ -1656,9 +1666,10 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
         </div>
       </div>}
       {storageNotice && <p className="storage-notice" role="status">{storageNotice}</p>}
-      {shelfNotice && <div className="success-toast" role="status">
-        <span>{shelfNotice}</span><button type="button" aria-label="Dismiss notification" onClick={()=>setShelfNotice('')}>×</button>
-      </div>}
+      {shelfToasts.length>0 && <div className="collection-toast-stack" aria-label="Recent personal library updates">
+        {shelfToasts.map(toast=><MangaSuccessToast key={toast.id} toast={toast}
+          onDismiss={()=>setShelfToasts(previous=>previous.filter(item=>item.id!==toast.id))}/>)}
+      </div>
     </main>
     <footer className="site-credit-footer">
       © {new Date().getFullYear()} Taiyou's Personal Manga Library
