@@ -1646,7 +1646,9 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
         <span>{shelfNotice}</span><button type="button" aria-label="Dismiss notification" onClick={()=>setShelfNotice('')}>×</button>
       </div>}
     </main>
-    <footer className="site-footer"><span>Created by Taiyou · TAIYOU / PERSONAL MANGA LIBRARY</span>
-      <span>{demo ? 'Synthetic sample catalogue' : cloud.status==='connected'?'Private dataset connected':'Private dataset not connected'} · No cloud progress sync · Independent of the hub</span></footer>
+    <footer className="site-credit-footer">
+      © {new Date().getFullYear()} Taiyou's Personal Manga Library
+      <span aria-hidden="true">·</span> Created by Taiyou
+    </footer>
   </div>;
 }
