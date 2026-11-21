@@ -1,24 +1,26 @@
-# Security and Responsible Disclosure
+# Security policy
 
-This repository is intended to contain **source code and synthetic demonstration data only**. Public source visibility is not permission to publish personal catalogues, licensed manga binaries, credentials or user annotations.
+This public repository contains application source and synthetic test fixtures only. Private manga, private catalogue exports, personal reading data, credentials and owner-only configuration must never be committed.
 
-## Reporting a security issue
+## Reporting
 
-Please avoid creating a public GitHub issue that contains exploit details, secrets or private data. If GitHub private vulnerability reporting is enabled, use **Security > Advisories > Report a vulnerability** on this repository. If that option is unavailable, contact the repository owner privately through an established trusted channel rather than exposing vulnerability details in public comments.
+Do not publish exploit details, private media, tokens or personal data in a public issue. If GitHub private vulnerability reporting is enabled, use the repository's Security > Advisories workflow. Otherwise contact the owner through an established private channel.
 
-Please include affected commit/version, a minimal synthetic reproduction, impact and suggested mitigation. Do not test against real private storage or third-party services without authorisation.
+Include the affected commit, a minimal synthetic reproduction, impact and mitigation. Do not test against the live private dataset or third-party services without authorisation.
 
-## Boundaries
+## Current architecture
 
-- The prototype has **no production deployment, authentication, private storage provider or connected manga sources**.
-- Synthetic cover and chapter fixtures are not real copyrighted media.
-- Browser `VITE_*` environment variables are public by definition and must never contain secrets.
-- No scraping, paywall circumvention, open media proxies or external URLs in chapter manifests.
-- Uploaded archives and images will require independent server-side binary validation, not just the current metadata parser.
-- Future private assets must require server-side authorisation and revision-safe writes.
+The production app uses Cloudflare Pages Functions for per-app Hugging Face OAuth, owner-authenticated private catalogue/media reads and a separately protected, revision-guarded source-metadata correction path. See docs/SECURITY.md and docs/ARCHITECTURE.md for the actual controls.
 
-For threat model and future controls see [docs/SECURITY.md](docs/SECURITY.md) and [ADR-006](docs/adr/006-manga-rights-and-private-asset-adapter.md).
+Personal progress, notes, ratings, tags, collections and usage analytics remain browser-local. The private chapter reader is online-only. Private media uploads, migration and deletion are handled by the separate Manga Storage Controller.
 
-## Supported versions
+## Non-negotiable rules
 
-This is a development prototype. There is currently no released production version or security-support guarantee.
+- Never commit secrets, HF tokens, private media or personal backups.
+- Never put secrets in VITE_* variables or browser-visible code.
+- Do not bypass owner authentication, content rights, paywalls, DRM or provider access controls.
+- Do not introduce arbitrary remote image fetching or an open proxy.
+- Do not weaken session, CSRF/Origin, revision, MIME, byte-size or SHA validation.
+- Do not perform destructive private-data changes without explicit owner approval and a verified recovery plan.
+
+The repository is source-visible; no standalone software licence has been selected. Source visibility does not grant manga redistribution rights.
