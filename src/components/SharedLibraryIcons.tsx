@@ -57,6 +57,9 @@ export function Settings2Icon(props:Omit<Props,'children'>){
 export function PencilIcon(props:Omit<Props,'children'>){
   return <Icon {...props}><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></Icon>;
 }
+export function ArrowUpIcon(props:Omit<Props,'children'>){
+ return <Icon {...props}><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></Icon>;
+}
 export function PlusIcon(props:Omit<Props,'children'>){
   return <Icon {...props}><path d="M12 5v14M5 12h14"/></Icon>;
 }
