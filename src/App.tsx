@@ -1084,9 +1084,9 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
         </section> : <>
         <section className="shelf" aria-label="Manga catalogue">
           <div className="shelf-heading"><div><p className="eyebrow">DISCOVER / THE SHELF</p>
-              <h2>{screen.section === 'home' ? (demo ? 'The sample collection' : 'Your collection') : labels[screen.section]}</h2>
+              <h2>{labels[screen.section]}</h2>
             </div><p>{displayed.length} {displayed.length === 1 ? 'series' : 'series'} shown</p></div>
-          {screen.section!=='home' && <div className="toolbar">
+          {<div className="toolbar">
             <label className="search-label">Search series or aliases
               <input id="catalogue-search" type="search" autoComplete="off" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Find a story..." /></label>
             <label>Publication
@@ -1217,7 +1217,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
               </span>
             </article>)}</div> :
             <div className="empty-state"><span className="empty-icon" aria-hidden="true">◇</span>
-              <h3>{demo ? (screen.section === 'home' || screen.section === 'library' ?
+              <h3>{demo ? (screen.section === 'library' ?
                 'Nothing matches these filters' : 'No manga in ' + labels[screen.section] + ' yet') : cloud.status==='connected' ? 'Your private library is empty' : 'Your collection is not connected yet'}</h3>
               <p>{demo ? 'Change a personal shelf on a manga details page, or try different filters.' :
                 cloud.status==='connected'
