@@ -718,3 +718,13 @@
  .app-shell .manga-editorial-home .editorial-art-book{transition:none}
  .app-shell .manga-editorial-home .editorial-art-book:hover{scale:1;filter:none}
 }
+
+/* Preserve all three complete jackets under half-screen and split-screen layouts,
+ * including the rotated edges, rather than cutting off the first/last cover. */
+.app-shell .manga-editorial-home .editorial-grand-gallery .editorial-art-book-0{left:5%}
+.app-shell .manga-editorial-home .editorial-grand-gallery .editorial-art-book-2{right:5%}
+@media(max-width:660px){
+ .app-shell .manga-editorial-home .editorial-grand-gallery .editorial-art-book{width:27%}
+ .app-shell .manga-editorial-home .editorial-grand-gallery .editorial-art-book-0{left:7%}
+ .app-shell .manga-editorial-home .editorial-grand-gallery .editorial-art-book-2{right:7%}
+}
