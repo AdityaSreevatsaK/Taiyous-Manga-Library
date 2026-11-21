@@ -5,15 +5,14 @@ import { gzipSync } from 'node:zlib';
 const root = 'dist/assets';
 const assets = readdirSync(root).filter(name => /\.(?:js|css)$/.test(name));
 const budgets = [
-  // The private synopsis editor and shared cloud status control add a small
-  // measured payload. Retain strict caps, including compressed CSS transfer.
-  // The dedicated owner workspace is part of the production app. Keep
-  // aggregate JS and compressed CSS bounded at the new measured baseline.
-  // The full approved Novel homepage is ported, not reimplemented as a
-  // tiny four-card mock. Measured transfer: 323.8 KiB JS and 25.8 KiB
-  // gzipped CSS. Caps retain a small explicit regression margin.
-  { extension: '.js', limit: 329 * 1024 },
-  { extension: '.css', limit: 149 * 1024, gzipLimit: 27 * 1024 },
+  // The 21 November Manga Master workspace adds private usage tracking,
+  // per-title analytics and protected catalogue administration. Its components
+  // are now loaded on demand; only the reader tracker ships on the home route.
+  // These are aggregate all-route budgets, not the first-load transfer weight.
+  // 21 Nov measured before route splitting: 352.1 KiB JS and 156.1 KiB CSS,
+  // 27.6 KiB gzipped CSS. Retain a small bounded regression allowance.
+  { extension: '.js', limit: 365 * 1024 },
+  { extension: '.css', limit: 163 * 1024, gzipLimit: 29 * 1024 },
 ];
 for (const { extension, limit, gzipLimit } of budgets) {
   const files = assets.filter(name => name.endsWith(extension));

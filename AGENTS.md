@@ -78,7 +78,7 @@ data/IDs, chapter image reader and private Hugging Face integration.
 - **Layout:** Reuse Novel's grid proportions, card spacing, serif typography,
   compact scrollable synopsis and responsive breakpoints; preserve manga-only
   concepts. Never remove a functional manga control just for visual matching.
-- **Footer:** Centred `© [year] Taiyou's Personal Manga Library · Created by Taiyou`,
+- **Footer:** Centred `© [year] Taiyou's Manga Library · Created by Taiyou`,
   not debug statements such as cloud-sync limitations or hub independence.
 - **Master Controls:** Use Novel's Settings2 symbol, direct navigation and
   accessible analytics section; no separate analytics password.
@@ -103,3 +103,8 @@ Never fabricate reading durations, streaks or completed chapters from a single l
 
 ## Private media security gate (ADR 007)
 The typed authorisation/data port is explicitly disabled and is not backend implementation. Never switch it to real network access without independent per-origin OAuth, server-side object-level authorisation, verified rights, secret isolation, path/MIME/size validation, CSRF protection on mutations, revisioned writes and a disposable-data integration test. Do not embed HF dataset tokens or private image URLs anywhere in frontend assets.
+
+
+## Approved Manga Master and analytics behaviour, 21 November 2026
+
+Use display name **Taiyou's Manga Library** across all end-user headers and footer. Analytics records prospective *actual* device-local foreground/focused/non-idle samples with opt-out, bounded retention, export and typed clearing; never invent historical time from progress timestamps. Private source title, author and publication edits need independent Cloudflare owner passphrase plus separate owner HF write permission and revision-safe data commit. Do not modify immutable manga/chapter/page IDs or delete private originals. Media deletion and upload remain the Storage Controller's responsibility. Always verify green CI on the final PR head before merging.

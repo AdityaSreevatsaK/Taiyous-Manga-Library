@@ -29,7 +29,7 @@ The static application contains only original demonstration art, styles and clie
 
 The live smoke workflow cannot access the user's OAuth session and does not prove that real covers or pages render to the owner. For a signed-in release check, open a known private manga and confirm that the original cover loads, a chapter opens, page images display correctly, progress is retained, and no private HF URLs or access tokens appear in the browser network panel.
 
-Private media remain online-only. The **sample** reader supports its separate opt-in offline flow. Automatic cross-device personal progress synchronisation, private chapter offline downloads, and browser-side private dataset writes are not implemented.
+Private media remain online-only. The **sample** reader supports its separate opt-in offline flow. Automatic cross-device personal progress synchronisation, private chapter offline downloads, and general browser-side private dataset writes are not implemented. Protected publication metadata corrections are documented below.
 
 ## Security
 
@@ -40,3 +40,10 @@ Private media remain online-only. The **sample** reader supports its separate op
 - In Cloudflare, a production Pages Functions secret/configuration change must be handled independently of routine repository merges; destructive dataset actions require explicit approval.
 
 **Latest confirmed release:** UI/cover/permalinks PR #47 and catalogue latency PR #48 merged on 20 November 2026. Both latest post-merge Cloudflare smoke workflows passed. This does not substitute for the owner-authenticated media check above.
+
+
+## Protected Manga Master Controls, 21 November 2026
+
+Configure Cloudflare Pages **Production Secret** `TAIYOU_OWNER_PASSPHRASE` to a strong distinct 16-128 character passphrase. Do not put this value in GitHub, public source, build variables or `VITE_*`. Owner source metadata edits use an opt-in Hugging Face OAuth flow `/api/auth/login-write` with `openid profile read-repos write-repos`, which the registered OAuth client must permit. The normal read-only login is unaffected. After login, unlock with the independent owner passphrase. A short-lived AES-GCM HttpOnly SameSite=Strict owner grant, bound to the current HF owner session, expires in 10 minutes. Only owner-authorised corrections of title, creators and source publication status can be committed to the private HF catalogue, with a parent revision guard, whole-catalogue validation and preserved manga/chapter/page IDs and legacy public slug. Uploads and private manga deletion remain in the Storage Controller. Analytics and device-local edits need no passphrase.
+
+Test source corrections against a disposable private dataset with owner authentication and a verified backup before relying on live writes. Source editor visibility alone does not prove that the secret, OAuth scopes or provider commit API are configured. Live browser acceptance needs owner sign-in and protected images.

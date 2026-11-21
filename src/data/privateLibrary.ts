@@ -3,7 +3,7 @@ import {setCoverCatalogueRevision} from './coverCache';
 import type { MangaEntry } from '../domain/types';
 /** Public app gets only validated catalogue metadata. Bearer tokens stay in HttpOnly cookies. */
 export type CloudRead =
-  | { status:'connected'; entries:readonly MangaEntry[]; owner:string; repo:string }
+  | { status:'connected'; entries:readonly MangaEntry[]; owner:string; repo:string; revision?:string }
   | { status:'disconnected'|'unconfigured'|'unavailable'; message:string };
 const NO_CACHE: RequestInit = {credentials:'same-origin',cache:'no-store'};
 /** /api/library authenticates the owner and validates the private dataset itself.
@@ -29,7 +29,8 @@ export async function fetchPrivateLibrary(signal?:AbortSignal):Promise<CloudRead
    // Revision is optional for legacy/test responses; absent revision uses the
    // original catalogue-backed cover path instead of an unverified shortcut.
    setCoverCatalogueRevision(state.revision,state.legacyReadOnly!==true);
-   return {status:'connected',owner:state.owner,repo:'AdityaSreevatsaK/Taiyous-Manga',entries};
+   return {status:'connected',owner:state.owner,repo:'AdityaSreevatsaK/Taiyous-Manga',entries,
+     ...(typeof state.revision==='string'&&/^[a-f0-9]{40}$/.test(state.revision)?{revision:state.revision}:{})};
  }catch(err){
    if(signal?.aborted)throw err;
    return {status:'unavailable',message:'Private connection unavailable. Try again.'};

@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { entries as realEntries } from './data/catalogue';
 import { fetchPrivateLibrary, type CloudRead } from './data/privateLibrary';
 import { fetchPrivateChapter, privateResumeChapter } from './data/privateMedia';
 import { demoEntries, demoManifests, fixtureStatement } from './data/fixtures';
-import { verifyOfflineChapter } from './data/offlineChapters';
+import { verifyOfflineChapter,removeOfflineChapter } from './data/offlineChapters';
 import { OfflineChapterControl } from './components/OfflineChapterControl';
 import { CollectionManager } from './components/CollectionManager';
 import { LocalBackupControl } from './components/LocalBackupControl';
@@ -12,7 +12,7 @@ import { MangaBrandMark } from './components/MangaBrandMark';
 import { MangaBackToTop } from './components/MangaBackToTop';
 import { MangaSuccessToast } from './components/MangaSuccessToast';
 import { MangaOwnerTools } from './components/MangaOwnerTools';
-import { MangaMasterControls } from './components/MangaMasterControls';
+const MangaMasterControls=lazy(()=>import('./components/MangaMasterControls').then(module=>({default:module.MangaMasterControls})));
 import { SearchIcon, HashIcon, LibraryIcon, BookOpenIcon, ChevronDownIcon, BookmarkIcon, InfoIcon, TagIcon, StarIcon, LockKeyholeIcon } from './components/SharedLibraryIcons';
 import { MangaThemeSwatches } from './components/MangaThemeSwatches';
 import { VerticalReader } from './components/VerticalReader';
@@ -35,8 +35,10 @@ import { collectionBreadcrumb, loadCollections, saveCollections, setCollectionMe
 import { addPersonalTag, loadAnnotations, saveAnnotation, type AnnotationPatch,
   type PersonalAnnotation } from './domain/personalAnnotations';
 import { defaultReaderPreferences, laterProgress, loadAllProgress, loadPreferences, loadProgress,
-  nextProgressTimestamp, savePreferences, saveProgress, type ReaderPreferences } from './domain/localReaderStorage';
+  nextProgressTimestamp, savePreferences, saveProgress, progressKey, browserStorage, type ReaderPreferences } from './domain/localReaderStorage';
+import {loadProgressSummaries} from './domain/progressSummary';
 import { filterCatalogue, type SortMode } from './domain/filters';
+import {installMangaUsageTracker,recordMangaAction} from './domain/usageAnalytics';
 import { applyAdvancedDiscovery, computeLocalReadingAnalytics, defaultAdvancedCriteria,
   type AdvancedCriteria } from './domain/advancedDiscovery';
 import { orderedChapters, restoreProgress, stepChapter, type ReaderLocation } from './domain/reader';
@@ -64,11 +66,11 @@ function creditLine(item:MangaEntry):string{
  return authors||artists||item.creators.join(', ')||'Creator unknown';
 }
 const publicationCaption:Record<PublicationStatus,string>={
-  completed:'Completed',ongoing:'Ongoing',hiatus:'On Hiatus',unknown:'Unknown',
+  completed:'Completed',ongoing:'Ongoing',hiatus:'On Hiatus',dropped:'Dropped',unknown:'Unknown',
 };
 /** Cover ribbons deliberately use editorial wording, not the metadata status. */
 const ribbonCaption:Record<PublicationStatus,string>={
-  completed:'Story Complete',ongoing:'Updating',hiatus:'On Hiatus',unknown:'Unknown',
+  completed:'Story Complete',ongoing:'Updating',hiatus:'On Hiatus',dropped:'Dropped',unknown:'Unknown',
 };
 type Screen = { kind: 'catalogue'; section: CatalogueSection } | {kind:'master';view?:'analytics'} | { kind: 'details' | 'reader'; id: string } | { kind: 'not-found' };
 function currentBrowserRoute(): AppRoute {
@@ -84,7 +86,7 @@ function readCatalogueQuery() {
     query:(params.get('q')??'').slice(0,150),
     tag:(params.get('tag')??'').slice(0,80),
     collection:(params.get('collection')??'').slice(0,150),
-    status:(['all','unknown','ongoing','completed','hiatus'].includes(status)?status:'all') as PublicationStatus|'all',
+    status:(['all','unknown','ongoing','completed','hiatus','dropped'].includes(status)?status:'all') as PublicationStatus|'all',
     sort:(['title','rating','chapters'].includes(sort)?sort:'title') as SortMode,
   };
 }
@@ -203,6 +205,10 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
   const [refreshingMetadata,setRefreshingMetadata]=useState(false);
   const [offlineChapterIds, setOfflineChapterIds] = useState<ReadonlySet<string>>(() => new Set());
   const readerRef = useRef<HTMLElement | null>(null);
+  // One tracker for the app lifetime, reading the currently displayed series from a ref.
+  const usageContext=useRef<{mangaId:string|null;online:boolean}>({mangaId:null,online:true});
+  usageContext.current={mangaId:screen.kind==='reader'?screen.id:null,online};
+  useEffect(()=>installMangaUsageTracker(()=>usageContext.current),[]);
   const catalogue = demo ? demoEntries : remoteEntries;
   const manifests: ReadonlyMap<string, ChapterManifest> = demo ? demoManifests : privateManifests;
   const entry = screen.kind === 'reader' || screen.kind === 'details' ? catalogue.find(item => item.id === screen.id) : undefined;
@@ -247,6 +253,21 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
           folder.id===personalId && folder.mangaIds.includes(item.id))));
   }, [catalogue, query, status, tag, collection, sort, annotations, collections]);
   const contextForDiscovery={progress,shelves:personalShelves,annotations,offlineChapterIds};
+  // A previous private reading position is visible in analytics before its manifest loads.
+  // This is display-only until the chapter reader validates the exact page ID.
+  useEffect(()=>{
+    if(demo||remoteEntries.length===0)return;
+    const summaries=loadProgressSummaries(remoteEntries);
+    setProgress(previous=>{
+      const updated={...previous};
+      for(const [id,saved]of Object.entries(summaries.progress)){
+        const newer=laterProgress(updated[id],saved);
+        if(newer)updated[id]=newer;
+      }
+      return updated;
+    });
+    if(summaries.invalid)setStorageNotice('Some saved reading records were invalid and preserved for recovery.');
+  },[demo,remoteEntries]);
   const advancedResults=useMemo(() => applyAdvancedDiscovery(filtered,advanced,{
     progress,shelves:personalShelves,annotations,offlineChapterIds,
   }),[filtered,advanced,progress,personalShelves,annotations,offlineChapterIds]);
@@ -329,6 +350,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
               setPrivateRevision(loaded.revision);
               setLocation({chapterId:bookmarked.chapterId,pageIndex:bookmarked.pageIndex});
               setScreen({kind:'reader',id:item.id});
+              recordMangaAction({kind:'chapter-opened',mangaId:item.id,chapterId:bookmarked.chapterId});
             }).catch(error=>{
               if(!live)return;
               setScreen({kind:'details',id:item.id});
@@ -530,6 +552,8 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
       });
       return;
     }
+    if(stored.status==='ok')recordMangaAction({kind:'page-viewed',mangaId:item.id,
+      chapterId:viewed.chapterId,page:viewed.pageIndex+1});
     setProgress(previous => {
       const newer = laterProgress(previous[item.id], record);
       return newer ? { ...previous, [item.id]: newer } : previous;
@@ -551,6 +575,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
         return;
       }
       navigateTo({kind:'reader',mangaId:item.id,chapterId:target.chapterId,pageIndex:target.pageIndex});
+      recordMangaAction({kind:'chapter-opened',mangaId:item.id,chapterId:target.chapterId});
       return;
     }
     const selected=chapterId ?? (resume ? progress[item.id]?.chapterId??privateResumeChapter(item)??undefined : undefined) ?? orderedChapters(item)[0]?.id ?? '';
@@ -589,6 +614,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
       setLocation({chapterId:selected,pageIndex:index});
       setJumpToken(value=>value+1);
       setScreen({kind:'reader',id:item.id});
+      recordMangaAction({kind:'chapter-opened',mangaId:item.id,chapterId:selected});
       const url=routeHref({kind:'reader',mangaId:item.id,chapterId:selected,pageIndex:index},import.meta.env.BASE_URL,catalogue);
       if(window.location.pathname+window.location.search!==url)window.history.pushState(null,'',url);
     }catch(error){
@@ -746,6 +772,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
         return next;
       });
       notifyShelf(shelf ? 'Saved to ' + labels[shelf === 'trying' ? 'trying' : shelf === 'finished' ? 'finished' : 'to-read'] : 'Removed from personal shelf');
+      recordMangaAction({kind:'shelf-changed',mangaId:item.id,detail:shelf??'No personal shelf'});
     } else setStorageNotice(outcome === 'invalid' ?
       'The saved shelf record is invalid and was preserved. Please export your data before recovery.' :
       'Browser storage is unavailable. Your shelf selection was not saved.');
@@ -789,12 +816,52 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
     if (saved.status === 'ok') {
       setAnnotations(previous => ({...previous, [item.id]:saved.value}));
       notifyShelf(message);
+      recordMangaAction({kind:'personal-edit',mangaId:item.id,detail:message});
       return true;
     }
     setStorageNotice(saved.status === 'invalid' ?
       'The personal annotation is invalid or corrupt. Its original data was preserved.' :
       'Browser storage is unavailable or full. The annotation was not saved.');
     return false;
+  }
+  async function removeVerifiedOffline():Promise<{removed:number;kept:number}>{
+    let removed=0,kept=0;
+    for(const id of offlineChapterIds){
+      const target=demoManifests.get(id);
+      if(!target||(await verifyOfflineChapter(target)).status!=='complete'){kept++;continue;}
+      try{await removeOfflineChapter(target);removed++;}
+      catch{kept++;}
+    }
+    setInventoryRevision(previous=>previous+1);
+    return {removed,kept};
+  }
+  function resetMangaProgress(item:MangaEntry):boolean{
+    const store=browserStorage();
+    if(!store){setStorageNotice('Browser storage is unavailable.');return false;}
+    const preview=loadProgressSummaries([item],store);
+    if(preview.invalid){
+      setStorageNotice('The saved progress is invalid. Export a backup before recovery.');return false;
+    }
+    try{
+      store.removeItem(progressKey(item.id));
+      setProgress(previous=>{const updated={...previous};delete updated[item.id];return updated;});
+      notifyShelf('Reading progress reset for '+item.title);
+      recordMangaAction({mangaId:item.id,kind:'personal-edit',detail:'Reading progress reset'});
+      return true;
+    }catch{setStorageNotice('Unable to clear the saved progress on this device.');return false;}
+  }
+  function saveMangaSynopsis(item:MangaEntry,value:string):boolean{
+    const updated=value.trim();
+    if(updated.length>2000)return false;
+    try{
+      const store=browserStorage();if(!store)return false;
+      const key='taiyou-manga:personal-synopsis:v1:'+item.id;
+      if(!updated||updated===item.synopsis)store.removeItem(key);
+      else store.setItem(key,updated);
+      notifyShelf('Personal synopsis saved');
+      recordMangaAction({mangaId:item.id,kind:'personal-edit',detail:'Personal synopsis saved'});
+      return true;
+    }catch{return false;}
   }
   function toggleChapterComplete(item: MangaEntry, chapterId: string) {
     // Explicit reader choice, not an automatic consequence of opening a page.
@@ -804,9 +871,11 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
     }
     const existing = annotations[item.id]?.completedChapterIds ?? [];
     const done = existing.includes(chapterId);
-    changeAnnotation(item, {completedChapterIds: done ?
+    if(changeAnnotation(item, {completedChapterIds: done ?
       existing.filter(id=>id!==chapterId) : [...existing,chapterId]},
-      done ? 'Chapter marked incomplete' : 'Chapter marked completed');
+      done ? 'Chapter marked incomplete' : 'Chapter marked completed'))
+      recordMangaAction({kind:done?'chapter-reopened':'chapter-completed',
+        mangaId:item.id,chapterId});
   }
   /** Match Novel Library: stage changes, then save all personal tags after review. */
   function addTag(item: MangaEntry) {
@@ -896,11 +965,11 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
     <a className="skip" href="#content">Skip to content</a>
     {screen.kind==='details'?<header className="manga-details-topbar" aria-label="Manga details header">
       <a className="manga-details-brand-link" href={routeHref({kind:'home'},import.meta.env.BASE_URL,catalogue)}
-        aria-label="Taiyou's Personal Manga Library home"
+        aria-label="Taiyou's Manga Library home"
         onClick={event=>followLink(event,()=>goCatalogue('home'))}>
         <MangaBrandMark theme={preferences.theme} size={32}/>
         <span className="manga-details-brand-wordmark">
-          <span className="manga-details-brand-full">Taiyou's Personal Manga Library</span>
+          <span className="manga-details-brand-full">Taiyou's Manga Library</span>
           <span className="manga-details-brand-short">Taiyou's Manga Library</span>
         </span>
       </a>
@@ -927,7 +996,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
         <a className="wordmark" href={routeHref({kind:'home'},import.meta.env.BASE_URL,catalogue)}
           onClick={event=>followLink(event,()=>goCatalogue('home'))} aria-label="Taiyou Manga home">
           <span className="manga-logo-frame"><MangaBrandMark theme={preferences.theme} size={36}/></span>
-          <span className="manga-wordmark-text"><strong>TAIYOU'S</strong><small>PERSONAL MANGA LIBRARY</small></span>
+          <span className="manga-wordmark-text"><strong>TAIYOU'S</strong><small>MANGA LIBRARY</small></span>
         </a>
         <MangaCloudMenu cloud={cloud} online={online} demo={demo} count={remoteEntries.length}
           onSample={()=>changeDemo(true)} onPrivate={()=>changeDemo(false)}
@@ -1015,9 +1084,10 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
       </nav>
     </header>}
     <main id="content" className="main-area">
-      {screen.kind==='master'&&<MangaMasterControls
+      {screen.kind==='master'&&<Suspense fallback={<p role="status">Loading Master Controls…</p>}><MangaMasterControls
         connected={cloud.status==='connected'} checking={cloud.status==='checking'}
         owner={cloud.status==='connected'?cloud.owner:undefined}
+        revision={cloud.status==='connected'?cloud.revision:undefined}
         refreshing={refreshingMetadata} entries={remoteEntries}
         analytics={analytics} view={screen.view==='analytics'?'analytics':'overview'}
         overviewHref={routeHref({kind:'master'},import.meta.env.BASE_URL,catalogue)}
@@ -1028,12 +1098,18 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
         analyticsDetailHref={id=>routeHref({kind:'details',mangaId:id},import.meta.env.BASE_URL,catalogue)}
         onOpenAnalyticsDetails={(event,id)=>followLink(event,()=>navigateTo({kind:'details',mangaId:id}))}
         progress={progress} annotations={annotations} offlineChapterIds={offlineChapterIds}
-        onRefresh={()=>{void refreshPrivateCatalogue();}}
+        personalShelves={personalShelves}
+        onSaveAnnotation={(item,patch,message)=>changeAnnotation(item,patch,message)}
+        onSetShelf={changeShelf}
+        onResetProgress={resetMangaProgress}
+        onRemoveOffline={removeVerifiedOffline}
+        onSaveSynopsis={saveMangaSynopsis}
+        onRefresh={refreshPrivateCatalogue}
         backHref={routeHref({kind:'library'},import.meta.env.BASE_URL,catalogue)}
         onBack={event=>followLink(event,()=>goCatalogue('library'))}
         hrefFor={item=>routeHref({kind:'details',mangaId:item.id},import.meta.env.BASE_URL,remoteEntries)}
         onOpenDetails={(event,item)=>followLink(event,()=>navigateTo({kind:'details',mangaId:item.id}))}
-      />}
+      /></Suspense>}
       {screen.kind === 'catalogue' && <>
         {screen.section==='home' && (catalogue.length>0 ? <MangaEditorialHome
           key={demo?'home-demo':'home-private'}
@@ -1102,7 +1178,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
             <label>Publication
               <select value={status} onChange={e=>setStatus(e.target.value as PublicationStatus | 'all')}>
                 <option value="all">All statuses</option><option value="ongoing">Ongoing</option><option value="completed">Completed</option>
-                <option value="hiatus">Hiatus</option><option value="unknown">Unknown</option>
+                <option value="hiatus">Hiatus</option><option value="dropped">Dropped</option><option value="unknown">Unknown</option>
               </select></label>
             <label>Genre
               <select value={tag} onChange={e=>setTag(e.target.value)}><option value="">All tags</option>
@@ -1672,7 +1748,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
       </div>}
     </main>
     <footer className="site-credit-footer">
-      © {new Date().getFullYear()} Taiyou's Personal Manga Library
+      © {new Date().getFullYear()} Taiyou's Manga Library
       <span aria-hidden="true">·</span> Created by Taiyou
     </footer>
     <MangaBackToTop/>

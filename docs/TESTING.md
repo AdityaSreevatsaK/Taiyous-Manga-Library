@@ -93,3 +93,8 @@ Initial scaffolds intentionally omit persistence, authentication, image/video de
 The separate `e2e/manga-reader.spec.ts` Playwright suite adds **unexecuted** responsive/browser interaction tests for source switching, filters, keyboard navigation, physical swipes, RTL/LTR/vertical selection, chapter boundaries, exact session resume, synthetic offline operation, corrupt canvas error and retry, and no non-local requests. Install browser binaries with `npx playwright install chromium`, then run `npm run test:e2e` once npm dependencies are available. CI has not reached runner steps.
 
 The reader now requires a loaded active image before page navigation and commits progress only on `img.onload`. The browser corruption test asserts Next/Previous disabled, Retry remains on the same page, and returning to the series does **not** display Continue Reading. CI has two separate jobs, plus `workflow_dispatch`, and retains Playwright failure artefacts. These are committed checks, **not** confirmed passing results.
+
+
+## Master and usage tracking regression, 21 November 2026
+
+Run `src/domain/usageAnalytics.test.ts` (real bounded time, action deduplication, privacy and corruption), `src/domain/progressSummary.test.ts` (safe prior private progress previews), `functions/api/master.test.ts` (immutable lineage, revisions and source corrections), and `e2e/manga-master-parity.spec.ts` (per-title analytics, activity details, privacy clearing, metadata and Master editor protection). Both required GitHub Actions suites must pass for the final head SHA, then the live Cloudflare workflow after merge. The real owner HF write flow cannot be verified with synthetic CI credentials and requires a disposable signed-in owner test.

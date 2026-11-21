@@ -6,7 +6,7 @@ describe('accessible catalogue baseline (server-rendered markup)', () => {
   it('shows a clearly identified synthetic sample catalogue and functional navigation targets', () => {
     const html = renderToStaticMarkup(<App />);
     expect(html).toContain('Sample stories are fictional.');
-    expect(html).toContain('PERSONAL MANGA LIBRARY');
+    expect(html).toContain('MANGA LIBRARY');
     expect(html).toContain('Search all manga');
     expect(html).toContain('Cloud settings, disconnected');
     expect(html).toContain('manga-theme-swatches');
