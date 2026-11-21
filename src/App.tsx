@@ -925,7 +925,10 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
               <a key={section} className="site-nav-link"
                 aria-current={selectedSection===section?'page':undefined}
                 href={routeHref({kind:section},import.meta.env.BASE_URL,catalogue)}
-                onClick={event=>followLink(event,()=>goCatalogue(section))}>{labels[section]}</a>)}
+                onClick={event=>followLink(event,()=>{
+                   goCatalogue(section);
+                   event.currentTarget.closest('details')?.removeAttribute('open');
+                 })}>{labels[section]}</a>)}
             </div>
           </details>}
         </div>
