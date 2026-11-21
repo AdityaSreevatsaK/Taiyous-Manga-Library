@@ -9,11 +9,11 @@ const budgets = [
   // measured payload. Retain strict caps, including compressed CSS transfer.
   // The dedicated owner workspace is part of the production app. Keep
   // aggregate JS and compressed CSS bounded at the new measured baseline.
-  // The Novel-source parity adds a small amount of usable detail UI:
-  // seven Lucide symbols, a separate details header and back-to-top control.
-  // Keep enforced bounded budgets (measured 310 KiB JS, 20.2 KiB CSS gzip).
-  { extension: '.js', limit: 312 * 1024 },
-  { extension: '.css', limit: 112 * 1024, gzipLimit: 21 * 1024 },
+  // The full approved Novel homepage is ported, not reimplemented as a
+  // tiny four-card mock. Measured transfer: 323.8 KiB JS and 25.8 KiB
+  // gzipped CSS. Caps retain a small explicit regression margin.
+  { extension: '.js', limit: 329 * 1024 },
+  { extension: '.css', limit: 149 * 1024, gzipLimit: 27 * 1024 },
 ];
 for (const { extension, limit, gzipLimit } of budgets) {
   const files = assets.filter(name => name.endsWith(extension));
