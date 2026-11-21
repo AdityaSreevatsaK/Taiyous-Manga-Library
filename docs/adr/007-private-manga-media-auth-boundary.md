@@ -1,33 +1,79 @@
-# ADR 007: Per-app private manga gateway and rights boundary
+# ADR-007: Per-app private Manga gateway and owner metadata boundary
 
-**Status:** Security-design checkpoint, unapproved for real data. 19 November 2026.
+**Status:** Accepted and implemented in the current application. Owner-authenticated production acceptance remains a separate verification item.  
+**Original decision date:** 19 November 2026; implementation evolved through 21 November 2026.
+
+## Context
+
+The Manga Library is a public-source Cloudflare Pages application that reads private manga stored in a private Hugging Face dataset. Browser code cannot protect embedded credentials or private provider URLs. The Novel Library's OAuth cookie is origin-bound and cannot be reused by the Manga app.
 
 ## Decision
 
-Keep the existing public static manga demonstration entirely disconnected from private storage. A future private adapter will use a **same-origin Cloudflare Pages Function** gateway and server-held authorisation, never browser-accessible Hugging Face dataset tokens, direct private provider URLs, or Novel Library cookies.
+Use a dedicated same-origin Cloudflare Pages Functions gateway with its own confidential Hugging Face OAuth client and server-held access token. Public browser code never receives the HF bearer token or private dataset URL.
 
-The typed `AuthorisedPrivateMediaPort` contract defines only the browser-facing application boundary. The currently installed `UnconnectedPrivateMedia` implementation returns `not-connected` for **all** calls and makes no external requests. Pure runtime validators verify catalogue identities, relative paths, page order, MIME expectations and rights evidence. **They do not authorise a request.**
+The implementation lives in:
+- functions/_lib/mangaAuth.ts
+- functions/api/auth/[action].ts
+- functions/api/library.ts
+- functions/api/media/[kind].ts
+- functions/api/master.ts
+- src/data/privateLibrary.ts
+- src/data/privateMedia.ts
+- src/data/masterGateway.ts
 
-## Preconditions before enabling real content
+## Implemented read boundary
 
-1. **Rights and source provenance:** catalogue-level `SourceRights` and individual acquisition rights/attribution must be recorded and reviewed. Use only user-owned, permitted or properly licensed manga; never redistribute or bypass site access controls.
-2. **Independent authentication:** explicit Hugging Face OAuth integration for this origin, state/PKCE and callback allowlists, CSRF validation, short-lived server-side session, Secure HttpOnly cookie, SameSite appropriate for OAuth callback, logout/revocation and expiry. Do not assume the Novel Library's login, client Owner mode or shared cookie authenticates the Manga Library.
-3. **Server-side authorisation:** every catalogue, manifest and page read verifies session and object access. Owner-only mutations are independently rechecked server-side. Separate non-owner offline deletion in the browser.
-4. **Private storage:** server-secret private dataset credentials; no tokens in Vite `VITE_*`, GitHub, Cloudflare public files, downloaded JSON, URLs, HTML, localStorage, CI logs or telemetry. No browser-to-Hugging-Face private media fetch.
-5. **Gateway routes and validations:** fixed same-origin route forms with immutable IDs, strict asset path and MIME allowlists, request timeouts, size/pixel limits, no arbitrary URLs or remote redirects, SSRF prevention, rate/concurrency limits, and bounded response streaming.
-6. **Private caching:** `Cache-Control: no-store` on private catalogue/manifest reads unless an explicit secure caching design is approved. Opt-in downloaded media is device-accessible, potentially evictable, and must not be presented as encrypted. Never silently remove downloaded chapters on logout or revisions.
-7. **Mutations and sync:** preconditioned `If-Match`/revision writes, reconciliation and tombstones, immutable preflight backups, CSRF/Origin checks, idempotency and safe failure/rollback. Cross-device progress only after two-device conflict tests.
-8. **CSP and offline:** current offline synthetic fallback inlines trusted compiled JS/CSS; strict CSP would block it. Rework/test the fallback or use a verified nonce/hash before tightening headers.
-9. **Testing:** disposable authorised fixtures for allow/deny/expired sessions, revoked user, forged IDs, traversal, MIME mismatch, oversized page, provider timeout, concurrent writes, quota expiry and rollback. Real protected originals must never enter public CI.
+1. OAuth uses state and PKCE, confidential code exchange and exact owner identity verification.
+2. Session data is encrypted in a Secure, HttpOnly, origin-bound cookie.
+3. GET /api/library authenticates the owner, resolves the immutable HF dataset revision and returns the complete validated data/library.json catalogue. Normal catalogue filtering remains in memory.
+4. GET /api/media/cover, /manifest and /page require the owner session and validate immutable object lineage, current revision, safe path, MIME, byte length and SHA-256.
+5. Private responses are no-store. The service worker excludes /api/*.
+6. Verified private covers may be cached in bounded IndexedDB for faster repeat display; logout clears this cache. Private chapter pages are not downloaded for offline use.
+7. The reader makes chapter-manifest and page-asset requests when the user opens a chapter. This is distinct from per-manga catalogue metadata fetching.
+
+## Implemented owner metadata correction boundary
+
+The app has a separate Master owner grant. It requires:
+- Current owner HF session.
+- TAIYOU_OWNER_PASSPHRASE configured as a Cloudflare Production secret (16–128 characters).
+- Successful unlock, creating an encrypted Secure, HttpOnly, SameSite=Strict cookie tied to the current HF session fingerprint.
+- A 10-minute expiry.
+- A Hugging Face session with write-repos scope for source changes.
+- Same-origin request validation, bounded JSON body and strict runtime schema.
+- Exact parent dataset revision and whole-catalogue validation before commit.
+
+The currently supported source fields are title, creators and publicationStatus. The update preserves manga/chapter/page IDs and keeps the public slug stable when title changes. No other source fields are editable through this API.
+
+Analytics and personal annotations do not require this owner passphrase and remain browser-local. Media upload, original deletion, bulk migration and media backups remain the Storage Controller's responsibility.
+
+## Security and operational consequences
+
+- Read and write OAuth flows are separate. A read-only session cannot perform a source correction.
+- Cloudflare secrets must never be stored in VITE_* variables, GitHub source or public logs.
+- The gateway must remain same-origin; do not add arbitrary remote URL fetching or an open proxy.
+- Revision conflicts fail closed and require refresh/review.
+- Do not infer that a configured-looking UI proves Cloudflare secrets, OAuth scopes or a real private dataset commit are working.
+- Anonymous CI and live smoke verify denial and public deployment, not the owner's private read/write path.
 
 ## Rejected shortcuts
 
-- Relying on client-side owner flags or public branch visibility for access control.
-- Sending HF access tokens or signed private object URLs to the static browser.
-- Reusing Novel Library storage/session implicitly.
-- Proxying user-provided external image URLs without SSRF controls.
-- Enabling private media by merely changing a mock adapter's `not-connected` status.
+- Reusing Novel Library cookies or HF credentials.
+- Sending HF tokens or private provider URLs to the browser.
+- Relying on client-side owner flags.
+- Skipping revision checks for speed.
+- Caching private API responses in the service worker.
+- Treating private cover caching as private chapter offline support.
+- Letting the reader upload/delete media or bypass the Storage Controller.
 
-## Release gate
+## Verification and remaining acceptance
 
-Explicit owner-approved server-side credentials/auth configuration and a disposable private dataset are needed before implementation. Until then, maintain the synthetic public demo, versioned local progress and manual encrypted-by-user-discretion backup files only.
+Automated tests cover synthetic session, owner, revision, validation and Master correction paths. The current live Cloudflare smoke verifies public assets and anonymous API denial. It does not sign in as the owner.
+
+Still required when a private integration change is made:
+- Owner-authenticated cover, manifest and page rendering.
+- Logout and cover-cache clearing.
+- Write-scope and passphrase configuration verification.
+- Revision conflict handling against a disposable private dataset or explicitly approved test record.
+- Physical-device acceptance and low-memory chapter benchmarks where relevant.
+
+See docs/ARCHITECTURE.md, docs/SECURITY.md, docs/HF_READONLY_CONNECTION.md, docs/DEPLOYMENT.md and docs/TESTING.md.
