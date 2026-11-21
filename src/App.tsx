@@ -9,6 +9,7 @@ import { CollectionManager } from './components/CollectionManager';
 import { LocalBackupControl } from './components/LocalBackupControl';
 import { MangaCloudMenu } from './components/MangaCloudMenu';
 import { MangaBrandMark } from './components/MangaBrandMark';
+import { MangaBackToTop } from './components/MangaBackToTop';
 import { MangaOwnerTools } from './components/MangaOwnerTools';
 import { MangaMasterControls } from './components/MangaMasterControls';
 import { SearchIcon, HashIcon, LibraryIcon, BookOpenIcon, ChevronDownIcon, BookmarkIcon, InfoIcon, TagIcon, StarIcon, LockKeyholeIcon } from './components/SharedLibraryIcons';
@@ -1665,5 +1666,6 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
       © {new Date().getFullYear()} Taiyou's Personal Manga Library
       <span aria-hidden="true">·</span> Created by Taiyou
     </footer>
+    <MangaBackToTop/>
   </div>;
 }
