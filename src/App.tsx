@@ -66,11 +66,11 @@ function creditLine(item:MangaEntry):string{
  return authors||artists||item.creators.join(', ')||'Creator unknown';
 }
 const publicationCaption:Record<PublicationStatus,string>={
-  completed:'Completed',ongoing:'Ongoing',hiatus:'On Hiatus',unknown:'Unknown',
+  completed:'Completed',ongoing:'Ongoing',hiatus:'On Hiatus',dropped:'Dropped',unknown:'Unknown',
 };
 /** Cover ribbons deliberately use editorial wording, not the metadata status. */
 const ribbonCaption:Record<PublicationStatus,string>={
-  completed:'Story Complete',ongoing:'Updating',hiatus:'On Hiatus',unknown:'Unknown',
+  completed:'Story Complete',ongoing:'Updating',hiatus:'On Hiatus',dropped:'Dropped',unknown:'Unknown',
 };
 type Screen = { kind: 'catalogue'; section: CatalogueSection } | {kind:'master';view?:'analytics'} | { kind: 'details' | 'reader'; id: string } | { kind: 'not-found' };
 function currentBrowserRoute(): AppRoute {
@@ -86,7 +86,7 @@ function readCatalogueQuery() {
     query:(params.get('q')??'').slice(0,150),
     tag:(params.get('tag')??'').slice(0,80),
     collection:(params.get('collection')??'').slice(0,150),
-    status:(['all','unknown','ongoing','completed','hiatus'].includes(status)?status:'all') as PublicationStatus|'all',
+    status:(['all','unknown','ongoing','completed','hiatus','dropped'].includes(status)?status:'all') as PublicationStatus|'all',
     sort:(['title','rating','chapters'].includes(sort)?sort:'title') as SortMode,
   };
 }
@@ -1165,7 +1165,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
             <label>Publication
               <select value={status} onChange={e=>setStatus(e.target.value as PublicationStatus | 'all')}>
                 <option value="all">All statuses</option><option value="ongoing">Ongoing</option><option value="completed">Completed</option>
-                <option value="hiatus">Hiatus</option><option value="unknown">Unknown</option>
+                <option value="hiatus">Hiatus</option><option value="dropped">Dropped</option><option value="unknown">Unknown</option>
               </select></label>
             <label>Genre
               <select value={tag} onChange={e=>setTag(e.target.value)}><option value="">All tags</option>
