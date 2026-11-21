@@ -44,7 +44,7 @@ async function main() {
   });
 
   for (const route of [
-    '/library', '/offline', '/manga/smoke-test',
+    '/library', '/offline', '/master', '/manga/smoke-test',
     '/manga/mng_fivechaptertrial',
     '/manga/mng_fivechaptertrial/chapters/ch_trialawakening?page=1',
     '/manga/mng_fivechaptertrial/chapters/ch_trialnewdawn?page=1',
