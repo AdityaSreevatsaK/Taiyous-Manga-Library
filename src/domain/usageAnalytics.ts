@@ -74,7 +74,7 @@ export function recordMangaAction(input:Omit<MangaUsageEvent,'at'>,now=new Date(
 }
 export function mangaDuration(value:number):string{
   const m=Math.floor(Math.max(0,value)/60000);if(m<1)return '<1 min';
-  const h=Math.floor(m/60);return h?h+'h '+(m%60)+'m':m+' min';
+  const h=Math.floor(m/60);return h?h+'h '+(m%60)+'m':m+'m';
 }
 export function installMangaUsageTracker(context:()=>{mangaId:string|null;online:boolean}):()=>void{
   let last=Date.now(),active=Date.now();
