@@ -3,6 +3,7 @@ import type {MangaEntry} from '../domain/types';
 import type {computeLocalReadingAnalytics} from '../domain/advancedDiscovery';
 import {clearMangaUsage,mangaDuration,mangaLocalDay,readMangaUsage,setMangaUsageEnabled,
   type MangaUsageEvent} from '../domain/usageAnalytics';
+import {mangaChartDateTick} from '../domain/analyticsChartDates';
 import {BarChart3Icon,BookOpenIcon,Clock3Icon,DownloadIcon,EraserIcon,
   ShieldCheckIcon,WifiOffIcon} from './SharedLibraryIcons';
 import './manga-usage-analytics.css';
@@ -84,7 +85,7 @@ export function MangaAnalyticsPanel({analytics,entries,detailHref,onOpenDetails,
         aria-label="Past 14 days of app and reading time">
         <div className="manga-usage-card-head"><h3>Last 14 days</h3><span>App usage / reading</span></div>
         <div className="manga-usage-chart" role="group" aria-label="Daily app and reading times">
-          {days.map(day=><div className="manga-usage-day" key={day.key}
+          {days.map((day,index)=><div className="manga-usage-day" key={day.key}
             title={day.key+': App '+mangaDuration(day.appMs)+', reading '+mangaDuration(day.readingMs)+', offline '+mangaDuration(day.offlineMs)}>
             <div className="manga-usage-track" role="img"
               aria-label={day.key+': '+mangaDuration(day.appMs)+' app, '+mangaDuration(day.readingMs)+' reading'}>
@@ -92,7 +93,8 @@ export function MangaAnalyticsPanel({analytics,entries,detailHref,onOpenDetails,
                 style={{height:Math.max(0,day.appMs/maxMs*100)+'%'}}/>
               <div className="manga-usage-read-bar" title="Reading time"
                 style={{height:Math.max(0,day.readingMs/maxMs*100)+'%'}}/>
-            </div><span>{day.date.toLocaleDateString('en-GB',{weekday:'short'}).slice(0,2)}</span>
+            </div><span className="manga-usage-date-label" aria-hidden="true">
+              {mangaChartDateTick(day.date,index,days.length)}</span>
           </div>)}
         </div>
         <div className="manga-usage-legend">
