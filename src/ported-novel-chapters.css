@@ -57,3 +57,65 @@
 .novel-chapter-browser .manga-completion-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px}
 .novel-chapter-browser .manga-completion-grid label{display:flex;align-items:center;gap:6px;font-size:11px}
 .novel-chapter-browser .manga-completion-grid input{width:16px;height:16px}
+
+/* The bookmarked chapter link shares Novel Library's quiet, inline treatment. */
+.app-shell .novel-chapter-browser .chapter-current-link{
+ display:inline-flex;align-items:center;justify-content:flex-start;gap:7px;
+ padding:7px 3px;min-height:37px;max-width:100%;width:auto;
+ background:transparent;border:0;box-shadow:none;
+ color:var(--md-ink,var(--editorial-ink));font-size:12px;font-weight:650;
+ text-align:left;white-space:normal;text-decoration:none
+}
+.app-shell .novel-chapter-browser .chapter-current-link svg{flex:none}
+.app-shell .novel-chapter-browser .chapter-current-link:hover{
+ background:transparent;text-decoration:underline;text-underline-offset:3px;
+ color:var(--editorial-accent)
+}
+.app-shell .novel-chapter-browser .chapter-current-link:focus-visible{
+ outline:2px solid var(--editorial-accent);outline-offset:3px;border-radius:5px
+}
+/* Editorial manga loading status: page readiness, not generic attempts. */
+.app-shell .chapter-preload-progress{
+ box-sizing:border-box;width:100%;max-width:760px;margin:18px auto 22px;
+ padding:13px 16px;border:1px solid var(--editorial-line);
+ border-radius:11px;background:var(--editorial-surface);
+ color:var(--editorial-ink);box-shadow:0 7px 23px #0e192219
+}
+.app-shell .chapter-preload-heading{display:flex;align-items:center;gap:12px;min-width:0}
+.app-shell .chapter-preload-emblem{
+ display:grid;place-items:center;flex:0 0 38px;width:38px;height:38px;
+ border-radius:9px;background:var(--editorial-paper);color:var(--editorial-accent)
+}
+.app-shell .chapter-preload-message{display:flex;flex:1;flex-direction:column;gap:3px;min-width:0}
+.app-shell .chapter-preload-message strong{font-size:13px}
+.app-shell .chapter-preload-eyebrow{
+ font-size:9px;font-weight:750;letter-spacing:.13em;color:var(--editorial-muted)
+}
+.app-shell .chapter-preload-count{font-size:11px;white-space:nowrap;color:var(--editorial-muted)}
+.app-shell .chapter-preload-count b{font:650 19px Georgia,serif;color:var(--editorial-ink)}
+.app-shell .chapter-preload-track{
+ position:relative;overflow:hidden;width:100%;height:9px;margin:12px 0 0;
+ border:1px solid var(--editorial-line);border-radius:99px;
+ background:var(--editorial-paper)
+}
+.app-shell .chapter-preload-fill{
+ height:100%;border-radius:99px;background:linear-gradient(90deg,#9b7b51,var(--editorial-accent));
+ transition:width .25s ease
+}
+.app-shell .chapter-preload-fill::after{
+ content:'';display:block;width:100%;height:100%;opacity:.14;
+ background:repeating-linear-gradient(90deg,transparent 0 18px,#fff 18px 20px)
+}
+.app-shell .chapter-preload-note{margin:8px 0 0;color:var(--editorial-muted);font-size:11px;line-height:1.5}
+.app-shell .chapter-preload-progress.is-finished{padding:9px 14px}
+.app-shell .chapter-preload-progress.is-finished .chapter-preload-emblem{
+ color:#5a9e73;background:color-mix(in srgb,#6eac82 12%,var(--editorial-surface))
+}
+.app-shell .chapter-preload-progress.is-finished .chapter-preload-note{margin:3px 0 0}
+@media(max-width:500px){
+ .app-shell .chapter-preload-progress{padding:10px 11px}
+ .app-shell .chapter-preload-heading{flex-wrap:wrap;gap:8px}
+ .app-shell .chapter-preload-count{margin-left:46px}
+ .app-shell .novel-chapter-browser .chapter-current-link{font-size:11px}
+}
+@media(prefers-reduced-motion:reduce){.app-shell .chapter-preload-fill{transition:none}}
