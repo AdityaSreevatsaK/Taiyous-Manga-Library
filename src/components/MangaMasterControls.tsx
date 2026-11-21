@@ -16,6 +16,7 @@ interface Props {
   onView:(event:MouseEvent<HTMLAnchorElement>,view:'overview'|'analytics')=>void;
   onReading:()=>void;
   onOpenAnalyticsDetails:(event:MouseEvent<HTMLAnchorElement>,mangaId:string)=>void;
+  analyticsDetailHref:(mangaId:string)=>string;
   onRefresh:()=>void;
   backHref:string;onBack:(event:MouseEvent<HTMLAnchorElement>)=>void;
   hrefFor:(entry:MangaEntry)=>string;
@@ -23,16 +24,12 @@ interface Props {
 }
 const storageController='https://github.com/AdityaSreevatsaK/Taiyou-Manga-Storage-Controller';
 const privateDataset='https://huggingface.co/datasets/AdityaSreevatsaK/Taiyous-Manga';
-function hrefForId(id:string,entries:readonly MangaEntry[],hrefFor:(entry:MangaEntry)=>string){
-  const item=entries.find(entry=>entry.id===id);
-  return item?hrefFor(item):'#';
-}
 
 /** Dedicated owner catalogue page. Read-only for HF: the Storage Controller
  * remains responsible for authorised uploads, edits and deletion. */
 export function MangaMasterControls({connected,checking,owner,refreshing,entries,
   annotations,progress,offlineChapterIds,analytics,view,overviewHref,analyticsHref,onView,
-  onReading,onOpenAnalyticsDetails,onRefresh,backHref,onBack,hrefFor,onOpenDetails}:Props){
+  onReading,onOpenAnalyticsDetails,analyticsDetailHref,onRefresh,backHref,onBack,hrefFor,onOpenDetails}:Props){
   const [search,setSearch]=useState('');
   const [limit,setLimit]=useState(30);
   const results=useMemo(()=>{
@@ -58,7 +55,7 @@ export function MangaMasterControls({connected,checking,owner,refreshing,entries
         onClick={event=>onView(event,'analytics')}>Analytics</a>
     </nav>
     {view==='analytics'?<MangaAnalyticsPanel analytics={analytics}
-      detailHref={mangaId=>hrefForId(mangaId,entries,hrefFor)}
+      detailHref={analyticsDetailHref}
       onOpenDetails={onOpenAnalyticsDetails} onReading={onReading}/>:
       checking?<p role="status">Checking private library access…</p>:
       !connected?<section className="manga-master-panel">
