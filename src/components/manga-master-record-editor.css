@@ -1,0 +1,26 @@
+.manga-master-editor{grid-column:1/-1;width:100%;border-top:1px solid var(--border);margin-top:14px;padding-top:18px}
+.manga-master-editor-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.manga-master-field{min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:9px;
+ padding:16px;border:1px solid var(--border);border-radius:10px;background:var(--surface)}
+.manga-master-field h3,.manga-master-progress h3{font:600 17px/1.3 Georgia,serif;margin:0}
+.manga-master-field p,.manga-master-progress p{font-size:12px;line-height:1.5;color:var(--subtext);margin:3px 0}
+.manga-master-field label,.manga-master-confirm label{font-size:12px;font-weight:650}
+.manga-master-field textarea,.manga-master-field select,.manga-master-confirm input{
+ width:100%;min-height:38px;padding:9px;border-radius:7px;background:var(--bg);color:var(--text);
+ border:1px solid var(--border);font:13px/1.5 Inter,'Segoe UI',sans-serif}
+.manga-master-field textarea{resize:vertical;min-height:84px}
+.manga-master-field button,.manga-master-progress button{
+ cursor:pointer;border:1px solid var(--border);background:var(--pale);color:var(--text);
+ min-height:38px;padding:9px 12px;border-radius:8px;font-size:12px;font-weight:650}
+.manga-master-field button:hover,.manga-master-progress button:hover:not(:disabled){
+ background:var(--accent);color:var(--accent-ink)}
+.manga-master-field button:disabled,.manga-master-progress button:disabled{opacity:.5;cursor:not-allowed}
+.manga-master-field-buttons{display:flex;gap:8px;flex-wrap:wrap}
+.manga-master-progress{display:flex;align-items:center;flex-wrap:wrap;gap:12px;
+ border:1px solid var(--border);border-radius:10px;padding:16px;margin-top:14px}
+.manga-master-progress>div:first-child{flex:1 1 180px}
+.manga-master-progress .manga-master-danger{border-color:#a36b68}
+.manga-master-confirm{display:flex;flex:1 1 100%;align-items:flex-start;flex-direction:column;gap:8px}
+.manga-master-confirm input{max-width:280px}
+.manga-master-edit-error,.manga-master-edit-success{padding:10px;color:var(--text);font-size:12px;background:var(--pale)}
+@media(max-width:700px){.manga-master-editor-grid{grid-template-columns:1fr}.manga-master-field{padding:12px}}
