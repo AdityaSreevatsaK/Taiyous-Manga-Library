@@ -1,0 +1,250 @@
+/** Source port: Taiyous-Personal-Library/src/components/EditorialHome.tsx.
+ * Keep the markup and CSS class structure. Only replace Manga-specific URLs,
+ * curation data types, reader callbacks and credited labels. */
+import { useCallback, useMemo, useState, type ReactNode, type MouseEvent } from 'react';
+import {ArrowRightIcon as ArrowRight, BookOpenIcon as BookOpen, BookmarkIcon as Bookmark,
+ FeatherIcon as Feather, SparklesIcon as Sparkles} from './SharedLibraryIcons';
+import {bookTags,tagCounts,isFinished,isCurrentlyReading,selectHomeBooks,
+ selectHomeGalleryCovers,selectHomeShelves,type HomeBook as LibraryBook,
+ type HomeCollection as BookCollection} from '../domain/mangaHomeCuration';
+import './manga-editorial-home.css';
+function openMangaInCurrentTab(event:MouseEvent<HTMLAnchorElement>,action:()=>void){
+ if(event.button!==0||event.metaKey||event.ctrlKey||event.altKey||event.shiftKey)return;
+ event.preventDefault();action();
+}
+function revealClippedLinkTitle(event:{currentTarget:HTMLAnchorElement},title:string){
+ const node=event.currentTarget;
+ if(node.scrollWidth>node.clientWidth)node.title=title;
+}
+interface Props {
+  books: LibraryBook[];
+  /** Full canonical catalogue, including any hidden local backups. */
+  allBooks: LibraryBook[];
+  collections: BookCollection[];
+  onBrowseCollection: (id: string) => void;
+  onBrowseAll: () => void;
+  onBrowseShelf: (shelf: 'reading' | 'trying' | 'finished') => void;
+  onOpen: (book: LibraryBook) => void;
+  onRead: (book: LibraryBook) => void;
+  onBrowseTag: (tag: string) => void;
+  cover: (book: LibraryBook, featured?: boolean, onArtworkStateChange?: (id: string, loaded: boolean) => void) => ReactNode;
+  hrefFor: (book:LibraryBook)=>string;
+  readHrefFor:(book:LibraryBook)=>string;
+}
+
+function readingStatus(book: LibraryBook): string {
+  if (book.shelfStatus === 'trying') return 'Trying out';
+  if (isFinished(book)) return 'Finished';
+  if (book.progress > 0) return 'Reading';
+  return 'To be read';
+}
+
+/**
+ * Grand Library's cover-led cinematic introduction, paired with the Literary
+ * Journal's editorial index. All actions use the REAL library callbacks:
+ * no fictional fixtures, separate catalogue, or replacement of owner controls.
+ */
+export default function EditorialHome({
+  books, allBooks, collections, onBrowseCollection, onBrowseAll, onBrowseShelf, onOpen, onRead, onBrowseTag, cover, hrefFor, readHrefFor,
+}: Props) {
+  // One seed per home visit keeps the hero and three cover positions stable
+  // through metadata/progress rerenders, while returning home gives new manga.
+  const [heroSeed] = useState(() => Math.floor(Math.random() * 0xffffffff) || 1);
+  const { featured, continueReading, journal } = useMemo(
+    () => selectHomeBooks(books, heroSeed), [books, heroSeed]);
+  const readingCount = useMemo(() =>
+    books.filter(isCurrentlyReading).length, [books]);
+  // Gallery is different from the catalogue: show ONLY successfully decoded
+  // real book covers. A coverPath may be stale, so render a bounded shortlist
+  // of candidates and reveal only the first three whose images actually load.
+  const [loadedGalleryIds, setLoadedGalleryIds] = useState<ReadonlySet<string>>(() => new Set());
+  const handleGalleryArtwork = useCallback((id: string, loaded: boolean) => {
+    setLoadedGalleryIds(previous => {
+      if (previous.has(id) === loaded) return previous;
+      const next = new Set(previous);
+      if (loaded) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }, []);
+  const galleryCandidates = useMemo(
+    () => selectHomeGalleryCovers(books, featured?.id, heroSeed ^ 0x6c8e9cf5),
+    [books, featured?.id, heroSeed]);
+  const visibleGalleryIds = galleryCandidates.filter(book => loadedGalleryIds.has(book.id))
+    .slice(0, 3).map(book => book.id);
+  // Randomise only this four-card discovery section, once per page visit.
+  // Preserve the canonical shelves, catalogue order and all deep links.
+  const [shelfSeed] = useState(() => (Math.floor(Math.random() * 0xffffffff) || 1));
+  const shelves = useMemo(() => selectHomeShelves(books, collections, 4, shelfSeed), [books, collections, shelfSeed]);
+  const commonTags = useMemo(() => tagCounts(books).slice(0, 5), [books]);
+  const trialCount = books.filter(book => book.shelfStatus === 'trying').length;
+  const completedCount = books.filter(book => book.shelfStatus !== 'trying' && isFinished(book)).length;
+  if (!featured) return null;
+  const featuredFinished = isFinished(featured);
+  const featuredReading = isCurrentlyReading(featured);
+  const featuredAction = featuredFinished ? 'Read again'
+    : featured.progress > 0 ? 'Continue reading' : 'Begin reading';
+
+  return <div className="editorial-home" aria-label="Your library front page">
+    <section className="editorial-grand" aria-labelledby="editorial-grand-heading">
+      <div className="editorial-grand-inner">
+        <div className="editorial-grand-copy">
+          <p className="editorial-kicker"><Sparkles size={14} /> TAIYOU'S PRIVATE LIBRARY <span>·</span> THE READER'S EDITION</p>
+          <h1 id="editorial-grand-heading">Where worlds <em>unfold.</em></h1>
+          <p className="editorial-grand-tagline">A home for extraordinary stories and all the places they take you.</p>
+          <div className="editorial-featured-book">
+            <span className="editorial-eyebrow">{featuredReading ? 'YOUR NEXT CHAPTER'
+              : featuredFinished ? 'REDISCOVER A STORY' : 'DISCOVER A STORY'}</span>
+            <h2>{featured.title}</h2>
+            <p className="editorial-featured-author">by {featured.author}</p>
+            <p className="editorial-featured-synopsis">{featured.userDescription || featured.description || 'Your next reading journey is ready when you are.'}</p>
+            {featured.progress > 0 && <div className="editorial-featured-progress" aria-label={Math.round(featured.progress) + '% read'}>
+              <span style={{ width: Math.max(0, Math.min(100, featured.progress)) + '%' }} />
+            </div>}
+          </div>
+          <div className="editorial-grand-actions">
+            <a href={readHrefFor(featured)} className="editorial-primary" onClick={event => openMangaInCurrentTab(event, () => onRead(featured))}>
+              <BookOpen size={18} /> {featuredAction} <ArrowRight size={16} />
+            </a>
+            <a href={hrefFor(featured)} className="editorial-secondary" title={featured.title} onClick={event => openMangaInCurrentTab(event, () => onOpen(featured))}>
+              Explore this manga <ArrowRight size={15} />
+            </a>
+          </div>
+        </div>
+        <div className={`editorial-grand-gallery editorial-gallery-count-${visibleGalleryIds.length}`} aria-label="Featured books">
+          <div className="editorial-art-halo" aria-hidden="true" />
+          {galleryCandidates.map(book => {
+            const index = visibleGalleryIds.indexOf(book.id);
+            return <a
+              href={hrefFor(book)}
+              className={'editorial-art-book ' + (index < 0 ? 'editorial-art-book-pending' : 'editorial-art-book-' + index)}
+              key={book.id}
+              aria-label={'Featured cover for ' + book.title}
+              tabIndex={index < 0 ? -1 : 0}
+              aria-hidden={index < 0 ? true : undefined}
+              onClick={event => openMangaInCurrentTab(event, () => onOpen(book))}
+            >{cover(book, true, handleGalleryArtwork)}<span className="editorial-art-hover-label" aria-hidden="true">{book.title}</span></a>;
+          })}
+          <span className="editorial-art-caption">{books.length} WORLDS · YOUR COLLECTION</span>
+        </div>
+      </div>
+      <div className="editorial-grand-ledger" aria-label="Your library at a glance">
+        <button type="button" onClick={onBrowseAll} aria-label={`Browse all ${books.length} manga`}><b>{books.length}</b> manga on your shelves</button>
+        <button type="button" onClick={() => onBrowseShelf('reading')} aria-label={`View ${readingCount} manga currently reading`}><b>{readingCount}</b> journeys in progress</button>
+        <button type="button" onClick={() => onBrowseShelf('trying')} aria-label={`View ${trialCount} manga trying out`}><b>{trialCount}</b> under consideration</button>
+        <button type="button" onClick={() => onBrowseShelf('finished')} aria-label={`View ${completedCount} finished manga`}><b>{completedCount}</b> completed</button>
+      </div>
+    </section>
+
+    {continueReading.length > 0 && <section className="editorial-continue" aria-label="Continue reading shelf">
+      <div className="editorial-section-heading">
+        <div><span className="editorial-eyebrow">01 / THE READING DESK</span><h2>Continue your journey</h2></div>
+        <button type="button" className="editorial-section-aside editorial-reading-view-all"
+          onClick={() => onBrowseShelf('reading')}
+          aria-label={`View all ${readingCount} in-progress manga`}>
+          View all {readingCount} in progress <ArrowRight size={14} aria-hidden="true"/>
+        </button>
+      </div>
+      <div className="editorial-continue-rail">
+        {continueReading.map(book => <article className="editorial-continue-card" key={book.id}>
+          <a href={hrefFor(book)} className="editorial-continue-cover" aria-label={'Reading desk cover for ' + book.title} onClick={event => openMangaInCurrentTab(event, () => onOpen(book))}>{cover(book)}</a>
+          <div className="editorial-continue-copy">
+            <a href={hrefFor(book)} className="editorial-book-title" onClick={event => openMangaInCurrentTab(event, () => onOpen(book))} onMouseEnter={event => revealClippedLinkTitle(event, book.title)} onFocus={event => revealClippedLinkTitle(event, book.title)}>{book.title}</a>
+            <span className="editorial-continue-chapter">{book.currentChapterNumber
+              ? `Chapter ${book.currentChapterNumber.toLocaleString()}${book.chapterCount ? ` of ${book.chapterCount.toLocaleString()}` : ''}`
+              : book.currentChapter || 'Saved reading position'}
+              {book.chapterCount && !book.currentChapterNumber ? ` · ${book.chapterCount.toLocaleString()} chapters total` : ''}
+            </span>
+            <div className="editorial-rail-progress" aria-label={Math.round(book.progress) + '% complete'}>
+              <i style={{ width: Math.min(100,Math.max(0,book.progress)) + '%' }} />
+            </div>
+          </div>
+          <a href={readHrefFor(book)} className="editorial-rail-read" onClick={event => openMangaInCurrentTab(event, () => onRead(book))}>
+            Resume · {Math.round(book.progress)}% <ArrowRight size={13}/>
+          </a>
+        </article>)}
+      </div>
+    </section>}
+
+    <section className="editorial-journal" aria-label="The literary journal">
+      <div className="editorial-journal-rule"><span>THE PERSONAL EDITION</span><span>COLLECTION NOTES &amp; INDEX</span><span>✦</span></div>
+      <header className="editorial-journal-masthead">
+        <Feather size={23} aria-hidden="true"/>
+        <div><span>THE READER'S</span><h2>Literary Journal</h2><p>A library of stories, arranged for one.</p></div>
+        <Feather size={23} aria-hidden="true"/>
+      </header>
+      <div className="editorial-journal-columns">
+        <div className="editorial-journal-index">
+          <div className="editorial-section-heading">
+            <div><span className="editorial-eyebrow">02 / CURATED FOR YOU</span><h3>From your shelves</h3></div>
+            <button type="button" className="editorial-text-link" onClick={onBrowseAll}>Full catalogue <ArrowRight size={14}/></button>
+          </div>
+          <div className="editorial-index-labels" aria-hidden="true"><span>NO.</span><span>MANGA</span><span>GENRE</span><span>YOUR SHELF</span></div>
+          <div className="editorial-index-rows">
+            {journal.map((book, i) => <a href={hrefFor(book)} key={book.id}
+              className="editorial-index-row" onClick={event => openMangaInCurrentTab(event, () => onOpen(book))}
+              aria-label={'Journal entry for ' + book.title}>
+              <span className="editorial-index-number">{String(i + 1).padStart(2, '0')}</span>
+              <span className="editorial-index-name"><strong>{book.title}</strong><small>{book.author}</small></span>
+              <span className="editorial-index-genre">{bookTags(book)[0] || 'Manga'}</span>
+              <span className="editorial-index-state">{readingStatus(book)}</span>
+            </a>)}
+          </div>
+          {books.length > journal.length && <button type="button" className="editorial-index-more" onClick={onBrowseAll}>Explore all {books.length} manga <ArrowRight size={15}/></button>}
+        </div>
+        <aside className="editorial-margin" aria-label="Notes from your reading room">
+          <div className="editorial-margin-rule"><span>IN THE MARGINS</span><span>✦</span></div>
+          <section className="editorial-margin-note">
+            <span className="editorial-eyebrow">A NOTE FROM YOUR LIBRARY</span>
+            <h3>Keep the story close.</h3>
+            <p>Make room for a different world. Your chapters, notes and reading history remain where you left them.</p>
+          </section>
+          <section className="editorial-margin-stats">
+            <span className="editorial-eyebrow">YOUR READING RECORD</span>
+            <button type="button" onClick={onBrowseAll} aria-label={`Browse all ${books.length} stories`}><strong>{books.length}</strong><span>STORIES</span><ArrowRight className="editorial-stat-arrow" size={15} aria-hidden="true" /></button>
+            <button type="button" onClick={() => onBrowseShelf('reading')} aria-label={`Browse ${readingCount} manga in progress`}><strong>{readingCount}</strong><span>IN PROGRESS</span><ArrowRight className="editorial-stat-arrow" size={15} aria-hidden="true" /></button>
+            <button type="button" onClick={() => onBrowseShelf('trying')} aria-label={`Browse ${trialCount} manga trying out`}><strong>{trialCount}</strong><span>TRYING OUT</span><ArrowRight className="editorial-stat-arrow" size={15} aria-hidden="true" /></button>
+            <button type="button" onClick={() => onBrowseShelf('finished')} aria-label={`Browse ${completedCount} finished manga`}><strong>{completedCount}</strong><span>FINISHED</span><ArrowRight className="editorial-stat-arrow" size={15} aria-hidden="true" /></button>
+          </section>
+          {commonTags.length > 0 && <section className="editorial-margin-topics">
+            <span className="editorial-eyebrow">EXPLORE THE SHELVES</span>
+            <div>{commonTags.map(({tag, count}) => <button type="button" key={tag}
+              onClick={() => onBrowseTag(tag)} aria-label={'Browse manga tagged ' + tag}>
+              <Bookmark size={12}/> {tag} <small>{count}</small>
+            </button>)}</div>
+          </section>}
+        </aside>
+      </div>
+    </section>
+
+    {shelves.length > 0 && <section className="editorial-shelves" aria-label="Explore collections and genres">
+      <div className="editorial-section-heading">
+        <div><span className="editorial-eyebrow">03 / YOUR BOOKSHELVES</span><h2>Explore your shelves</h2></div>
+        <span className="editorial-section-aside">A few paths into your collection</span>
+      </div>
+      <div className="editorial-shelf-grid">
+        {shelves.map(shelf => <button type="button" className="editorial-shelf-card"
+          key={shelf.kind + ':' + shelf.id}
+          onClick={() => shelf.kind === 'collection' ? onBrowseCollection(shelf.id) : onBrowseTag(shelf.id)}
+          aria-label={`Browse ${shelf.kind} ${shelf.name}`}>
+          <span className="editorial-shelf-cover" aria-hidden="true">{cover(shelf.preview)}</span>
+          <span className="editorial-shelf-details">
+            <strong>{shelf.name}</strong>
+            <small>{shelf.count} {shelf.count === 1 ? 'manga' : 'manga'}</small>
+          </span>
+          <ArrowRight size={17} aria-hidden="true" />
+        </button>)}
+      </div>
+    </section>}
+
+    <section className="editorial-all-books" aria-label="Open complete manga catalogue">
+      <div><span className="editorial-eyebrow">THE COMPLETE COLLECTION</span>
+        <h2>Every world, one library.</h2>
+        <p>Browse your entire collection with sorting, searching and filters whenever you wish.</p>
+      </div>
+      <button type="button" className="editorial-browse-all" onClick={onBrowseAll}>
+        Browse all {books.length} {books.length === 1 ? 'manga' : 'manga'} <ArrowRight size={16}/>
+      </button>
+    </section>
+  </div>;
+}
