@@ -184,9 +184,9 @@
 }
 @media(max-width:540px){
   .app-shell .manga-topbar{padding:10px 13px}
-  .app-shell .site-nav{padding:0 13px 5px}
-  .app-shell .manga-nav-links{flex:1 1 100%;justify-content:space-between}
-  .app-shell .manga-nav-tools{justify-content:flex-end;width:100%;padding:2px 0}
+  .app-shell .site-nav{display:grid;grid-template-columns:minmax(0,1fr);padding:0 13px 5px}
+  .app-shell .manga-nav-links{grid-row:1;width:100%;min-width:0;justify-content:space-between;position:relative;z-index:1}
+  .app-shell .manga-nav-tools{grid-row:2;justify-content:flex-end;width:100%;min-width:0;padding:2px 0;position:relative;z-index:2;margin:0}
   .app-shell .manga-wordmark-text strong{font-size:15px}
   .app-shell .manga-wordmark-text small{font-size:7px}
   .app-shell .manga-advanced-button{width:35px;min-width:35px}
