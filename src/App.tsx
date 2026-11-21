@@ -35,7 +35,8 @@ import { collectionBreadcrumb, loadCollections, saveCollections, setCollectionMe
 import { addPersonalTag, loadAnnotations, saveAnnotation, type AnnotationPatch,
   type PersonalAnnotation } from './domain/personalAnnotations';
 import { defaultReaderPreferences, laterProgress, loadAllProgress, loadPreferences, loadProgress,
-  nextProgressTimestamp, savePreferences, saveProgress, type ReaderPreferences } from './domain/localReaderStorage';
+  nextProgressTimestamp, savePreferences, saveProgress, progressKey, browserStorage, type ReaderPreferences } from './domain/localReaderStorage';
+import {loadProgressSummaries} from './domain/progressSummary';
 import { filterCatalogue, type SortMode } from './domain/filters';
 import {installMangaUsageTracker,recordMangaAction} from './domain/usageAnalytics';
 import { applyAdvancedDiscovery, computeLocalReadingAnalytics, defaultAdvancedCriteria,
@@ -252,6 +253,21 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
           folder.id===personalId && folder.mangaIds.includes(item.id))));
   }, [catalogue, query, status, tag, collection, sort, annotations, collections]);
   const contextForDiscovery={progress,shelves:personalShelves,annotations,offlineChapterIds};
+  // A previous private reading position is visible in analytics before its manifest loads.
+  // This is display-only until the chapter reader validates the exact page ID.
+  useEffect(()=>{
+    if(demo||remoteEntries.length===0)return;
+    const summaries=loadProgressSummaries(remoteEntries);
+    setProgress(previous=>{
+      const updated={...previous};
+      for(const [id,saved]of Object.entries(summaries.progress)){
+        const newer=laterProgress(updated[id],saved);
+        if(newer)updated[id]=newer;
+      }
+      return updated;
+    });
+    if(summaries.invalid)setStorageNotice('Some saved reading records were invalid and preserved for recovery.');
+  },[demo,remoteEntries]);
   const advancedResults=useMemo(() => applyAdvancedDiscovery(filtered,advanced,{
     progress,shelves:personalShelves,annotations,offlineChapterIds,
   }),[filtered,advanced,progress,personalShelves,annotations,offlineChapterIds]);
@@ -808,6 +824,34 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
       'Browser storage is unavailable or full. The annotation was not saved.');
     return false;
   }
+  function resetMangaProgress(item:MangaEntry):boolean{
+    const store=browserStorage();
+    if(!store){setStorageNotice('Browser storage is unavailable.');return false;}
+    const preview=loadProgressSummaries([item],store);
+    if(preview.invalid){
+      setStorageNotice('The saved progress is invalid. Export a backup before recovery.');return false;
+    }
+    try{
+      store.removeItem(progressKey(item.id));
+      setProgress(previous=>{const updated={...previous};delete updated[item.id];return updated;});
+      notifyShelf('Reading progress reset for '+item.title);
+      recordMangaAction({mangaId:item.id,kind:'personal-edit',detail:'Reading progress reset'});
+      return true;
+    }catch{setStorageNotice('Unable to clear the saved progress on this device.');return false;}
+  }
+  function saveMangaSynopsis(item:MangaEntry,value:string):boolean{
+    const updated=value.trim();
+    if(updated.length>2000)return false;
+    try{
+      const store=browserStorage();if(!store)return false;
+      const key='taiyou-manga:personal-synopsis:v1:'+item.id;
+      if(!updated||updated===item.synopsis)store.removeItem(key);
+      else store.setItem(key,updated);
+      notifyShelf('Personal synopsis saved');
+      recordMangaAction({mangaId:item.id,kind:'personal-edit',detail:'Personal synopsis saved'});
+      return true;
+    }catch{return false;}
+  }
   function toggleChapterComplete(item: MangaEntry, chapterId: string) {
     // Explicit reader choice, not an automatic consequence of opening a page.
     if (!item.chapters.some(chapter => chapter.id === chapterId)) {
@@ -1042,6 +1086,11 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
         analyticsDetailHref={id=>routeHref({kind:'details',mangaId:id},import.meta.env.BASE_URL,catalogue)}
         onOpenAnalyticsDetails={(event,id)=>followLink(event,()=>navigateTo({kind:'details',mangaId:id}))}
         progress={progress} annotations={annotations} offlineChapterIds={offlineChapterIds}
+        personalShelves={personalShelves}
+        onSaveAnnotation={(item,patch,message)=>changeAnnotation(item,patch,message)}
+        onSetShelf={changeShelf}
+        onResetProgress={resetMangaProgress}
+        onSaveSynopsis={saveMangaSynopsis}
         onRefresh={()=>{void refreshPrivateCatalogue();}}
         backHref={routeHref({kind:'library'},import.meta.env.BASE_URL,catalogue)}
         onBack={event=>followLink(event,()=>goCatalogue('library'))}
