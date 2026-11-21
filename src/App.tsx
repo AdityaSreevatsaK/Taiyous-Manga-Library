@@ -851,7 +851,35 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
     (immersive && screen.kind === 'reader' ? ' reading-immersive' : '') +
     (screen.kind==='details'?' is-manga-details':'')}>
     <a className="skip" href="#content">Skip to content</a>
-    <header className="site-header">
+    {screen.kind==='details'?<header className="manga-details-topbar" aria-label="Manga details header">
+      <a className="manga-details-brand-link" href={routeHref({kind:'home'},import.meta.env.BASE_URL,catalogue)}
+        aria-label="Taiyou's Personal Manga Library home"
+        onClick={event=>followLink(event,()=>goCatalogue('home'))}>
+        <MangaBrandMark theme={preferences.theme} size={32}/>
+        <span className="manga-details-brand-wordmark">
+          <span className="manga-details-brand-full">Taiyou's Personal Manga Library</span>
+          <span className="manga-details-brand-short">Taiyou's Manga Library</span>
+        </span>
+      </a>
+      {screen.kind==='details'&&
+          <MangaDetailsQuickNav
+            collections={sortedPersonalCollections.map(folder=>({
+              id:folder.id,name:folder.name,parentId:folder.parentId,
+              path:collectionBreadcrumb(collections,folder.id),count:folder.mangaIds.length,
+            }))}
+            readingHref={routeHref({kind:'reading'},import.meta.env.BASE_URL,catalogue)}
+            allHref={routeHref({kind:'library'},import.meta.env.BASE_URL,catalogue)}
+            searchHref={routeHref({kind:'library'},import.meta.env.BASE_URL,catalogue)}
+            collectionHref={id=>routeHref({kind:'library'},import.meta.env.BASE_URL,catalogue)+
+              '?collection='+encodeURIComponent('personal:'+id)}
+            onReading={()=>goCatalogue('reading')} onAll={()=>goCatalogue('library')}
+            onSearch={()=>{setAdvancedOpen(true);goCatalogue('library');}}
+            onCollection={filterPersonalCollection}/>}
+      <div className="manga-details-top-controls">
+        <MangaThemeSwatches value={preferences.theme} compact
+          onChange={theme=>updatePreferences({...preferences,theme})}/>
+      </div>
+    </header>:<header className="site-header">
       <div className="manga-topbar">
         <a className="wordmark" href={routeHref({kind:'home'},import.meta.env.BASE_URL,catalogue)}
           onClick={event=>followLink(event,()=>goCatalogue('home'))} aria-label="Taiyou Manga home">
@@ -873,20 +901,6 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
               if(saved.status==='ok')setPreferences(saved.value);
             }} />
         </MangaCloudMenu>
-        {screen.kind==='details'&&
-          <MangaDetailsQuickNav
-            collections={sortedPersonalCollections.map(folder=>({
-              id:folder.id,name:folder.name,parentId:folder.parentId,
-              path:collectionBreadcrumb(collections,folder.id),count:folder.mangaIds.length,
-            }))}
-            readingHref={routeHref({kind:'reading'},import.meta.env.BASE_URL,catalogue)}
-            allHref={routeHref({kind:'library'},import.meta.env.BASE_URL,catalogue)}
-            searchHref={routeHref({kind:'library'},import.meta.env.BASE_URL,catalogue)}
-            collectionHref={id=>routeHref({kind:'library'},import.meta.env.BASE_URL,catalogue)+
-              '?collection='+encodeURIComponent('personal:'+id)}
-            onReading={()=>goCatalogue('reading')} onAll={()=>goCatalogue('library')}
-            onSearch={()=>{setAdvancedOpen(true);goCatalogue('library');}}
-            onCollection={filterPersonalCollection}/>}
         <div className="manga-top-actions">
           <label className="manga-global-search">
             <SearchIcon size={16}/>
@@ -956,7 +970,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
             onOpen={event=>followLink(event,()=>navigateTo({kind:'master'}))}/>
         </div>
       </nav>
-    </header>
+    </header>}
     <main id="content" className="main-area">
       {screen.kind==='master'&&<MangaMasterControls
         connected={cloud.status==='connected'} checking={cloud.status==='checking'}
