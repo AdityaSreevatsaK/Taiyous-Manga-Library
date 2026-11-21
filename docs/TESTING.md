@@ -98,3 +98,6 @@ The reader now requires a loaded active image before page navigation and commits
 ## Master and usage tracking regression, 21 November 2026
 
 Run `src/domain/usageAnalytics.test.ts` (real bounded time, action deduplication, privacy and corruption), `src/domain/progressSummary.test.ts` (safe prior private progress previews), `functions/api/master.test.ts` (immutable lineage, revisions and source corrections), and `e2e/manga-master-parity.spec.ts` (per-title analytics, activity details, privacy clearing, metadata and Master editor protection). Both required GitHub Actions suites must pass for the final head SHA, then the live Cloudflare workflow after merge. The real owner HF write flow cannot be verified with synthetic CI credentials and requires a disposable signed-in owner test.
+
+### Analytics visual parity acceptance, 21 November 2026
+The browser regression in `e2e/manga-master-parity.spec.ts` checks four top-level metrics, 14 paired app/reading bars, their two Novel colours, separate bar positions, optional details collapsed by default and horizontal-overflow protection at 320, 390, 768 and 1280 pixels. Additional analytics are not deleted, but are revealed under the `More manga insights` disclosure. Regression tests that access older summary sections must expand the disclosure first.
