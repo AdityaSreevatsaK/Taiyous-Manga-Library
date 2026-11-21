@@ -11,7 +11,7 @@ import { MangaCloudMenu } from './components/MangaCloudMenu';
 import { MangaBrandMark } from './components/MangaBrandMark';
 import { MangaOwnerTools } from './components/MangaOwnerTools';
 import { MangaMasterControls } from './components/MangaMasterControls';
-import { SearchIcon, HashIcon, LibraryIcon, BookOpenIcon, ChevronDownIcon } from './components/SharedLibraryIcons';
+import { SearchIcon, HashIcon, LibraryIcon, BookOpenIcon, ChevronDownIcon, BookmarkIcon, InfoIcon, TagIcon, StarIcon, LockKeyholeIcon } from './components/SharedLibraryIcons';
 import { MangaThemeSwatches } from './components/MangaThemeSwatches';
 import { VerticalReader } from './components/VerticalReader';
 import { MangaChapterPicker } from './components/MangaChapterPicker';
@@ -1320,7 +1320,10 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
         <div className="manga-details-columns">
           <aside className="manga-details-sidebar" aria-label="Your reading journey">
             <section className="manga-detail-card manga-journey-card">
-              <p className="manga-card-overline">YOUR JOURNEY</p><h2>Reading progress</h2>
+              <div className="details-section-header manga-section-header">
+                <div><p className="manga-card-overline">YOUR JOURNEY</p><h2>Reading progress</h2></div>
+                <BookmarkIcon size={20} className="details-section-icon"/>
+              </div>
               <strong className="manga-progress-percent">{progressForEntry
                 ? Math.round(100*(Math.max(0,chapters.findIndex(ch=>ch.id===progressForEntry.chapterId))+1)
                   /Math.max(1,chapters.length)) : 0}<small>%</small></strong>
@@ -1344,7 +1347,10 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
                     onClick={()=>changeShelf(entry,'finished')}>✓ Mark as completed</button>}
             </section>
             <section className="manga-detail-card manga-info-card">
-              <p className="manga-card-overline">MANGA INFORMATION</p><h2>Details</h2>
+              <div className="details-section-header manga-section-header">
+                <div><p className="manga-card-overline">MANGA INFORMATION</p><h2>Details</h2></div>
+                <InfoIcon size={20} className="details-section-icon"/>
+              </div>
               <dl>
                 {roleNames(entry,'author').length>0 &&
                   <div><dt>Author{roleNames(entry,'author').length>1?'s':''}</dt><dd>
@@ -1375,7 +1381,10 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
             
             </section>
             <section className="manga-detail-card manga-tags-card" aria-label="Publication genres and tags">
-              <p className="manga-card-overline">ORGANISE YOUR READING</p><h2>Tags &amp; genres</h2>
+              <div className="details-section-header manga-section-header">
+                <div><p className="manga-card-overline">ORGANISE YOUR READING</p><h2>Tags &amp; genres</h2></div>
+                <TagIcon size={20} className="details-section-icon"/>
+              </div>
               <p>Browse all tags together and add personal tags here. To remove personal tags, use Manage this manga below. Imported genres are protected.</p>
               <div className="tag-row details-tag-row" aria-label="All manga tags">
                 {entry.tags.map(value=><button key={'source:'+value} type="button" className="tag imported-tag"
@@ -1404,7 +1413,10 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
               </div>
             </section>
             <section className="personal-annotations manga-detail-card" aria-label="Personal manga annotations">
-              <p className="manga-card-overline">YOUR PERSONAL IMPRESSIONS</p><h2>Comments &amp; reading notes</h2>
+              <div className="details-section-header manga-section-header">
+                <div><p className="manga-card-overline">YOUR PERSONAL IMPRESSIONS</p><h2>Comments &amp; reading notes</h2></div>
+                <StarIcon size={20} className="details-section-icon"/>
+              </div>
               <p>Capture your thoughts about this manga. Comments and ratings are saved locally on this device.</p>
               <form className="personal-notes-editor personal-review-form" onSubmit={event=>{
                 event.preventDefault();changeAnnotation(entry,{notes:noteDraft},'Comments saved');
@@ -1423,7 +1435,10 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
               </form>
             </section>
             <section className="manga-detail-card manga-management-card">
-              <p className="manga-card-overline">MANGA STORAGE</p><h2>Manage this manga</h2>
+              <div className="details-section-header manga-section-header">
+                <div><p className="manga-card-overline">MANGA STORAGE</p><h2>Manage this manga</h2></div>
+                <LockKeyholeIcon size={19} className="details-section-icon"/>
+              </div>
               <p>The original cover and pages remain protected in your private library.
                 Uploads, metadata edits, deletion and backups belong to Master Controls on the main library page.</p>
               <p>Private chapter offline downloads are not yet available.</p>
