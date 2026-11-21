@@ -1,94 +1,174 @@
-# Manga Library architecture, deployed synthetic milestone (19 November 2026)
+# Architecture: Taiyou's Manga Library
 
-Cloudflare Pages serves the React/TypeScript application. The public JavaScript bundle contains four fiction-only sample series with five-chapter/36-image original generated trial. There is **no private manga gateway or login**.
+**Current implementation reference:** master as of 21 November 2026.  
+**Live application:** https://taiyous-manga-library.pages.dev/
 
-## Implemented components
+This document describes the deployed architecture. Earlier scaffold-only descriptions are retained in dated reports and are not current.
 
-- `src/domain/types.ts`, `validation.ts`: stable manga/chapter/page identities, strict untrusted manifest parsing and rights provenance contract.
-- `src/domain/routes.ts`, `filters.ts`, `advancedDiscovery.ts`: immutable deep links, local discovery and evidence-based analytics.
-- `src/components/VerticalReader.tsx`: continuous full-chapter vertical scrolling, stable image aspect ratio, bounded visible/adjacent image decoding, chapter-only previous/next buttons.
-- `src/data/pageSource.ts`, `offlineChapters.ts`: fictional image rendering, explicitly downloaded checksum-verified device-local chapters, isolated offline media.
-- `src/domain/localReaderStorage.ts`, `personalShelves.ts`, `personalAnnotations.ts`, `personalCollections.ts`: versioned local progress, theme, shelves, notes, ratings, tags and nested collections.
-- `src/domain/localFullBackup.ts`, `collectionBackup.ts`: manual v2 JSON export and guarded imports of progress and personal metadata, compatible with old v1 and previous v2 documents. No media included.
-- `public/sw.js`: release-specific, verified offline shell with last known-good cache fallback. Public brand assets cached; no private content.
-- `.github/workflows/ci.yml`, `cross-browser.yml`, `live-cloudflare-smoke.yml`: CI, engine parity and deployed release checks.
+## System overview
 
-## Architecture boundaries
+The Manga Library is an independently deployed React application with same-origin Cloudflare Pages Functions. Private manga catalogue and media are stored in the private Hugging Face dataset managed by the separate Manga Storage Controller.
 
-The Novel Library and Shared Core are **not** runtime dependencies. The Manga Storage Controller and private Hugging Face dataset are separate future integrations. The application's current device-local storage is not a server authorisation or cross-device sync mechanism. Browser-local notes and caches may be read by anyone sharing the same browser profile.
+- Browser application: React 18, TypeScript, Vite.
+- Hosting and server boundary: Cloudflare Pages and Pages Functions.
+- Private source: AdityaSreevatsaK/Taiyous-Manga.
+- Private access: a dedicated Hugging Face OAuth client and encrypted HttpOnly session cookie for this origin.
+- Personal state: versioned browser-local records; no automatic cross-device personal sync.
+- Media ingestion, backups, migrations and original-media deletion: Manga Storage Controller, outside this repository.
+- Shared Core and Novel Library: no runtime dependency.
 
-No tokens, private image URLs, user histories or real source media may enter public Git/Pages files. Future server Functions must perform session validation, per-object authorisation, CSRF on mutations, private-source rights review and revisioned writes before access to protected originals.
+## Runtime request and data flow
 
-## Historical 18 November scaffold design notes
+### 1. Catalogue
 
-The content below is preserved for engineering history. It describes branch-only or unimplemented features and is **not** today's `master` architecture.
+On initial application load, src/data/privateLibrary.ts makes one same-origin GET /api/library request. The Pages Function in functions/api/library.ts:
 
----
+1. Checks production configuration and the encrypted owner session.
+2. Verifies the signed-in identity is the configured owner and can access the private dataset.
+3. Resolves the current immutable Hugging Face dataset revision.
+4. Reads and validates the complete canonical data/library.json catalogue at that revision.
+5. Returns the complete entries and revision with private no-store headers.
 
-# Current reader architecture checkpoint (feature branches, 18 November 2026)
+The browser validates the response again in src/domain/privateMediaContracts.ts and stores the complete catalogue in React state. Search, creators, publication status, tags, shelves, collections, sort order and advanced discovery are local filters over that in-memory snapshot. Normal catalogue views must not fetch metadata once per manga.
 
-Verified but not deployed:
-- `src/components/VerticalReader.tsx`: continuous scroll, bounded nearby images, stable page anchors.
-- `src/domain/routes.ts`: immutable manga/chapter IDs, History API and real browser links.
-- `src/domain/localReaderStorage.ts`: versioned isolated per-series progress and local reader preferences, no cloud sync.
-- `src/data/offlineChapters.ts`: explicit synthetic chapter CacheStorage, checksum receipts, cancellation and deletion.
-- `src/data/pageSource.ts`: verified offline-first binary resolution, safe object URL cleanup.
-- `public/sw.js`: revisioned app shell caching and a self-contained offline fallback.
-- No server-side auth, private asset adapter, Hugging Face datasets or cross-device synchronisation. Final integrated hardening PR not yet deployed.
+While the user is browsing the catalogue, App.tsx refreshes the catalogue on focus/visibility return and through a bounded 90-second timer, with a 60-second minimum between actual requests. Polling is paused while a chapter reader is open. Manual refresh uses the same single-catalogue path.
 
-The original scaffold architecture text below is historical and describes unimplemented features as of repository creation. Do not treat its "current" statements as the latest branch state.
+### 2. Covers
 
----
+src/components/useMangaCoverArt.ts waits until artwork is prioritised or near the viewport (360px root margin). src/data/coverCache.ts:
 
-# Architecture and Ownership Boundaries
+- Deduplicates concurrent requests for the same manga/cover digest.
+- Reads a bounded IndexedDB cache first.
+- Requests a missing cover through GET /api/media/cover.
+- Checks the returned MIME type, byte size and SHA-256 against the catalogue descriptor before persistent caching.
+- Keeps a small session hot cache and a bounded IndexedDB cache (maximum 120 covers / 72 MiB).
+- Clears private cover data on sign-out.
 
-## System context
-```text
-Personal Hub (apps/hub, in Shared Core)
-  ├─ navigates to existing independent Novel Library
-  ├─ optional link to this Manga application
-  └─ other independently deployed applications
-                 |
-                 v
-Taiyous-Manga-Library (THIS REPO)
-  ├─ presentation and responsive catalogue UI
-  ├─ manga domain entities and pure selectors
-  ├─ future application use cases and repository ports
-  ├─ future private storage + authorisation adapters
-  └─ future offline cache and sync (NOT IMPLEMENTED)
-```
+The API response itself is private and no-store. Browser-local cover caching is a deliberate performance optimisation, not private chapter offline support.
 
-**Ownership:** no runtime backend call to the hub is required. The hub is merely a route selector; if it is offline, this application still runs. Shared Core code may eventually be consumed as versioned packages, never as a mutable sibling-repo source import.
+### 3. Chapter manifests and pages
 
-## Current implementation vs intended shape
-Current: `src/domain/types.ts` defines MangaEntry, MangaChapter, MangaProgress; `searchCatalogue` is a pure Unicode-normalised title/alias filter; `src/data/catalogue.ts` is explicitly empty; `App.tsx` renders an honest no-data catalogue; CI builds locally. There is **no** media import, cloud API, login, parser, transcoder, player, tracking persistence, licence verification or backend.
+A private chapter manifest is requested only when a chapter is opened or a direct reader bookmark is resolved. src/data/privateMedia.ts validates manga/chapter IDs, response revision and manifest membership.
 
-Intended components (do not treat them as shipped):
-1. **Domain:** stable media identities, MangaEntry, MangaChapter, MangaProgress, validation, read-only selectors, progress transformations.
-2. **Application:** explicit commands/queries such as Add, UpdateMetadata, MarkProgress, RemoveOfflineCopy, and administrative Delete, with permission checks.
-3. **Ports:** `CatalogueRepository`, `ProgressRepository`, `AssetRepository`, `AuthSession` abstractions, each with cancellable, typed results and errors.
-4. **Adapters:** indexed local cache and a future private storage provider chosen after design review.
-5. **Presentation:** responsive cards, details, progress, collections, search, settings, empty/error/offline states.
-6. **Cross-media integration:** optional shared UI/contracts; no direct access to the novel app's dataset, cookies or internal browser storage.
+For a selected private chapter, src/data/chapterPreloader.ts starts page requests in page order with bounded concurrency (default 3, maximum 4). VerticalReader keeps stable page placeholders and mounts/decodes only the visible page and nearby images. Page loading is actual media traffic, not catalogue metadata fetching.
 
-## Domain requirements
-Panel and page ordering, right-to-left versus left-to-right reading, vertical scrolling, chapter/volume structure, image dimensions, page preload limits and full-screen touch navigation.
+The canonical private page fast path accepts the immutable revision and page descriptor already obtained from the authenticated catalogue/manifest. The server still validates the owner session, current revision, page identity, path, MIME, byte length and SHA-256. The compatibility path remains available for legacy layouts. Private API responses are no-store and the service worker excludes /api/*.
 
-## Operational boundaries
-Never ship a public build containing tokens. Prefer same-origin server functions and HttpOnly, Secure sessions where authentication is implemented. Restrict allowed origins, use CSRF controls for mutating endpoints and plan for OAuth redirects that do not share cookies across unrelated pages.dev hosts. For local-first operations, record revision tokens and reconcile conflicts explicitly; never use blind overwrite.
+### 4. Personal data and analytics
 
-## Performance principles
-Virtualise very large lists; decode media lazily; cap concurrent requests; back off failures; avoid state updates on every scroll tick; cache only assets that the user explicitly chooses for offline. Document performance budgets and measure with browser tooling before changing them.
+Browser-local storage is intentionally separate from the private source catalogue:
 
-## Deployment
-Current: **none configured**. The CI workflow is a quality gate, not a release path. A future Cloudflare Pages deployment will require manual consent, secure environment variables, unique per-app origin and tested rollback. Do not copy the Novel Library's one-shot deployment workflows.
+- localStorage: per-manga progress, reader preferences, personal shelves, ratings, notes, tags, favourites, explicit chapter-completion markers, nested collections and usage analytics.
+- IndexedDB: verified private cover blobs only.
+- CacheStorage: public app shell and explicitly downloaded synthetic sample chapters.
+- In-memory React state: active catalogue snapshot, current chapter manifests, current session and transient UI state.
 
-## Architecture review checklist
-Does each API preserve the identity/progress semantics? Can the app run if the hub is down? Does it expose private data in client bundles or public files? Are cross-origin auth assumptions explicit? Are destructive changes reversible? Are tests and rollback specified? If any answer is unclear, write an ADR before code.
+Manual JSON backup/restore is available for personal data. It is a validated merge, not cloud synchronisation. Private original chapter pages are not stored as offline downloads.
 
+### 5. Master Controls
 
-## In-branch demonstration implementation (18 November 2026)
+MangaMasterControls is lazy-loaded when the bookmarkable /master route opens. It contains:
 
-The `feature/local-manga-catalogue-reader` branch adds `src/domain/validation.ts` (runtime schemas, rights and archive-index preflight), `src/domain/reader.ts` (pure chapter/page navigation), `src/domain/filters.ts`, `src/data/fixtures.ts` (three entirely fictional sample series) and `src/data/fixtureArt.ts` (original canvas-generated PNG illustrations). The React app provides a sample-mode shelf, series details and a page-step reader. The existing empty `src/data/catalogue.ts` remains the only real catalogue placeholder. All progress is retained in React state only and discarded on refresh. The image cache keeps the current page and at most the next page. No server or external asset resolver exists.
+- Analytics: device-local usage journal and manga-specific insights. No separate owner passphrase is required.
+- Library management: local personal record editing and protected publication metadata corrections.
+- Protected source correction is limited to title, creators and publication status. It requires an authenticated owner session, a separate passphrase grant, a Hugging Face session with write-repos scope and a revision-pinned server-side update. The grant is encrypted in a Secure, HttpOnly, SameSite=Strict cookie and expires after 10 minutes.
+- Media uploads, migrations and permanent media deletion remain with the Storage Controller.
 
-This implementation is in a working branch and **has not passed its dependency-backed quality gates**. See `docs/DEVELOPMENT_REPORT_2026-11-18.md`. It does not change the intended future ports or the explicit no-backend integration boundary.
+## Cloudflare Pages Functions
+
+| Route | Method | Responsibility |
+|---|---|---|
+| /api/auth/login | GET | Read-only Hugging Face OAuth start with state and PKCE |
+| /api/auth/login-write | GET | Separate OAuth start requesting write-repos scope |
+| /api/auth/callback | GET | Confidential code exchange, owner verification and encrypted session |
+| /api/auth/session | GET | Session status only; never returns the bearer token |
+| /api/auth/logout | POST | Same-origin session logout |
+| /api/library | GET | Full private catalogue snapshot at an immutable dataset revision |
+| /api/media/cover | GET | Authenticated, validated private cover bytes |
+| /api/media/manifest | GET | Authenticated chapter manifest |
+| /api/media/page | GET | Authenticated, revision-pinned private page bytes |
+| /api/master?action=status | GET | Owner-grant configuration/status |
+| /api/master?action=unlock | POST | Verify separate owner passphrase and issue short-lived grant |
+| /api/master?action=lock | POST | Revoke the owner grant |
+| /api/master?action=update-metadata | POST | Revision-guarded title/creator/publication-status correction |
+
+The server-side boundary lives in functions/_lib/mangaAuth.ts and functions/api/*.ts. Do not put credentials in VITE_* variables, frontend code, URLs, localStorage or public build artifacts.
+
+## Canonical private dataset layout
+
+The private dataset uses a version-1 envelope in data/library.json:
+
+- schemaVersion: 1
+- mediaKind: manga
+- entries: MangaEntry records
+
+Canonical media paths:
+
+- data/covers/<manga-id>.<original-extension>
+- data/manifests/<chapter-id>.json
+- data/manga/<manga-id>/<chapter-id>/<page-id>.<original-extension>
+
+Catalogue cover descriptors include relative assetPath, MIME type, width, height, byte size and SHA-256. Creator roles and field-level metadata provenance are optional fields. Rights evidence and cover-rights records are managed separately by the Controller and must not be exposed as public reader metadata.
+
+A read-only legacy catalogue fallback remains for older Controller layouts. If the canonical data tree contains files but data/library.json is missing, the reader fails with a recovery error rather than treating the dataset as empty.
+
+## Source map
+
+### Browser application
+
+- src/App.tsx: application state, catalogue loading/refresh, routing, shelves, details and integration of reader/Master controls.
+- src/domain/types.ts: MangaEntry, MangaChapter, MangaProgress, MangaPage, ChapterManifest and source-rights types.
+- src/domain/validation.ts: runtime validation for untrusted catalogue, manifest, progress, IDs, MIME/path and metadata.
+- src/domain/routes.ts: readable public slugs, immutable-ID resolution, legacy routes and History API contract.
+- src/domain/filters.ts and advancedDiscovery.ts: local catalogue filtering and evidence-based discovery.
+- src/domain/localReaderStorage.ts: reader progress/preferences.
+- src/domain/personalShelves.ts, personalAnnotations.ts and personalCollections.ts: local personal organisation.
+- src/domain/localFullBackup.ts and related backup modules: manual validated export/import.
+- src/domain/usageAnalytics.ts: device-local prospective usage journal.
+- src/data/privateLibrary.ts and privateMedia.ts: browser clients for authenticated catalogue/manifests/pages.
+- src/data/coverCache.ts and src/components/useMangaCoverArt.ts: verified private cover caching and lazy loading.
+- src/data/offlineChapters.ts: explicit synthetic chapter offline downloads.
+- src/components/VerticalReader.tsx: continuous chapter reader.
+- src/components/MangaMasterControls.tsx and MangaAnalyticsPanel.tsx: lazy-loaded Master workspace and analytics.
+
+### Server and delivery
+
+- functions/_lib/mangaAuth.ts: OAuth session, encryption, owner checks and Hugging Face request helper.
+- functions/api/auth/[action].ts: OAuth login/callback/session/logout.
+- functions/api/library.ts: canonical catalogue and read-only legacy fallback.
+- functions/api/media/[kind].ts: cover, manifest and page delivery.
+- functions/api/master.ts: owner grant and narrow source metadata corrections.
+- public/sw.js: release-fingerprinted offline shell; private APIs are excluded.
+- public/_headers: security headers and CSP.
+- scripts/stamp-service-worker.mjs and scripts/live-cloudflare-smoke.mjs: release fingerprinting and live deployment verification.
+
+### Build and test
+
+- package.json / package-lock.json: Node 22 package manifest and locked dependencies.
+- vite.config.ts: Vite and Vitest.
+- playwright.config.ts: Chromium E2E, optionally against production preview.
+- playwright.cross-browser.config.ts: Firefox/WebKit smoke.
+- e2e/: browser acceptance suites.
+- .github/workflows/ci.yml: typecheck, Vitest, release tests, build, bundle budgets and Chromium.
+- .github/workflows/cross-browser.yml: Firefox/WebKit reader/navigation parity.
+- .github/workflows/live-cloudflare-smoke.yml: post-master deployment verification.
+
+## Performance and reliability invariants
+
+- One full catalogue read per load/refresh, not one metadata request per title.
+- Cover requests are lazy, shared and cache-validated.
+- Chapter preloading is bounded; decoded images are not unbounded.
+- Stable page IDs are required to restore progress after manifest reordering.
+- The service worker caches only verified app-shell releases and public artwork; it never caches private API responses.
+- Two verified app-shell releases are retained for rollback; manga chapter CacheStorage is separate.
+- scripts/check-bundle.mjs enforces measured JS/CSS budgets.
+
+## Explicitly not implemented
+
+- Automatic cross-device personal progress/annotation/collection sync.
+- Private chapter offline downloads or encrypted private-media storage.
+- In-app upload, bulk import, original-media deletion or general dataset migration.
+- Shared cross-app SSO, runtime Shared Core imports or direct Novel Library data access.
+- A verified physical iOS/Android acceptance record or real low-memory 300–1,000-page benchmark unless separately recorded.
+
+See docs/DATA_CONTRACTS.md, docs/SECURITY.md, docs/DEPLOYMENT.md and docs/PROJECT_STATUS.md for related contracts and acceptance.
