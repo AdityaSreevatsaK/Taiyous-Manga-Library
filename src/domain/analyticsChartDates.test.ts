@@ -12,7 +12,7 @@ function labels(today:Date):string[]{
 describe('rolling analytics chart date labels',()=>{
   it('labels five dates, every three days from the most recent day',()=>{
     expect(labels(new Date(2026,10,21,12))).toEqual([
-      '8 Nov','11 Nov','14 Nov','17 Nov','21 Nov'
+      '9 Nov','12 Nov','15 Nov','18 Nov','21 Nov'
     ]);
   });
   it('rolls across months, including the current date',()=>{
