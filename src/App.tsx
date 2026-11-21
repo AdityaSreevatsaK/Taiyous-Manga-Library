@@ -334,7 +334,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
               setPrivateRevision(loaded.revision);
               setLocation({chapterId:bookmarked.chapterId,pageIndex:bookmarked.pageIndex});
               setScreen({kind:'reader',id:item.id});
-      recordMangaAction({kind:'chapter-opened',mangaId:item.id,chapterId:selected});
+              recordMangaAction({kind:'chapter-opened',mangaId:item.id,chapterId:bookmarked.chapterId});
             }).catch(error=>{
               if(!live)return;
               setScreen({kind:'details',id:item.id});
@@ -598,6 +598,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
       setLocation({chapterId:selected,pageIndex:index});
       setJumpToken(value=>value+1);
       setScreen({kind:'reader',id:item.id});
+      recordMangaAction({kind:'chapter-opened',mangaId:item.id,chapterId:selected});
       const url=routeHref({kind:'reader',mangaId:item.id,chapterId:selected,pageIndex:index},import.meta.env.BASE_URL,catalogue);
       if(window.location.pathname+window.location.search!==url)window.history.pushState(null,'',url);
     }catch(error){
