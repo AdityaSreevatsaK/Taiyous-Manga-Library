@@ -993,7 +993,7 @@ test.describe('advanced discovery and grounded personal analytics',()=>{
     await page.reload();
     await expect(page.locator('.book-card')).toHaveCount(0);
   });
-  test('analytics reports exact saved positions and personal ratings, never fabricated durations',async({page})=>{
+  test('analytics reports actual positions and ratings without inventing earlier durations',async({page})=>{
     await page.goto('/manga/mng_lanternarchive');
     await page.getByRole('button',{name:/Rate 8 out of 10/}).click();
     await page.getByRole('button',{name:'Save rating'}).first().click();
@@ -1007,9 +1007,9 @@ test.describe('advanced discovery and grounded personal analytics',()=>{
     await expect(page.getByRole('textbox',{name:/passphrase|password/i})).toHaveCount(0);
     await expect(page.locator('.analytics-grid')).toContainText('1');
     await expect(page.locator('.analytics-grid')).toContainText('8');
-    await expect(page.locator('.analytics-recent')).toContainText('The Lantern Archive');
+    await expect(page.locator('.manga-usage-positions')).toContainText('The Lantern Archive');
     await expect(page.locator('.analytics-ratings')).toContainText('My ratings distribution');
-    await expect(page.locator('.analytics-shelf')).not.toContainText('minutes read');
+    await expect(page.locator('.manga-usage-times')).toContainText('Manga reading time');
   });
   test('advanced Search header stays usable on small mobile screens',async({page})=>{
     for(const width of [320,375,390,768]){
