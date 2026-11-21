@@ -11,7 +11,7 @@ async function noHorizontalScroll(page: Page) {
 test('home, desktop navigation and transparent brand assets work on both engines', async ({page}) => {
   await page.setViewportSize({width:1280,height:900});
   await page.goto('/');
-  await expect(page.getByRole('heading',{name:/Where worlds unfold/})).toBeVisible();
+  await expect(page.getByRole('heading',{name:/Every panel holds a story/})).toBeVisible();
   await expect(page.locator('.manga-nav-links > .site-nav-link')).toHaveCount(6);
   await expect(page.locator('.wordmark .brand-sun')).toHaveAttribute('src',/sun-light.webp$/);
   await expect(page.locator('.app-shell')).toHaveClass(/theme-sepia/);
@@ -75,11 +75,35 @@ test('personal shelves persist without changing publication status',async({page}
   await page.goto('/manga/mng_lanternarchive');
   const original=await page.locator('.detail-sub').textContent();
   await page.getByRole('button',{name:'Add to Trying Out'}).click();
-  await expect(page.locator('.success-toast')).toContainText('Trying Out');
+  await expect(page.locator('.collection-change-toast')).toContainText('Trying Out');
   await page.goto('/trying');
   await expect(page.locator('.book-card')).toHaveCount(1);
   await page.reload();
   await expect(page.locator('.book-card')).toHaveCount(1);
   await page.goto('/manga/mng_lanternarchive');
   await expect(page.locator('.detail-sub')).toHaveText(original);
+});
+
+test('shelf notifications match Novel Library appearance, auto-dismiss and leave on navigation',async({page})=>{
+  await page.goto('/manga/mng_lanternarchive');
+  await page.getByRole('button',{name:'Add to Trying Out'}).click();
+  const toast=page.locator('.collection-change-toast');
+  await expect(toast).toContainText('Trying Out');
+  await expect(toast).toContainText('Saved to your personal library on this device');
+  const appearance=await toast.evaluate(el=>{
+    const s=getComputedStyle(el),r=el.getBoundingClientRect();
+    return {background:s.backgroundColor,color:s.color,borderRadius:s.borderRadius,
+      rightGap:window.innerWidth-r.right,top:r.top};
+  });
+  expect(appearance.background).toBe('rgb(20, 60, 44)');
+  expect(appearance.color).toBe('rgb(220, 255, 236)');
+  expect(appearance.borderRadius).toBe('11px');
+  expect(appearance.rightGap).toBeGreaterThanOrEqual(15);
+  expect(appearance.top).toBeGreaterThanOrEqual(60);
+  await expect(toast).toHaveCount(0,{timeout:7000});
+  await page.locator('.manga-trying-button').click();
+  await expect(toast).toHaveCount(1);
+  await page.locator('.manga-details-brand-link').click();
+  await expect(page).toHaveURL('/');
+  await expect(toast).toHaveCount(0);
 });

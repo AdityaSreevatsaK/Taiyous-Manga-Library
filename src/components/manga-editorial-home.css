@@ -728,3 +728,48 @@
  .app-shell .manga-editorial-home .editorial-grand-gallery .editorial-art-book-0{left:7%}
  .app-shell .manga-editorial-home .editorial-grand-gallery .editorial-art-book-2{right:7%}
 }
+
+/* Manga-specific hero readability. Never inherit sepia or paper's dark body
+ * text onto the permanently navy-blue featured title and description. */
+.app-shell .manga-editorial-home .editorial-grand .editorial-grand-copy{
+ color:#f9f1dc;
+}
+.app-shell .manga-editorial-home .editorial-grand .editorial-grand-copy .editorial-featured-book h2{
+ color:#fff3d5!important;
+ font-size:clamp(25px,2.7vw,38px);
+ line-height:1.2;
+ overflow-wrap:anywhere;
+}
+.app-shell .manga-editorial-home .editorial-grand .editorial-grand-copy .editorial-featured-author{
+ color:#d9e7f8!important;
+ font-size:13px;opacity:1;
+}
+.app-shell .manga-editorial-home .editorial-grand .editorial-grand-copy .editorial-featured-synopsis{
+ color:#e8eef9!important;
+ font-size:13px;line-height:1.65;opacity:1;
+ -webkit-line-clamp:4;
+}
+.app-shell .manga-editorial-home .editorial-grand .editorial-grand-copy .editorial-eyebrow{
+ color:#f0d49c;
+}
+.app-shell .manga-editorial-home .editorial-grand .editorial-grand-tagline{
+ color:#f2ebdc;font-size:clamp(14px,1.3vw,17px);opacity:1;
+}
+.app-shell .manga-editorial-home .editorial-grand .editorial-art-caption{
+ color:#f2dfb6;
+}
+.app-shell .manga-editorial-home .editorial-grand .editorial-grand-ledger button{
+ color:#e8edf7;
+}
+.app-shell .manga-editorial-home .editorial-grand .editorial-grand-ledger button b{
+ color:#fff0cd;
+}
+.app-shell .manga-editorial-home .editorial-grand-gallery .editorial-art-book-active .cover{
+ outline:2px solid #f2db9f;
+ outline-offset:3px;
+}
+@media(max-width:660px){
+ .app-shell .manga-editorial-home .editorial-grand .editorial-grand-copy .editorial-featured-book h2{
+  font-size:clamp(24px,5vw,30px)
+ }
+}

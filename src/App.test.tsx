@@ -23,7 +23,8 @@ describe('accessible catalogue baseline (server-rendered markup)', () => {
     expect(html).toContain('editorial-journal');
     expect(html).toContain('editorial-shelves');
     expect(html).toContain('editorial-all-books');
-    expect(html).toContain('Where worlds');
+    expect(html).toContain('Every panel holds');
+    expect(html).toContain('TAIYOU&#x27;S MANGA ARCHIVE');
     expect(html).toContain('Literary Journal');
     expect(html).toContain('From your shelves');
     expect(html).not.toContain('THE ART OF TURNING PAGES');

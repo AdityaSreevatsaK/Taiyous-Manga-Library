@@ -72,6 +72,13 @@ export default function EditorialHome({
     [books, featured?.id, heroSeed]);
   const visibleGalleryIds = galleryCandidates.filter(book => loadedGalleryIds.has(book.id))
     .slice(0, 3).map(book => book.id);
+  // The middle cover is the featured story, not a separately random title.
+  // Hovering or keyboard-focusing another jacket previews its actual metadata.
+  const [hoveredGalleryId, setHoveredGalleryId] = useState<string|null>(null);
+  const centralCoverId = visibleGalleryIds[1] ?? visibleGalleryIds[0];
+  const activeCoverId = hoveredGalleryId && visibleGalleryIds.includes(hoveredGalleryId)
+    ? hoveredGalleryId : centralCoverId;
+  const selectedCover = galleryCandidates.find(book => book.id === activeCoverId);
   // Randomise only this four-card discovery section, once per page visit.
   // Preserve the canonical shelves, catalogue order and all deep links.
   const [shelfSeed] = useState(() => (Math.floor(Math.random() * 0xffffffff) || 1));
@@ -80,33 +87,34 @@ export default function EditorialHome({
   const trialCount = books.filter(book => book.shelfStatus === 'trying').length;
   const completedCount = books.filter(book => book.shelfStatus !== 'trying' && isFinished(book)).length;
   if (!featured) return null;
-  const featuredFinished = isFinished(featured);
-  const featuredReading = isCurrentlyReading(featured);
+  const displayFeatured = selectedCover ?? featured;
+  const featuredFinished = isFinished(displayFeatured);
+  const featuredReading = isCurrentlyReading(displayFeatured);
   const featuredAction = featuredFinished ? 'Read again'
-    : featured.progress > 0 ? 'Continue reading' : 'Begin reading';
+    : displayFeatured.progress > 0 ? 'Continue reading' : 'Begin reading';
 
   return <div className="editorial-home manga-editorial-home" aria-label="Your library front page">
     <section className="editorial-grand" aria-labelledby="editorial-grand-heading">
       <div className="editorial-grand-inner">
         <div className="editorial-grand-copy">
-          <p className="editorial-kicker"><Sparkles size={14} /> TAIYOU'S PRIVATE LIBRARY <span>·</span> THE READER'S EDITION</p>
-          <h1 id="editorial-grand-heading">Where worlds <em>unfold.</em></h1>
-          <p className="editorial-grand-tagline">A home for extraordinary stories and all the places they take you.</p>
-          <div className="editorial-featured-book">
+          <p className="editorial-kicker"><Sparkles size={14} /> TAIYOU'S MANGA ARCHIVE <span>·</span> YOUR READING JOURNEY</p>
+          <h1 id="editorial-grand-heading">Every panel holds <em>a story.</em></h1>
+          <p className="editorial-grand-tagline">Follow each chapter, revisit favourite series and discover the manga waiting on your shelves.</p>
+          <div className="editorial-featured-book" aria-live="polite" aria-atomic="true">
             <span className="editorial-eyebrow">{featuredReading ? 'YOUR NEXT CHAPTER'
               : featuredFinished ? 'REDISCOVER A STORY' : 'DISCOVER A STORY'}</span>
-            <h2>{featured.title}</h2>
-            <p className="editorial-featured-author">by {featured.author}</p>
-            <p className="editorial-featured-synopsis">{featured.userDescription || featured.description || 'Your next reading journey is ready when you are.'}</p>
-            {featured.progress > 0 && <div className="editorial-featured-progress" aria-label={Math.round(featured.progress) + '% read'}>
-              <span style={{ width: Math.max(0, Math.min(100, featured.progress)) + '%' }} />
+            <h2>{displayFeatured.title}</h2>
+            <p className="editorial-featured-author">by {displayFeatured.author}</p>
+            <p className="editorial-featured-synopsis">{displayFeatured.userDescription || displayFeatured.description || 'Explore this manga and its chapters in your personal collection.'}</p>
+            {displayFeatured.progress > 0 && <div className="editorial-featured-progress" aria-label={Math.round(displayFeatured.progress) + '% read'}>
+              <span style={{ width: Math.max(0, Math.min(100, displayFeatured.progress)) + '%' }} />
             </div>}
           </div>
           <div className="editorial-grand-actions">
-            <a href={readHrefFor(featured)} className="editorial-primary" onClick={event => openMangaInCurrentTab(event, () => onRead(featured))}>
+            <a href={readHrefFor(displayFeatured)} className="editorial-primary" onClick={event => openMangaInCurrentTab(event, () => onRead(displayFeatured))}>
               <BookOpen size={18} /> {featuredAction} <ArrowRight size={16} />
             </a>
-            <a href={hrefFor(featured)} className="editorial-secondary" title={featured.title} onClick={event => openMangaInCurrentTab(event, () => onOpen(featured))}>
+            <a href={hrefFor(displayFeatured)} className="editorial-secondary" title={displayFeatured.title} onClick={event => openMangaInCurrentTab(event, () => onOpen(displayFeatured))}>
               Explore this manga <ArrowRight size={15} />
             </a>
           </div>
@@ -117,11 +125,16 @@ export default function EditorialHome({
             const index = visibleGalleryIds.indexOf(book.id);
             return <a
               href={hrefFor(book)}
-              className={'editorial-art-book ' + (index < 0 ? 'editorial-art-book-pending' : 'editorial-art-book-' + index)}
+              className={'editorial-art-book ' + (index < 0 ? 'editorial-art-book-pending' : 'editorial-art-book-' + index) +
+                (book.id===activeCoverId?' editorial-art-book-active':'')}
               key={book.id}
-              aria-label={'Featured cover for ' + book.title}
+              aria-label={'Preview and open ' + book.title}
               tabIndex={index < 0 ? -1 : 0}
               aria-hidden={index < 0 ? true : undefined}
+              onMouseEnter={()=>setHoveredGalleryId(book.id)}
+              onMouseLeave={()=>setHoveredGalleryId(null)}
+              onFocus={()=>setHoveredGalleryId(book.id)}
+              onBlur={()=>setHoveredGalleryId(null)}
               onClick={event => openMangaInCurrentTab(event, () => onOpen(book))}
             >{cover(book, true, handleGalleryArtwork)}<span className="editorial-art-hover-label" aria-hidden="true">{book.title}</span></a>;
           })}
