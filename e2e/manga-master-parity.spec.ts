@@ -26,19 +26,20 @@ test('real per-series duration, reading actions and privacy controls appear in A
    }));
  },mangaId);
  await page.goto('/master?view=analytics');
- await expect(page.getByRole('heading',{name:'Analytics'})).toBeVisible();
- await expect(page.getByText('10 min')).toBeVisible();
- await expect(page.getByText('8 min').first()).toBeVisible();
+ await expect(page.getByRole('heading',{name:'Reading analytics'})).toBeVisible();
+ await expect(page.getByText('10m')).toBeVisible();
+ await expect(page.getByText('8m').first()).toBeVisible();
  await expect(page.getByRole('heading',{name:'Most read manga'})).toBeVisible();
  await expect(page.getByRole('link',{name:'Sample Manga Journal'}).first()).toBeVisible();
+ await page.getByText('More manga insights',{exact:true}).click();
  await expect(page.getByText('Opened chapter')).toBeVisible();
- await expect(page.getByRole('checkbox',{name:'Record reading activity on this device'})).toBeChecked();
+ await expect(page.getByRole('checkbox',{name:'Record analytics on this device'})).toBeChecked();
  await page.getByRole('button',{name:'Clear analytics'}).click();
  await expect(page.getByRole('group',{name:'Confirm clearing analytics'})).toBeVisible();
  await expect(page.getByRole('button',{name:'Confirm clear analytics'})).toBeDisabled();
  await page.getByLabel('Type CLEAR ANALYTICS to continue').fill('CLEAR ANALYTICS');
  await page.getByRole('button',{name:'Confirm clear analytics'}).click();
- await expect(page.getByText('No tracked reading time yet')).toBeVisible();
+ await expect(page.getByText('Your reading statistics will appear as you read manga chapters.')).toBeVisible();
 });
 test('Master edits personal records, protects progress reset and locks source metadata',async({page})=>{
  await mockOwner(page);
