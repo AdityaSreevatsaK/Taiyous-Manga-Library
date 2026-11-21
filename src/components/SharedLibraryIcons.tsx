@@ -73,3 +73,24 @@ export function FeatherIcon(props:Omit<Props,'children'>){
 export function PlusIcon(props:Omit<Props,'children'>){
   return <Icon {...props}><path d="M12 5v14M5 12h14"/></Icon>;
 }
+
+
+/** Lucide icon paths shared with the Novel Library reading analytics. */
+export function Clock3Icon(props:Omit<Props,'children'>){
+  return <Icon {...props}><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></Icon>;
+}
+export function WifiOffIcon(props:Omit<Props,'children'>){
+  return <Icon {...props}><path d="M12 20h.01"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><path d="M5.4 12.92a10 10 0 0 1 13.2 0"/><path d="M2 9.61a15 15 0 0 1 20 0"/><path d="m2 2 20 20"/></Icon>;
+}
+export function BarChart3Icon(props:Omit<Props,'children'>){
+  return <Icon {...props}><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></Icon>;
+}
+export function ShieldCheckIcon(props:Omit<Props,'children'>){
+  return <Icon {...props}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></Icon>;
+}
+export function DownloadIcon(props:Omit<Props,'children'>){
+  return <Icon {...props}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></Icon>;
+}
+export function EraserIcon(props:Omit<Props,'children'>){
+  return <Icon {...props}><path d="m7 21-4-4a2 2 0 0 1 0-3L15 2a2 2 0 0 1 3 0l4 4a2 2 0 0 1 0 3L10 21H7Z"/><path d="m9 13 5 5"/><path d="M21 21H7"/></Icon>;
+}

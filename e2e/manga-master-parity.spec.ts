@@ -26,19 +26,20 @@ test('real per-series duration, reading actions and privacy controls appear in A
    }));
  },mangaId);
  await page.goto('/master?view=analytics');
- await expect(page.getByRole('heading',{name:'Analytics'})).toBeVisible();
- await expect(page.getByText('10 min')).toBeVisible();
- await expect(page.getByText('8 min').first()).toBeVisible();
+ await expect(page.getByRole('heading',{name:'Reading analytics'})).toBeVisible();
+ await expect(page.getByText('10m')).toBeVisible();
+ await expect(page.getByText('8m').first()).toBeVisible();
  await expect(page.getByRole('heading',{name:'Most read manga'})).toBeVisible();
  await expect(page.getByRole('link',{name:'Sample Manga Journal'}).first()).toBeVisible();
+ await page.getByText('More manga insights',{exact:true}).click();
  await expect(page.getByText('Opened chapter')).toBeVisible();
- await expect(page.getByRole('checkbox',{name:'Record reading activity on this device'})).toBeChecked();
+ await expect(page.getByRole('checkbox',{name:'Record analytics on this device'})).toBeChecked();
  await page.getByRole('button',{name:'Clear analytics'}).click();
  await expect(page.getByRole('group',{name:'Confirm clearing analytics'})).toBeVisible();
  await expect(page.getByRole('button',{name:'Confirm clear analytics'})).toBeDisabled();
  await page.getByLabel('Type CLEAR ANALYTICS to continue').fill('CLEAR ANALYTICS');
  await page.getByRole('button',{name:'Confirm clear analytics'}).click();
- await expect(page.getByText('No tracked reading time yet')).toBeVisible();
+ await expect(page.getByText('Your reading statistics will appear as you read manga chapters.')).toBeVisible();
 });
 test('Master edits personal records, protects progress reset and locks source metadata',async({page})=>{
  await mockOwner(page);
@@ -60,4 +61,38 @@ test('Master edits personal records, protects progress reset and locks source me
  await expect(editor.getByRole('group',{name:'Confirm mark finished'})).toBeVisible();
  await editor.getByRole('button',{name:'Confirm finished'}).click();
  await expect(editor.getByText('Moved to your Finished shelf')).toBeVisible();
+});
+
+
+test('analytics matches Novel dual-series chart and four-card layout at mobile and desktop widths',async({page})=>{
+  await mockOwner(page);
+  await page.addInitScript(()=>{
+    const today=new Date();
+    const day=[today.getFullYear(),String(today.getMonth()+1).padStart(2,'0'),
+      String(today.getDate()).padStart(2,'0')].join('-');
+    localStorage.setItem('taiyou-manga:usage:v1',JSON.stringify({
+      version:1,enabled:true,days:{[day]:{appMs:600000,readingMs:480000,offlineMs:0}},
+      mangaReadingMs:{},events:[]
+    }));
+  });
+  for(const width of [320,390,768,1280]){
+    await page.setViewportSize({width,height:800});
+    await page.goto('/master?view=analytics');
+    await expect(page.locator('.manga-usage-metric')).toHaveCount(4);
+    await expect(page.getByRole('heading',{name:'Reading analytics'})).toBeVisible();
+    await expect(page.getByRole('heading',{name:'Last 14 days'})).toBeVisible();
+    await expect(page.locator('.manga-usage-track')).toHaveCount(14);
+    await expect(page.getByRole('heading',{name:'Most read manga'})).toBeVisible();
+    await expect(page.locator('.manga-usage-more')).not.toHaveAttribute('open','');
+    const graph=page.locator('.manga-usage-track').last();
+    const app=graph.locator('.manga-usage-app-bar'),reading=graph.locator('.manga-usage-read-bar');
+    const a=await app.boundingBox(),r=await reading.boundingBox();
+    expect(a&&r,'Both distinct daily series must be rendered').toBeTruthy();
+    expect(a!.height,'App series shows collected time').toBeGreaterThan(0);
+    expect(r!.height,'Reading series shows collected time').toBeGreaterThan(0);
+    expect(r!.x,'Daily series must not overlap').toBeGreaterThanOrEqual(a!.x+a!.width-1);
+    expect(await app.evaluate(node=>getComputedStyle(node).backgroundColor)).toBe('rgb(100, 119, 156)');
+    expect(await reading.evaluate(node=>getComputedStyle(node).backgroundColor)).toBe('rgb(180, 109, 172)');
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+  }
 });

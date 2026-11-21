@@ -93,16 +93,16 @@ export function MangaMasterControls({connected,checking,owner,refreshing,entries
   const started=entries.filter(entry=>progress[entry.id]).length;
   return <section className="manga-master-page" aria-labelledby="manga-master-title">
     <header className="manga-master-page-head">
-      <div><p className="eyebrow">PRIVATE LIBRARY ADMINISTRATION</p>
+      <div><p className="eyebrow">YOUR LIBRARY OVERVIEW</p>
         <h1 id="manga-master-title">Master Controls</h1>
-        <p>Manage your private manga records and explore your reading journal, with the same layout as the Novel Library.</p></div>
-      <a className="manga-master-back" href={backHref} onClick={onBack}>← Back to library</a>
+        <p>Explore on-device reading analytics without a password, or unlock Library management for protected changes.</p></div>
+      <a className="manga-master-back" href={backHref} onClick={onBack}>Back to library</a>
     </header>
     <nav className="manga-master-sections" aria-label="Master Controls sections">
-      <a href={overviewHref} aria-current={view==='overview'?'page':undefined}
-        onClick={event=>onView(event,'overview')}>Library management</a>
       <a href={analyticsHref} aria-current={view==='analytics'?'page':undefined}
         onClick={event=>onView(event,'analytics')}>Analytics</a>
+      <a href={overviewHref} aria-current={view==='overview'?'page':undefined}
+        onClick={event=>onView(event,'overview')}>Library management</a>
     </nav>
     {view==='analytics'?<MangaAnalyticsPanel analytics={analytics} entries={entries}
       detailHref={analyticsDetailHref}

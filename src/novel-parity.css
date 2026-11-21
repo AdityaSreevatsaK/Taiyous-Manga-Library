@@ -463,3 +463,37 @@
   .app-shell .editorial-hero .editorial-art-hover-label{transition:none}
   .app-shell .editorial-hero .editorial-book-link:is(:hover,:focus-visible){scale:1;translate:none}
 }
+
+
+/* 21 November: Master's surrounding UI mirrors Novel's analytics-first workspace.
+ * Keep semantic links so the manga routes remain bookmarkable. */
+.app-shell .manga-master-page{padding-top:25px}
+.app-shell .manga-master-page-head{margin:8px 0 24px}
+.app-shell .manga-master-page-head h1{
+  font:600 clamp(28px,3vw,43px)/1.15 Georgia,serif;margin:6px 0}
+.app-shell .manga-master-page-head p:not(.eyebrow){font-size:12px;line-height:1.65;
+  max-width:690px;margin:0}
+.app-shell .manga-master-sections{
+  display:flex;flex-wrap:wrap;gap:8px;margin:0 0 22px;
+  padding:4px;border:1px solid var(--editorial-line);border-radius:11px;
+  background:var(--editorial-surface)
+}
+.app-shell .manga-master-sections a{
+  flex:0 1 auto;min-height:40px;padding:9px 15px;border:1px solid transparent;
+  border-radius:8px;color:var(--editorial-ink);background:transparent;
+  font:650 13px/1.4 Inter,"Segoe UI",sans-serif;cursor:pointer
+}
+.app-shell .manga-master-sections a[aria-current=page]{
+  background:var(--editorial-soft);border-color:var(--editorial-line)
+}
+.app-shell .manga-master-sections a:hover:not([aria-current=page]){
+  background:color-mix(in srgb,var(--editorial-accent) 9%,var(--editorial-surface));
+  border-color:transparent
+}
+.app-shell .manga-master-page-head .eyebrow{color:var(--editorial-muted);
+  letter-spacing:.19em;font-weight:800;font-size:10px;margin:0}
+@media(max-width:520px){
+  .app-shell .manga-master-page-head{gap:10px}
+  .app-shell .manga-master-page{padding-top:16px}
+  .app-shell .manga-master-sections a{padding:9px 12px}
+}
