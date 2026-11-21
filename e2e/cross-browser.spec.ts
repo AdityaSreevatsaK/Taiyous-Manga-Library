@@ -83,3 +83,26 @@ test('personal shelves persist without changing publication status',async({page}
   await page.goto('/manga/mng_lanternarchive');
   await expect(page.locator('.detail-sub')).toHaveText(original);
 });
+
+test('shelf notifications match Novel Library appearance, auto-dismiss and leave on navigation',async({page})=>{
+  await page.goto('/manga/mng_lanternarchive');
+  await page.getByRole('button',{name:'Add to Trying Out'}).click();
+  const toast=page.locator('.collection-change-toast');
+  await expect(toast).toContainText('Trying Out');
+  await expect(toast).toContainText('Saved to your personal library on this device');
+  const appearance=await toast.evaluate(el=>{
+    const s=getComputedStyle(el),r=el.getBoundingClientRect();
+    return {background:s.backgroundColor,color:s.color,borderRadius:s.borderRadius,
+      rightGap:window.innerWidth-r.right,top:r.top};
+  });
+  expect(appearance.background).toBe('rgb(20, 60, 44)');
+  expect(appearance.color).toBe('rgb(220, 255, 236)');
+  expect(appearance.borderRadius).toBe('11px');
+  expect(appearance.rightGap).toBeGreaterThanOrEqual(15);
+  expect(appearance.top).toBeGreaterThanOrEqual(60);
+  await expect(toast).toHaveCount(0,{timeout:7000});
+  await page.getByRole('button',{name:/Remove from Trying Out/}).click();
+  await expect(toast).toHaveCount(1);
+  await page.goto('/library');
+  await expect(toast).toHaveCount(0);
+});
