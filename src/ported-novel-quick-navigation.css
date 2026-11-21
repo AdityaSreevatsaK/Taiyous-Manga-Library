@@ -208,3 +208,28 @@
 @media(max-width:700px){
  .app-shell .site-credit-footer{margin-top:14px;padding:17px 18px 30px;font-size:10px}
 }
+
+/* Exact dimensions and interaction from Novel Library's back-to-top.css. */
+.app-shell .page-top-button{
+ position:fixed;right:max(18px,env(safe-area-inset-right));
+ bottom:max(18px,env(safe-area-inset-bottom));z-index:120;
+ display:grid;place-items:center;width:46px;height:46px;padding:0;
+ background:var(--editorial-accent);color:var(--editorial-paper);
+ border:2px solid var(--editorial-surface);border-radius:50%;
+ box-shadow:0 5px 24px #00000045;cursor:pointer;
+ transition:transform .18s ease,box-shadow .18s ease
+}
+.app-shell .page-top-button:hover{transform:translateY(-4px);box-shadow:0 8px 28px #00000055}
+.app-shell .page-top-button:focus-visible{outline:3px solid var(--editorial-ink);outline-offset:3px}
+.app-shell.reading-immersive .site-credit-footer,
+.app-shell.reading-immersive .page-top-button{display:none}
+@media(max-width:700px){
+ .app-shell .page-top-button{
+  right:max(14px,env(safe-area-inset-right));bottom:max(14px,env(safe-area-inset-bottom));
+  width:43px;height:43px
+ }
+}
+@media(prefers-reduced-motion:reduce){
+ .app-shell .page-top-button{transition:none}
+ .app-shell .page-top-button:hover{transform:none}
+}
