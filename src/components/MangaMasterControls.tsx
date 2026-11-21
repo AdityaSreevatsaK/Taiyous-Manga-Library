@@ -1,6 +1,8 @@
 import {useMemo,useState,type MouseEvent} from 'react';
 import type {MangaEntry,MangaProgress} from '../domain/types';
 import type {PersonalAnnotation} from '../domain/personalAnnotations';
+import type {computeLocalReadingAnalytics} from '../domain/advancedDiscovery';
+import {MangaAnalyticsPanel} from './MangaAnalyticsPanel';
 
 interface Props {
   connected:boolean;checking:boolean;owner?:string;refreshing:boolean;
@@ -8,6 +10,13 @@ interface Props {
   annotations:Readonly<Record<string,PersonalAnnotation>>;
   progress:Readonly<Record<string,MangaProgress>>;
   offlineChapterIds:ReadonlySet<string>;
+  analytics:ReturnType<typeof computeLocalReadingAnalytics>;
+  view:'overview'|'analytics';
+  overviewHref:string;analyticsHref:string;
+  onView:(event:MouseEvent<HTMLAnchorElement>,view:'overview'|'analytics')=>void;
+  onReading:()=>void;
+  onOpenAnalyticsDetails:(event:MouseEvent<HTMLAnchorElement>,mangaId:string)=>void;
+  analyticsDetailHref:(mangaId:string)=>string;
   onRefresh:()=>void;
   backHref:string;onBack:(event:MouseEvent<HTMLAnchorElement>)=>void;
   hrefFor:(entry:MangaEntry)=>string;
@@ -19,7 +28,8 @@ const privateDataset='https://huggingface.co/datasets/AdityaSreevatsaK/Taiyous-M
 /** Dedicated owner catalogue page. Read-only for HF: the Storage Controller
  * remains responsible for authorised uploads, edits and deletion. */
 export function MangaMasterControls({connected,checking,owner,refreshing,entries,
-  annotations,progress,offlineChapterIds,onRefresh,backHref,onBack,hrefFor,onOpenDetails}:Props){
+  annotations,progress,offlineChapterIds,analytics,view,overviewHref,analyticsHref,onView,
+  onReading,onOpenAnalyticsDetails,analyticsDetailHref,onRefresh,backHref,onBack,hrefFor,onOpenDetails}:Props){
   const [search,setSearch]=useState('');
   const [limit,setLimit]=useState(30);
   const results=useMemo(()=>{
@@ -38,7 +48,16 @@ export function MangaMasterControls({connected,checking,owner,refreshing,entries
         <p>Review your manga catalogue and manage personal reading records in one place.</p></div>
       <a className="manga-master-back" href={backHref} onClick={onBack}>← Back to library</a>
     </header>
-    {checking?<p role="status">Checking private library access…</p>:
+    <nav className="manga-master-sections" aria-label="Master Controls sections">
+      <a href={overviewHref} aria-current={view==='overview'?'page':undefined}
+        onClick={event=>onView(event,'overview')}>Library management</a>
+      <a href={analyticsHref} aria-current={view==='analytics'?'page':undefined}
+        onClick={event=>onView(event,'analytics')}>Analytics</a>
+    </nav>
+    {view==='analytics'?<MangaAnalyticsPanel analytics={analytics}
+      detailHref={analyticsDetailHref}
+      onOpenDetails={onOpenAnalyticsDetails} onReading={onReading}/>:
+      checking?<p role="status">Checking private library access…</p>:
       !connected?<section className="manga-master-panel">
         <h2>Private owner access required</h2>
         <p>Sign in with your owning Hugging Face account to view Master Controls.</p>

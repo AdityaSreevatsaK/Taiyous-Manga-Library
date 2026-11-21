@@ -692,10 +692,13 @@ test.describe('approved library navigation and personal presentation', () => {
     expect((await manifest.json()).icons).toHaveLength(2);
   });
 
-  test('eight sections on desktop and accessible compact More navigation on mobile', async ({page}) => {
+  test('six visible shelves and Analytics inside Master on desktop and mobile', async ({page}) => {
     await page.setViewportSize({width:1280,height:900});
     await page.goto('/');
-    await expect(page.locator('.manga-nav-links > .site-nav-link')).toHaveCount(8);
+    await expect(page.locator('.manga-nav-links > .site-nav-link')).toHaveCount(6);
+    await expect(page.locator('.manga-nav-links')).not.toContainText('To Be Read');
+    await expect(page.locator('.manga-nav-links')).not.toContainText('Analytics');
+    await expect(page.getByRole('link',{name:'Master',exact:true})).toBeVisible();
     await page.getByRole('link',{name:'Currently Reading (0)'}).click();
     await expect(page).toHaveURL('/reading');
     await expect(page.locator('.site-nav-link[aria-current="page"]')).toHaveCount(1);
@@ -703,9 +706,16 @@ test.describe('approved library navigation and personal presentation', () => {
     await expect(page.locator('.manga-nav-links > .site-nav-link')).toHaveCount(3);
     await expect(page.getByText('More',{exact:true})).toBeVisible();
     await page.locator('.nav-more summary').click();
-    await page.getByRole('link',{name:'Analytics'}).click();
-    await expect(page).toHaveURL('/analytics');
-    await expect(page.getByRole('heading',{name:'Analytics'})).toBeVisible();
+    await expect(page.locator('.nav-more-menu')).not.toContainText('Analytics');
+    await expect(page.locator('.nav-more-menu')).not.toContainText('To Be Read');
+    await page.getByRole('link',{name:'All Manga'}).click();
+    await expect(page).toHaveURL('/library');
+    await page.getByRole('link',{name:'Master',exact:true}).click();
+    await expect(page).toHaveURL('/master');
+    await page.getByRole('navigation',{name:'Master Controls sections'})
+      .getByRole('link',{name:'Analytics'}).click();
+    await expect(page).toHaveURL('/master?view=analytics');
+    await expect(page.locator('.manga-master-page .analytics-shelf')).toBeVisible();
     await assertNoHorizontalOverflow(page);
   });
 
@@ -989,7 +999,11 @@ test.describe('advanced discovery and grounded personal analytics',()=>{
     await page.getByRole('link',{name:/Read from beginning/}).click();
     await expect(page.locator('.vertical-page-image').first()).toBeVisible();
     await page.goto('/analytics');
-    await expect(page.getByRole('heading',{name:'Analytics'})).toBeVisible();
+    await expect(page).toHaveURL('/master?view=analytics');
+    await expect(page.locator('.manga-master-page').getByRole('heading',{name:'Analytics'})).toBeVisible();
+    await expect(page.getByRole('navigation',{name:'Master Controls sections'})).toBeVisible();
+    await expect(page.getByRole('heading',{name:'Private owner access required'})).toHaveCount(0);
+    await expect(page.getByRole('textbox',{name:/passphrase|password/i})).toHaveCount(0);
     await expect(page.locator('.analytics-grid')).toContainText('1');
     await expect(page.locator('.analytics-grid')).toContainText('8');
     await expect(page.locator('.analytics-recent')).toContainText('The Lantern Archive');
@@ -1316,6 +1330,24 @@ test('Novel cloud indicator occupies the upper-right desktop tools without chang
   await expect(page.getByRole('heading',{name:'Cloud library settings'})).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(cloud).not.toHaveAttribute('open','');
+});
+
+test('Analytics works without an owner password, with management still protected',async({page})=>{
+  await page.goto('/master?view=analytics');
+  await expect(page.locator('.manga-master-page .analytics-shelf')).toBeVisible();
+  await expect(page.locator('.analytics-grid')).toContainText('Catalogue series');
+  await expect(page.getByRole('heading',{name:'Private owner access required'})).toHaveCount(0);
+  await expect(page.locator('input[type=password]')).toHaveCount(0);
+  await page.reload();
+  await expect(page).toHaveURL('/master?view=analytics');
+  await expect(page.locator('.analytics-shelf')).toBeVisible();
+  await page.getByRole('navigation',{name:'Master Controls sections'})
+    .getByRole('link',{name:'Library management'}).click();
+  await expect(page).toHaveURL('/master');
+  await expect(page.getByRole('heading',{name:'Private owner access required'})).toBeVisible();
+  await page.goto('/to-read');
+  await expect(page).toHaveURL('/library');
+  await expect(page.getByRole('heading',{name:'All Manga'})).toBeVisible();
 });
 
 test('unauthenticated Master route never exposes a private catalogue',async({page})=>{

@@ -4,9 +4,11 @@ import type {MangaEntry,MangaChapter} from './types';
  */
 export const CATALOGUE_SECTIONS=['home','reading','trying','offline','finished','to-read','library','analytics'] as const;
 export type CatalogueSection=typeof CATALOGUE_SECTIONS[number];
+/** Six visible shelves; legacy To Be Read and Analytics URLs remain compatible. */
+export const PRIMARY_NAV_SECTIONS=['home','reading','trying','offline','finished','library'] as const satisfies readonly CatalogueSection[];
 export type AppRoute=
  | {kind:CatalogueSection}
- | {kind:'master'}
+ | {kind:'master';view?:'analytics'}
  | {kind:'details';mangaId:string}
  | {kind:'reader';mangaId:string;chapterId:string;pageIndex:number}
  | {kind:'not-found'};
@@ -53,7 +55,11 @@ export function parseAppRoute(pathname:string,search='',basePath='/'):AppRoute{
  const relative=prefix?pathname.slice(prefix.length):pathname;
  const parts=relative.split('/').filter(Boolean);
  if(parts.length===0)return {kind:'home'};
- if(parts.length===1&&parts[0]==='master')return {kind:'master'};
+ if(parts.length===1&&parts[0]==='master')return new URLSearchParams(search).get('view')==='analytics'
+   ?{kind:'master',view:'analytics'}:{kind:'master'};
+ // Old bookmarks stay useful without restoring either removed navigation tab.
+ if(parts.length===1&&parts[0]==='analytics')return {kind:'master',view:'analytics'};
+ if(parts.length===1&&parts[0]==='to-read')return {kind:'library'};
  if(parts.length===1&&CATALOGUE_SECTIONS.includes(parts[0] as CatalogueSection)&&parts[0]!=='home')
    return {kind:parts[0] as CatalogueSection};
  if(parts[0]!=='manga')return {kind:'not-found'};
@@ -95,6 +101,7 @@ export function routeHref(route:Exclude<AppRoute,{kind:'not-found'}>,
  basePath='/',entries:readonly MangaEntry[]=[]):string{
  const base=prefixFor(basePath);
  if(route.kind==='home')return base+'/';
+ if(route.kind==='master')return base+'/master'+(route.view==='analytics'?'?view=analytics':'');
  if(route.kind!=='details'&&route.kind!=='reader')return base+'/'+route.kind;
  const entry=entries.find(e=>e.id===route.mangaId);
  const mangaSegment=entry?publicSeriesSlug(entry,entries):route.mangaId;

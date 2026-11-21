@@ -184,9 +184,9 @@
 }
 @media(max-width:540px){
   .app-shell .manga-topbar{padding:10px 13px}
-  .app-shell .site-nav{padding:0 13px 5px}
-  .app-shell .manga-nav-links{flex:1 1 100%;justify-content:space-between}
-  .app-shell .manga-nav-tools{justify-content:flex-end;width:100%;padding:2px 0}
+  .app-shell .site-nav{display:grid;grid-template-columns:minmax(0,1fr);padding:0 13px 5px}
+  .app-shell .manga-nav-links{grid-row:1;width:100%;min-width:0;justify-content:space-between;position:relative;z-index:1}
+  .app-shell .manga-nav-tools{grid-row:2;justify-content:flex-end;width:100%;min-width:0;padding:2px 0;position:relative;z-index:2;margin:0}
   .app-shell .manga-wordmark-text strong{font-size:15px}
   .app-shell .manga-wordmark-text small{font-size:7px}
   .app-shell .manga-advanced-button{width:35px;min-width:35px}
@@ -352,6 +352,32 @@
  display:flex;align-items:start;justify-content:space-between;gap:24px;
  margin-bottom:25px
 }
+/* Analytics is a read-only section inside Master, never passphrase-gated.
+ * Preserve the existing six palette rules and responsive analytics grids. */
+.app-shell .manga-master-sections{
+ display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+ border-bottom:1px solid var(--editorial-line);margin:0 0 22px;padding:0 0 13px
+}
+.app-shell .manga-master-sections a{
+ display:inline-flex;align-items:center;min-height:41px;padding:9px 14px;
+ border:1px solid var(--editorial-line);border-radius:8px;
+ background:var(--editorial-surface);color:var(--editorial-muted);
+ font-size:12px;font-weight:650;text-decoration:none
+}
+.app-shell .manga-master-sections a:is(:hover,[aria-current=page]){
+ color:var(--editorial-ink);border-color:var(--editorial-accent);
+ background:var(--editorial-soft)
+}
+.app-shell .manga-master-sections a:focus-visible{
+ outline:2px solid var(--editorial-accent);outline-offset:3px
+}
+.app-shell .manga-master-page .analytics-shelf{padding:12px 0 32px;min-height:0}
+.app-shell .manga-master-page .analytics-shelf h2{font-size:clamp(30px,4vw,47px)}
+.app-shell .manga-master-page .analytics-shelf .analytics-grid>div{
+ border-color:var(--editorial-line);background:var(--editorial-surface);
+ color:var(--editorial-ink)
+}
+
 .app-shell .manga-master-page-head h1{font-size:clamp(30px,4vw,45px);margin:4px 0 9px}
 .app-shell .manga-master-page-head p:not(.eyebrow){color:var(--editorial-muted);font-size:13px}
 .app-shell .manga-master-back,.app-shell .manga-master-record-open{

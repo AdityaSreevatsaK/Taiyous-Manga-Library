@@ -12,7 +12,7 @@ test('home, desktop navigation and transparent brand assets work on both engines
   await page.setViewportSize({width:1280,height:900});
   await page.goto('/');
   await expect(page.getByRole('heading',{name:'The sample collection'})).toBeVisible();
-  await expect(page.locator('.manga-nav-links > .site-nav-link')).toHaveCount(8);
+  await expect(page.locator('.manga-nav-links > .site-nav-link')).toHaveCount(6);
   await expect(page.locator('.wordmark .brand-sun')).toHaveAttribute('src',/sun-light.webp$/);
   await expect(page.locator('.app-shell')).toHaveClass(/theme-sepia/);
   await expect(page.locator('.book-card')).toHaveCount(4);
@@ -23,9 +23,15 @@ test('mobile More and six themes stay accessible at narrow widths', async ({page
   await page.goto('/');
   await expect(page.locator('.manga-nav-links > .site-nav-link')).toHaveCount(3);
   await page.locator('.nav-more summary').click();
-  await page.locator('.nav-more-menu').getByRole('link',{name:'Analytics'}).click();
-  await expect(page).toHaveURL(/\/analytics$/);
-  await expect(page.getByRole('heading',{name:'Analytics'})).toBeVisible();
+  await expect(page.locator('.nav-more-menu')).not.toContainText('Analytics');
+  await page.locator('.nav-more-menu').getByRole('link',{name:'All Manga'}).click();
+  await expect(page).toHaveURL('/library');
+  await page.getByRole('link',{name:'Master',exact:true}).click();
+  await expect(page).toHaveURL('/master');
+  await page.getByRole('navigation',{name:'Master Controls sections'})
+    .getByRole('link',{name:'Analytics'}).click();
+  await expect(page).toHaveURL('/master?view=analytics');
+  await expect(page.locator('.manga-master-page').getByRole('heading',{name:'Analytics'})).toBeVisible();
   const theme=page.getByRole('button',{name:'Use Midnight theme'});
   await theme.click();
   await expect(page.locator('.app-shell')).toHaveClass(/theme-midnight/);
