@@ -21,6 +21,7 @@ describe('protected catalogue metadata correction',()=>{
     expect(modified.creators).toEqual(['Verified Writer']);
     expect(modified.publicationStatus).toBe('completed');
     expect(modified.id).toBe(manga.id);
+    expect(modified.slug).toBe(manga.slug??manga.title.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,''));
     expect(modified.chapters).toEqual(manga.chapters);
     expect(corrected.entries.slice(1)).toEqual(source.entries.slice(1));
     expect(source.entries[0]!.title).not.toBe('Updated Manga Title');
