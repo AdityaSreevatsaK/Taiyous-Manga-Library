@@ -158,6 +158,7 @@ export function MangaAnalyticsPanel({analytics,entries,detailHref,onOpenDetails,
             </div>)}</div>:<p>Rate manga to see your distribution.</p>}
         </section>
       </div>
+      <div className="manga-usage-more-actions"><button type="button" onClick={onReading}>View Currently Reading</button></div>
     </details>
     <section className="manga-usage-privacy" aria-label="Reading analytics controls">
       <div className="manga-usage-privacy-copy">
