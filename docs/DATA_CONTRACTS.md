@@ -30,7 +30,8 @@ A MangaEntry contains:
 | chapters | Ordered MangaChapter records |
 | synopsis | Source synopsis; a personal local override is separate |
 | cover | Optional verified cover descriptor |
-| rating / collections | Synthetic fixture-only rating and optional fixture collection labels; never use these fields for private personal annotations |
+| rating | Synthetic fixture-only rating; private personal ratings belong in browser-local annotations |
+| collections | Optional catalogue grouping labels where present; personal nested collections use separate browser-local records |
 
 MangaChapter has immutable ch_ ID, display label, unique sequence, and optional stable slug, volume and informational pageCount. Titles, labels, slugs and chapter numbers are not primary keys.
 
