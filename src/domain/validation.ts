@@ -157,7 +157,7 @@ export function parseMangaEntry(value: unknown): MangaEntry {
     aliases: textList(item.aliases, 'entry.aliases', 24),
     creators: textList(item.creators, 'entry.creators', 24),
     tags: textList(item.tags, 'entry.tags', 32),
-    publicationStatus: literal(item.publicationStatus, ['unknown', 'ongoing', 'completed', 'hiatus'], 'entry.publicationStatus'),
+    publicationStatus: literal(item.publicationStatus, ['unknown', 'ongoing', 'completed', 'hiatus', 'dropped'], 'entry.publicationStatus'),
     direction: literal(item.direction, ['rtl', 'ltr', 'vertical'], 'entry.direction'),
     chapters,
   };
