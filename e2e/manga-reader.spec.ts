@@ -1089,25 +1089,28 @@ test('mock authenticated empty HF dataset replaces sample catalogue with a truth
   await expect(page.getByRole('heading',{name:/Where worlds unfold/})).toBeVisible();
 });
 
-test('editorial cover grid stays readable, accessible and unbroken across device widths', async ({page}) => {
-  for (const width of [320,390,740,1024,1500]) {
-    await page.setViewportSize({width,height:900});
-    await page.goto('/');
-    await expect(page.locator('.editorial-hero')).toBeVisible();
-    await expect(page.locator('.editorial-overview')).toContainText('Series in the library');
-    await expect(page.locator('.book-card')).toHaveCount(4);
-    await assertNoHorizontalOverflow(page);
-    const cover=await page.locator('.book-card .book-cover').first().boundingBox();
-    expect(cover).toBeTruthy();
-    expect(cover!.height/cover!.width).toBeGreaterThan(1.45);
-    expect(cover!.height/cover!.width).toBeLessThan(1.6);
-  }
-  await expect(page.locator('.status-ribbon').filter({hasText:'Story Complete'})).toHaveCount(2);
-  await expect(page.locator('.status-ribbon').filter({hasText:'Updating'})).toHaveCount(1);
-  await expect(page.locator('.status-ribbon').filter({hasText:'On Hiatus'})).toHaveCount(1);
-  await page.getByRole('link',{name:/The Lantern Archive/}).first().click();
-  await expect(page.locator('.manga-synopsis-card .detail-description')).toBeVisible();
-  await expect(page.getByRole('link',{name:/Read from beginning/})).toBeVisible();
+test('Novel editorial home is complete, readable and navigable at split-screen widths',async({page})=>{
+ for(const width of [320,390,430,740,1024,1500]){
+  await page.setViewportSize({width,height:900});
+  await page.goto('/');
+  await expect(page.locator('.editorial-grand')).toBeVisible();
+  await expect(page.getByRole('heading',{name:/Where worlds unfold/})).toBeVisible();
+  await expect(page.locator('.editorial-journal')).toBeVisible();
+  await expect(page.locator('.editorial-journal-index .editorial-index-row')).toHaveCount(3);
+  await expect(page.locator('.editorial-shelves')).toBeVisible();
+  await expect(page.locator('.editorial-all-books')).toBeVisible();
+  await expect(page.locator('.editorial-grand-ledger button')).toHaveCount(4);
+  await assertNoHorizontalOverflow(page);
+ }
+ await page.getByRole('button',{name:/Browse all 4 manga/}).click();
+ await expect(page).toHaveURL('/library');
+ await expect(page.locator('.book-card')).toHaveCount(4);
+ await expect(page.locator('.status-ribbon').filter({hasText:'Story Complete'})).toHaveCount(2);
+ await expect(page.locator('.status-ribbon').filter({hasText:'Updating'})).toHaveCount(1);
+ await expect(page.locator('.status-ribbon').filter({hasText:'On Hiatus'})).toHaveCount(1);
+ await page.locator('.book-card').filter({hasText:'The Lantern Archive'}).click();
+ await expect(page.locator('.manga-synopsis-card .detail-description')).toBeVisible();
+ await expect(page.getByRole('link',{name:/Read from beginning/})).toBeVisible();
 });
 test('editorial theme tokens cover all six approved app palettes', async ({page}) => {
   await page.goto('/');
@@ -1328,6 +1331,12 @@ test('Novel catalogue cloud sits immediately beside sun wordmark without changin
   await expect(glyph).toHaveAttribute('width','25');
   await expect(glyph).toHaveAttribute('height','25');
   await expect(glyph).toHaveAttribute('stroke-width','1.9');
+  const rendered=await glyph.boundingBox();
+  expect(rendered?.width).toBe(27);
+  expect(rendered?.height).toBe(27);
+  const toggle=await cloud.locator(':scope > summary').boundingBox();
+  expect(toggle?.width).toBe(42);
+  expect(toggle?.height).toBe(42);
   await expect(cloud.locator('.cloud-status-dot')).toHaveCount(1);
   await cloud.locator(':scope > summary').click();
   await expect(page.getByRole('heading',{name:'Cloud library settings'})).toBeVisible();
