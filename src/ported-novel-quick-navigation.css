@@ -110,3 +110,101 @@
  display:grid;place-items:center;width:26px;height:26px;flex:none;
  border:1px solid #8796a752;border-radius:50%;font-size:15px;font-weight:bold
 }
+
+/* Source: Novel Library src/styles.css BookDetails and
+ * src/components/details-palettes.css. Match composition using the same
+ * hierarchy, typography, spacing and responsive behaviour; retain Manga data. */
+.app-shell.is-manga-details .main-area{
+ max-width:none;padding:0;background:var(--editorial-paper);color:var(--editorial-ink)
+}
+.app-shell.is-manga-details .manga-detail-page{
+ box-sizing:border-box;max-width:1390px;margin:0 auto;
+ padding:38px clamp(18px,4vw,60px)100px;background:transparent
+}
+.app-shell.is-manga-details .manga-details-hero{
+ grid-template-columns:minmax(180px,220px) minmax(0,1fr);
+ gap:clamp(27px,4vw,62px);padding:clamp(26px,5vw,65px);border-radius:20px
+}
+.app-shell.is-manga-details .manga-details-hero .detail-cover{max-width:220px}
+.app-shell.is-manga-details .manga-details-hero .detail-content h1{
+ margin:15px 0 10px;font:500 clamp(29px,4.4vw,55px)/1.12 Georgia,"Times New Roman",serif;
+ letter-spacing:-.9px;overflow-wrap:anywhere
+}
+.app-shell.is-manga-details .manga-details-columns{
+ grid-template-columns:minmax(230px,1fr) minmax(0,1.65fr);
+ gap:22px;padding:0;margin-top:27px;align-items:start
+}
+.app-shell.is-manga-details .manga-details-sidebar,
+.app-shell.is-manga-details .manga-details-main{gap:22px}
+.app-shell.is-manga-details .manga-detail-card{
+ padding:clamp(22px,3vw,33px);border-radius:16px;
+ border:1px solid var(--md-line);box-shadow:var(--editorial-shadow)
+}
+.app-shell.is-manga-details .manga-section-header,
+.app-shell.is-manga-details .manga-detail-card .details-section-header{
+ display:flex;align-items:start;justify-content:space-between;gap:12px;
+ margin-bottom:22px
+}
+.app-shell.is-manga-details .manga-section-header>div,
+.app-shell.is-manga-details .manga-detail-card .details-section-header>div{
+ min-width:0
+}
+.app-shell.is-manga-details .manga-detail-card .details-section-header h2{
+ font:500 27px/1.2 Georgia,serif;letter-spacing:-.5px;
+ margin:7px 0 0;color:var(--md-ink)
+}
+.app-shell.is-manga-details .manga-detail-card .details-section-header .details-section-icon{
+ flex:0 0 auto;width:20px;height:20px;color:var(--md-muted);opacity:.95
+}
+.app-shell.is-manga-details .manga-detail-card .manga-card-overline{
+ font-size:10px;letter-spacing:1.6px;font-weight:800;margin:0;color:var(--md-muted)
+}
+.app-shell.is-manga-details .manga-progress-percent{
+ font:500 55px/1.2 Georgia,serif;letter-spacing:-2px;margin:-6px 0 12px
+}
+.app-shell.is-manga-details .manga-progress-percent small{
+ font-size:23px;letter-spacing:0;color:var(--md-muted)
+}
+.app-shell.is-manga-details .manga-details-main .manga-synopsis-card .detail-description{
+ max-height:clamp(230px,42dvh,420px);margin:0;overflow-y:auto;
+ overscroll-behavior-y:auto;scrollbar-width:thin;
+ padding-right:9px;white-space:pre-line;overflow-wrap:anywhere;
+ color:var(--md-ink);font:16px/1.9 Georgia,"Times New Roman",serif
+}
+.app-shell.is-manga-details .manga-synopsis-edit{
+ display:inline-flex;align-items:center;gap:7px;
+ border:1px solid var(--md-line);border-radius:8px;
+ background:var(--md-soft);color:var(--md-ink);
+ font-size:11px;padding:9px 11px
+}
+.app-shell.is-manga-details .manga-synopsis-edit:hover{background:var(--md-panel)}
+.app-shell.is-manga-details .manga-detail-card .details-tag-row{gap:8px}
+.app-shell.is-manga-details .manga-info-card dl>div{padding:12px 0}
+.app-shell.is-manga-details .manga-detail-page .manga-detail-back{
+ margin:0 0 18px;min-height:0
+}
+.app-shell .site-credit-footer{
+ display:flex;flex-wrap:wrap;align-items:center;justify-content:center;
+ gap:6px 10px;max-width:1400px;margin:20px auto 0;
+ padding:20px 15px max(25px,env(safe-area-inset-bottom));
+ border-top:1px solid var(--editorial-line);
+ color:var(--editorial-muted);font:500 11px/1.5 Inter,"Segoe UI",sans-serif;
+ text-align:center;letter-spacing:.01em
+}
+@media(max-width:800px){
+ .app-shell.is-manga-details .manga-details-hero{
+  grid-template-columns:minmax(125px,31%) minmax(0,1fr);padding:25px 18px;gap:16px
+ }
+ .app-shell.is-manga-details .manga-details-columns{
+  grid-template-columns:minmax(210px,.38fr) minmax(0,.62fr)
+ }
+}
+@media(max-width:610px){
+ .app-shell.is-manga-details .manga-detail-page{padding:20px 15px 65px}
+ .app-shell.is-manga-details .manga-details-columns{grid-template-columns:1fr}
+ .app-shell.is-manga-details .manga-details-hero{grid-template-columns:minmax(105px,38%) minmax(0,1fr)}
+ .app-shell.is-manga-details .manga-details-hero .detail-content h1{font-size:clamp(26px,6vw,39px)}
+}
+@media(max-width:700px){
+ .app-shell .site-credit-footer{margin-top:14px;padding:17px 18px 30px;font-size:10px}
+}
