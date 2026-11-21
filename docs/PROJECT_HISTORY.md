@@ -49,7 +49,7 @@ The details page uses the Novel Library's compact details header, section hierar
 
 The repository began as a TypeScript/React/Vite scaffold with typed manga identity and validation. Early work established the synthetic catalogue, generated illustration fixtures, reader navigation and responsive test foundation. The first milestone was deliberately public-source-safe: no real manga binaries, no private credentials and no unreviewed storage connection.
 
-The continuous reader, readable browser routes, per-manga local progress, reader preferences, synthetic offline chapter downloads and release reliability were added through the early PR sequence. Service-worker release fingerprinting and two-release verified shell retention were introduced after identifying that unchanged service-worker bytes could leave an old offline app installed after the live site changed.
+The continuous reader, readable browser routes, per-manga local progress, reader preferences, synthetic offline chapter downloads and release reliability were added through the early PR sequence. Private chapters currently queue all page bytes at concurrency 3 and retain their page sources until the chapter closes; the visible image window is bounded, but total source memory still scales with chapter size. This remains a measured hardware-acceptance item, not a proven 1,000-page memory cap. Service-worker release fingerprinting and two-release verified shell retention were introduced after identifying that unchanged service-worker bytes could leave an old offline app installed after the live site changed.
 
 ### 19 November: local library features and private read design
 
