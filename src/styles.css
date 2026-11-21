@@ -465,3 +465,49 @@ a.book-card:focus-visible,a.back:focus-visible,a.primary:focus-visible,a.seconda
   padding:10px 12px;border:1px solid var(--editorial-line,#cad2d6);
   border-radius:7px;font-size:12px;
 }
+
+/* Direct port of Novel Library's collection-toast-stack and
+ * collection-change-toast styling, including the original top-right position. */
+.app-shell .collection-toast-stack{
+ position:fixed;top:max(66px,calc(56px + env(safe-area-inset-top)));
+ right:max(16px,env(safe-area-inset-right));z-index:20000;
+ pointer-events:none;display:flex;flex-direction:column;gap:8px;
+ align-items:flex-end;max-width:min(340px,calc(100vw - 32px));
+}
+.app-shell .collection-change-toast{
+ position:relative;top:auto;right:auto;pointer-events:auto;
+ display:flex;align-items:center;gap:11px;
+ width:100%;max-width:100%;box-sizing:border-box;
+ padding:11px 12px;border-radius:11px;
+ color:#dcffec;background:#143c2c;border:1px solid #4b9f75;
+ box-shadow:0 9px 26px #05121a73;
+ font:600 12px/1.4 Inter,"Segoe UI",sans-serif;
+ animation:collection-toast-arrive .18s ease-out;
+}
+.app-shell .collection-change-toast .collection-toast-symbol{
+ width:27px;height:27px;display:inline-grid;place-items:center;flex:0 0 27px;
+ border-radius:50%;background:#2d8057;color:#eafff3;
+ font-size:16px;font-weight:850;
+}
+.app-shell .collection-change-toast .collection-toast-copy{
+ display:grid;gap:2px;min-width:0;flex:1;
+}
+.app-shell .collection-change-toast .collection-toast-copy strong{
+ font-size:13px;font-weight:750;overflow-wrap:anywhere;
+}
+.app-shell .collection-change-toast .collection-toast-copy small{
+ font-size:11px;color:#b6dfc7;font-weight:450;
+}
+.app-shell .collection-change-toast button{
+ border:0;background:transparent;color:#c5e4d2;font-size:21px;line-height:19px;
+ cursor:pointer;padding:2px 4px;align-self:flex-start;
+}
+.app-shell .collection-change-toast button:focus-visible{
+ outline:2px solid #fff;outline-offset:3px;
+}
+@keyframes collection-toast-arrive{
+ from{opacity:0;transform:translateY(-7px)}to{opacity:1;transform:none}
+}
+@media(prefers-reduced-motion:reduce){
+ .app-shell .collection-change-toast{animation:none}
+}
