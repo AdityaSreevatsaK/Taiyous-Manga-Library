@@ -1,49 +1,74 @@
-# Manga Library production deployment
+# Production deployment
 
-**Current as of 20 November 2026:** [taiyous-manga-library.pages.dev](https://taiyous-manga-library.pages.dev/) is the canonical live Cloudflare Pages application. `master` deploys automatically through Cloudflare's Git integration. GitHub Pages is not used for production.
+**Canonical production app:** https://taiyous-manga-library.pages.dev/  
+**Host:** Cloudflare Pages with Pages Functions  
+**Production branch:** master  
+**Build:** npm ci && npm run build  
+**Output:** dist  
+**Runtime:** Node.js 22
 
-## Build and hosting
+## Deployment model
 
-| Setting | Value |
-| --- | --- |
-| Production branch | `master` |
-| Platform | Cloudflare Pages with Pages Functions |
-| Framework | React / Vite |
-| Build command | `npm ci && npm run build` |
-| Output directory | `dist` |
-| Node.js | 22 |
-| Live host | `https://taiyous-manga-library.pages.dev/` |
+Cloudflare Pages Git integration deploys master. The application is a Vite React SPA; the functions/ directory provides same-origin private API routes. GitHub Pages is not the production host.
 
-The static application contains only original demonstration art, styles and client-side code. Private catalogue metadata, authorised original manga covers and chapter pages are delivered only through same-origin owner-authenticated Pages Functions. The private Hugging Face dataset and provider tokens are never embedded in `dist/` or committed to GitHub.
+The public build contains application code, approved brand assets and synthetic demonstration data. Private catalogue metadata and original manga media are fetched through owner-authenticated Pages Functions. No private HF token, private dataset file, original manga page or owner passphrase belongs in dist or Git.
 
 ## Release process
 
-1. Create a feature branch from the latest `master`, keep data writes and secret configuration outside routine UI releases.
-2. Run `npm ci`, `npm run typecheck`, `npm test`, `npm run build` and production-browser tests. GitHub Actions also enforces compressed asset-size budgets, Chromium and Firefox/WebKit coverage.
-3. Merge a PR **only after both mandatory test workflows pass on its actual head SHA**. The owner permits routine non-destructive merges without separate approval.
-4. Cloudflare's production Git integration deploys the `master` commit automatically.
-5. Verify the post-merge [Live Cloudflare smoke workflow](../.github/workflows/live-cloudflare-smoke.yml). It checks the exact asset hashes, SPA deep links, service-worker version, public headers, OAuth redirect and rejection of unauthenticated private reads. A green PR alone does not confirm deployment.
-6. If a deployment fails, diagnose or revert its commit, and restore the last known-good Cloudflare deployment if necessary. Never clear personal browser storage or private HF data as part of rollback.
+1. Inspect current master, local Git status, open PRs and active checks.
+2. Make changes on a short-lived branch and run npm ci, typecheck, Vitest, production build, bundle checks and relevant browser tests.
+3. Open a PR. Merge only when the required quality and cross-browser checks pass on the exact final PR head SHA.
+4. The owner permits routine non-destructive green PR merges and subsequent deployments without another approval. Do not merge a stale, cancelled or partial check.
+5. Cloudflare automatically deploys the new master commit.
+6. Verify the post-merge Live Cloudflare smoke workflow for that exact master SHA. It checks served asset names, SPA routes, service-worker fingerprint, security headers, anonymous private API denial, OAuth redirect and non-empty assets.
+7. Report merge and deployment separately. A merged PR is not proof that Cloudflare deployed it.
 
-## Owner-authenticated acceptance
+## Cloudflare Pages settings
 
-The live smoke workflow cannot access the user's OAuth session and does not prove that real covers or pages render to the owner. For a signed-in release check, open a known private manga and confirm that the original cover loads, a chapter opens, page images display correctly, progress is retained, and no private HF URLs or access tokens appear in the browser network panel.
+| Setting | Value |
+|---|---|
+| Production branch | master |
+| Framework/build | Vite |
+| Build command | npm ci && npm run build |
+| Output directory | dist |
+| Node.js | 22 |
+| Production URL | https://taiyous-manga-library.pages.dev/ |
+| OAuth callback | https://taiyous-manga-library.pages.dev/api/auth/callback |
 
-Private media remain online-only. The **sample** reader supports its separate opt-in offline flow. Automatic cross-device personal progress synchronisation, private chapter offline downloads, and general browser-side private dataset writes are not implemented. Protected publication metadata corrections are documented below.
+## Pages Functions runtime configuration
 
-## Security
+Set the following in Cloudflare Pages runtime configuration. Never commit their values.
 
-- Hugging Face OAuth uses owner-only authentication with a confidential server-side client and an encrypted HttpOnly session.
-- Each private request verifies owner permissions and current private dataset revision; image responses are no-store, validated against MIME, exact byte length and SHA-256.
-- The latency optimisation caches only bounded, revision-keyed *validated metadata*, never bearer tokens, image bytes, owner sessions or responses.
-- Never use `VITE_*` variables for secrets. Do not commit actual manga covers, pages, token values or owner-only catalogue files.
-- In Cloudflare, a production Pages Functions secret/configuration change must be handled independently of routine repository merges; destructive dataset actions require explicit approval.
+| Name | Purpose | Secret |
+|---|---|---|
+| HF_REPO_ID | Exact private dataset ID AdityaSreevatsaK/Taiyous-Manga | No |
+| HF_OWNER_USERNAME | Exact owner identity | No |
+| HF_CLIENT_ID | Dedicated confidential HF OAuth app ID | No |
+| HF_CLIENT_SECRET | Confidential OAuth client secret | Yes |
+| SESSION_SECRET | 32 cryptographically random bytes, base64 encoded | Yes |
+| TAIYOU_OWNER_PASSPHRASE | Separate Master source-correction passphrase, 16–128 characters | Yes |
 
-**Latest confirmed release:** UI/cover/permalinks PR #47 and catalogue latency PR #48 merged on 20 November 2026. Both latest post-merge Cloudflare smoke workflows passed. This does not substitute for the owner-authenticated media check above.
+Normal OAuth login requests openid, profile and read-repos. The separate write login requests write-repos as well. The OAuth application must allow the exact callback above. Do not use VITE_* variables for any secret.
 
+## Private data and owner acceptance
 
-## Protected Manga Master Controls, 21 November 2026
+The private catalogue is read through GET /api/library. Private covers, manifests and pages are served through /api/media/* after owner authentication and validation. The browser never receives the HF access token or private HF URL.
 
-Configure Cloudflare Pages **Production Secret** `TAIYOU_OWNER_PASSPHRASE` to a strong distinct 16-128 character passphrase. Do not put this value in GitHub, public source, build variables or `VITE_*`. Owner source metadata edits use an opt-in Hugging Face OAuth flow `/api/auth/login-write` with `openid profile read-repos write-repos`, which the registered OAuth client must permit. The normal read-only login is unaffected. After login, unlock with the independent owner passphrase. A short-lived AES-GCM HttpOnly SameSite=Strict owner grant, bound to the current HF owner session, expires in 10 minutes. Only owner-authorised corrections of title, creators and source publication status can be committed to the private HF catalogue, with a parent revision guard, whole-catalogue validation and preserved manga/chapter/page IDs and legacy public slug. Uploads and private manga deletion remain in the Storage Controller. Analytics and device-local edits need no passphrase.
+Verified covers can be retained in bounded IndexedDB storage for faster repeat display and are cleared on logout. Private chapter pages are not downloaded for offline reading. The synthetic demo has its own explicit offline chapter flow.
 
-Test source corrections against a disposable private dataset with owner authentication and a verified backup before relying on live writes. Source editor visibility alone does not prove that the secret, OAuth scopes or provider commit API are configured. Live browser acceptance needs owner sign-in and protected images.
+The protected Master route can correct only title, creators and publicationStatus. It requires the owner passphrase grant and write-authorised HF session. Media upload, migration and deletion remain with the Storage Controller.
+
+The automated live smoke is anonymous. It cannot prove the owner's OAuth login, actual private media rendering, the production owner secret or a real HF metadata commit. For those, follow docs/HF_READONLY_CONNECTION.md and record a genuine acceptance result.
+
+## Current verified release evidence
+
+At the 21 November 2026 documentation snapshot, master SHA ff519fc175bb61e234bbdea278679e32afd97fe5 had passing:
+- [Quality and Chromium](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/actions/runs/44918275621)
+- [Firefox/WebKit](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/actions/runs/44918275594)
+- [Cloudflare live smoke](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/actions/runs/44918275658)
+
+Check the current branch/SHA and latest runs before reusing these links as release evidence.
+
+## Rollback
+
+Revert the code change or redeploy the previous verified Cloudflare Pages build. The service worker keeps two complete verified shell releases. Do not clear user localStorage, private cover IndexedDB, synthetic chapter CacheStorage or private HF data as a generic rollback step. Dataset recovery is the Storage Controller's responsibility and requires its own verified backup/revision procedure.
