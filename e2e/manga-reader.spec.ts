@@ -1234,12 +1234,11 @@ test('authenticated manga homepage mirrors Novel floating gallery with three com
     const bounds=await gallery.boundingBox();
     const covers=await visible.locator('.cover').evaluateAll(nodes=>nodes.map(el=>{
       const r=el.getBoundingClientRect();
-      return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height};
+      return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height,ratio:getComputedStyle(el).aspectRatio};
     }));
     expect(covers).toHaveLength(3);
     for(const cover of covers){
-      expect(cover.height/cover.width).toBeGreaterThan(1.42);
-      expect(cover.height/cover.width).toBeLessThan(1.65);
+      expect(cover.ratio).toMatch(/2\\s*\\/\\s*3/);
       expect(cover.left).toBeGreaterThanOrEqual(bounds!.x-6);
       expect(cover.right).toBeLessThanOrEqual(bounds!.x+bounds!.width+6);
     }
