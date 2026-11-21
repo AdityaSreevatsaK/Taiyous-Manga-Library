@@ -1312,7 +1312,7 @@ test('verified manga owner sees useful Master controls without unsafe upload API
   await expect(page.getByRole('heading',{name:'Your private library is empty'})).toBeVisible();
 });
 
-test('Novel cloud indicator occupies the upper-right desktop tools without changing its glyph',async({page})=>{
+test('Novel catalogue cloud sits immediately beside sun wordmark without changing its glyph',async({page})=>{
   await page.setViewportSize({width:1280,height:850});
   await page.goto('/');
   const cloud=page.locator('.manga-cloud-menu');
@@ -1320,7 +1320,8 @@ test('Novel cloud indicator occupies the upper-right desktop tools without chang
   const cloudBox=await cloud.boundingBox(),logoBox=await wordmark.boundingBox();
   expect(cloudBox).toBeTruthy();
   expect(logoBox).toBeTruthy();
-  expect(cloudBox!.x).toBeGreaterThan(logoBox!.x+logoBox!.width+100);
+  expect(cloudBox!.x).toBeGreaterThanOrEqual(logoBox!.x+logoBox!.width-2);
+  expect(cloudBox!.x).toBeLessThan(logoBox!.x+logoBox!.width+65);
   const glyph=cloud.locator('svg').first();
   await expect(glyph).toHaveAttribute('width','25');
   await expect(glyph).toHaveAttribute('height','25');
@@ -1488,8 +1489,13 @@ test('private manga cover and metadata refresh preserve local reading records on
   await expect(page.locator('.manga-details-hero .manga-cover-image')).toHaveCount(0);
   await page.evaluate(id=>localStorage.setItem('taiyou-manga:progress:v1:'+id,'saved-do-not-replace'),mangaId);
   enrichedNow=true;
+  // Novel BookDetails uses a dedicated header; refresh the private catalogue
+  // using the normal library header, then return to the series details.
+  await page.goto('/library');
   await page.locator('.manga-cloud-menu > summary').click();
   await page.getByRole('button',{name:'Refresh cloud'}).click();
+  await page.getByRole('heading',{name:'All Manga'}).waitFor();
+  await page.locator('.book-card').filter({hasText:'Metadata Demo'}).click();
   await expect(page.locator('.manga-info-card')).toContainText('Example Writer');
   await expect(page.locator('.manga-info-card')).toContainText('Example Illustrator');
   await expect(page.locator('.manga-info-card')).toContainText('Another Title');
@@ -1678,7 +1684,7 @@ test('editable manga synopsis saves locally, survives refresh and restores its o
   await page.goto('/manga/mng_lanternarchive');
   const card=page.locator('.manga-synopsis-card');
   const original=await card.locator('.detail-description').textContent();
-  const edit=card.getByRole('button',{name:'Edit synopsis'});
+  const edit=card.getByRole('button',{name:'Edit summary'});
   await edit.click();
   await expect(card.getByRole('textbox',{name:/Personal synopsis/})).toBeVisible();
   await card.getByRole('textbox',{name:/Personal synopsis/}).fill('A carefully edited personal synopsis.');
@@ -1692,10 +1698,45 @@ test('editable manga synopsis saves locally, survives refresh and restores its o
   await expect(card.locator('.detail-description')).toHaveText(original!);
 });
 
-test('Novel cloud glyph and settings retain keyboard controls and six themes at all widths',async({page})=>{
+test('manga details reproduce Novel Library icons, structure, footer and scroll affordance',async({page})=>{
   for(const width of [320,390,768,1280]){
     await page.setViewportSize({width,height:850});
     await page.goto('/manga/mng_lanternarchive');
+    const header=page.locator('.manga-details-topbar');
+    await expect(header.getByRole('link',{name:"Taiyou's Personal Manga Library home"})).toBeVisible();
+    await expect(header.locator('.taiyou-brand-mark')).toHaveAttribute('width','32');
+    await expect(header.getByRole('navigation',{name:'Navigate library'})).toBeVisible();
+    await expect(header.getByRole('button',{name:/Choose colour theme/})).toBeVisible();
+    for(const [card,title] of [
+      ['.manga-journey-card','Reading progress'],['.manga-info-card','Details'],
+      ['.manga-tags-card','Tags & genres'],['.personal-annotations','Comments & reading notes'],
+      ['.manga-management-card','Manage this manga'],['.manga-synopsis-card','Synopsis'],
+      ['.novel-chapter-browser','Chapters']
+    ]){
+      const section=page.locator(card);
+      await expect(section.getByRole('heading',{name:title,exact:true})).toBeVisible();
+      await expect(section.locator('.details-section-header')).toHaveCount(1);
+      if(card!=='.manga-synopsis-card')
+        await expect(section.locator('.details-section-icon svg, svg.details-section-icon')).toHaveCount(1);
+    }
+    await expect(page.locator('.manga-synopsis-edit')).toContainText('Edit summary');
+    await expect(page.locator('.manga-synopsis-edit svg')).toHaveCount(1);
+    await expect(page.locator('.manga-synopsis-card .detail-description')).toHaveAttribute('tabindex','0');
+    await expect(page.locator('.site-credit-footer')).toContainText("Taiyou's Personal Manga Library");
+    await expect(page.locator('.site-credit-footer')).toContainText('Created by Taiyou');
+    await expect(page.locator('.site-credit-footer')).not.toContainText('No cloud progress sync');
+    await assertNoHorizontalOverflow(page);
+  }
+  await page.evaluate(()=>window.scrollTo(0,document.body.scrollHeight));
+  await expect(page.getByRole('button',{name:'Back to top'})).toBeVisible();
+  await page.getByRole('button',{name:'Back to top'}).click();
+  await expect.poll(()=>page.evaluate(()=>window.scrollY)).toBeLessThan(100);
+});
+
+test('Novel catalogue cloud and separate BookDetails header keep keyboard and six-theme parity',async({page})=>{
+  for(const width of [320,390,768,1280]){
+    await page.setViewportSize({width,height:850});
+    await page.goto('/');
     const toggle=page.locator('.manga-cloud-menu>summary');
     const glyph=toggle.locator('.cloud-status-icon svg');
     await expect(glyph).toHaveAttribute('width','25');
@@ -1709,6 +1750,11 @@ test('Novel cloud glyph and settings retain keyboard controls and six themes at 
     await page.keyboard.press('Escape');
     await expect(page.locator('.manga-cloud-panel')).toBeHidden();
     await expect(toggle).toBeFocused();
+
+    await page.goto('/manga/mng_lanternarchive');
+    await expect(page.locator('.manga-details-topbar')).toBeVisible();
+    await expect(page.locator('.site-header')).toHaveCount(0);
+    await expect(page.locator('.manga-cloud-menu')).toHaveCount(0);
     const choose=page.getByRole('button',{name:/Choose colour theme/});
     await choose.click();
     const menu=page.locator('.manga-theme-menu-panel');
