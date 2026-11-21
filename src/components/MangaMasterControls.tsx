@@ -54,7 +54,7 @@ export function MangaMasterControls({connected,checking,owner,refreshing,entries
       <a href={analyticsHref} aria-current={view==='analytics'?'page':undefined}
         onClick={event=>onView(event,'analytics')}>Analytics</a>
     </nav>
-    {view==='analytics'?<MangaAnalyticsPanel analytics={analytics}
+    {view==='analytics'?<MangaAnalyticsPanel analytics={analytics} entries={entries}
       detailHref={analyticsDetailHref}
       onOpenDetails={onOpenAnalyticsDetails} onReading={onReading}/>:
       checking?<p role="status">Checking private library access…</p>:
