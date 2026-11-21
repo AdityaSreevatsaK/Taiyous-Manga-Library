@@ -1238,7 +1238,7 @@ test('authenticated manga homepage mirrors Novel floating gallery with three com
     }));
     expect(covers).toHaveLength(3);
     for(const cover of covers){
-      expect(cover.ratio).toMatch(/2\\s*\\/\\s*3/);
+      expect(cover.ratio.replaceAll(' ','')).toBe('2/3');
       expect(cover.left).toBeGreaterThanOrEqual(bounds!.x-6);
       expect(cover.right).toBeLessThanOrEqual(bounds!.x+bounds!.width+6);
     }
