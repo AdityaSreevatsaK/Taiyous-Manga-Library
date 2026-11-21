@@ -2,7 +2,6 @@ import {useEffect,useState} from 'react';
 import type {MangaEntry,MangaProgress} from '../domain/types';
 import {canonicalTags,type AnnotationPatch,type PersonalAnnotation} from '../domain/personalAnnotations';
 import type {PersonalShelf,ShelfSelection} from '../domain/personalShelves';
-import {recordMangaAction} from '../domain/usageAnalytics';
 import type {MangaMetadataPatch} from '../data/masterGateway';
 
 interface Props{
@@ -49,7 +48,6 @@ export function MangaMasterRecordEditor({entry,annotation,progress,shelf,
  };
  const markFinished=()=>{
    onSetShelf(entry,'finished');setSelectedShelf('finished');setConfirmFinished(false);
-   recordMangaAction({kind:'shelf-changed',mangaId:entry.id,detail:'Finished'});
    setSuccess('Moved to your Finished shelf. Publication status is unchanged.');
  };
  return <div className="manga-master-editor" aria-label={'Edit personal record for '+entry.title}>
