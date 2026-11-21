@@ -21,6 +21,9 @@ import { MangaHeroBackdrop } from './components/MangaHeroBackdrop';
 import { MangaDetailsQuickNav } from './components/MangaDetailsQuickNav';
 import { MangaCollectionPicker } from './components/MangaCollectionPicker';
 import { MangaCoverArtwork } from './components/MangaCoverArtwork';
+import MangaEditorialHome from './components/MangaEditorialHome';
+import {MangaHomeCover} from './components/MangaHomeCover';
+import type {HomeBook,HomeCollection} from './domain/mangaHomeCuration';
 import { MangaSynopsisCard } from './components/MangaSynopsisCard';
 import {clearMangaCoverCache} from './data/coverCache';
 import {ratingLabel,ratingSummary,ratingToneClass} from './domain/ratings';
@@ -246,6 +249,35 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
     return screen.section==='home' ? [...items].sort((a,b)=>
       Number(!!annotations[b.id]?.favourite)-Number(!!annotations[a.id]?.favourite)).slice(0,4) : items;
   })() : filtered;
+  // Adapt immutable manga records to the Novel Library's curated editorial home.
+  // These estimates use chapter/page positions, never invented reading times.
+  const homeBooks:HomeBook[]=useMemo(()=>catalogue.map(item=>{
+    const ordered=orderedChapters(item);
+    const saved=progress[item.id];
+    const index=saved?ordered.findIndex(ch=>ch.id===saved.chapterId):-1;
+    const pageCount=index>=0?ordered[index]?.pageCount:undefined;
+    const within=pageCount&&pageCount>0
+      ?Math.min(1,Math.max(0,(saved!.pageIndex+1)/pageCount)):0.1;
+    const percentage=index>=0?Math.min(99,Math.max(1,
+      Math.round((index+within)*100/Math.max(1,ordered.length)))):0;
+    const time=saved?Date.parse(saved.updatedAt):NaN;
+    const shelf=personalShelves[item.id]??null;
+    return {
+      id:item.id,title:item.title,author:creditLine(item),
+      coverPath:item.cover?.assetPath,
+      description:item.synopsis,progress:percentage,
+      chapterCount:ordered.length,
+      currentChapterNumber:index>=0?index+1:undefined,
+      currentChapter:index>=0?ordered[index]?.label:undefined,
+      shelfStatus:shelf,
+      sourceTags:item.tags,personalTags:annotations[item.id]?.tags??[],
+      personalRating:annotations[item.id]?.rating??undefined,
+      progressUpdatedAt:Number.isFinite(time)?time:undefined,
+    };
+  }),[catalogue,progress,personalShelves,annotations]);
+  const homeCollections:HomeCollection[]=useMemo(()=>collections.items.map(folder=>({
+    id:folder.id,name:folder.name,bookIds:folder.mangaIds
+  })),[collections]);
   const continueReading = catalogue
     .map(item => ({ item, saved: progress[item.id], resume: restoreProgress(item, manifests, progress[item.id]) }))
     .filter((value): value is { item: MangaEntry; saved: MangaProgress; resume: ReaderLocation } =>
@@ -993,80 +1025,46 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
         onOpenDetails={(event,item)=>followLink(event,()=>navigateTo({kind:'details',mangaId:item.id}))}
       />}
       {screen.kind === 'catalogue' && <>
-        {screen.section === 'home' && <section className="hero editorial-hero" aria-label="Library introduction">
-          <div className="editorial-hero-intro">
-            <p className="eyebrow">{demo ? 'THE READING ROOM / DEMONSTRATION' : 'YOUR PRIVATE MANGA LIBRARY'}</p>
-            <h1>A place for <em>every story.</em></h1>
-            <p className="hero-copy">{demo
-              ? 'An illustrated glimpse of the manga reader. Your own shelves live in the private library.'
-              : cloud.status==='connected'
-                ? catalogue.length
-                  ? 'Your collection, reading journey and favourite discoveries, in one quiet space.'
-                  : 'Your private shelves are ready. The stories you add will have a home here.'
-                : 'Your personal manga library, ready for the stories you choose to keep.'}</p>
-            <div className="editorial-hero-actions">
-              <a className="primary editorial-primary-link"
-                href={routeHref({kind:'library'},import.meta.env.BASE_URL,catalogue)}
-                onClick={event=>followLink(event,()=>goCatalogue('library'))}>Explore the collection <span aria-hidden="true">↗</span></a>
-              {demo && cloud.status==='connected' &&
-                <button type="button" className="secondary editorial-secondary-action"
-                  onClick={()=>changeDemo(false)}>Go to my private library</button>}
-            </div>
-          </div>
-          <div className={'editorial-hero-art' + (catalogue.length ? ' has-books' : ' is-empty')}
-            role={catalogue.length ? 'group' : undefined}
-            aria-label={catalogue.length ? 'Featured manga covers' : undefined}
-            aria-hidden={catalogue.length === 0}>
-            {catalogue.length ? <div className="editorial-book-stack">
-              {catalogue.slice(0,3).map((item,index)=>
-                <a className={'editorial-book-link book-'+index} key={item.id}
-                  href={routeHref({kind:'details',mangaId:item.id},import.meta.env.BASE_URL,catalogue)}
-                  aria-label={'Featured cover for '+item.title}
-                  onClick={event=>followLink(event,()=>navigateTo({kind:'details',mangaId:item.id}))}>
-                  <span className={'editorial-display-book book-'+index}>
-                    {!demo && <MangaCoverArtwork key={item.cover?.sha256??'none'} entry={item}/>}
-                    <span className="editorial-book-glyph">✦</span>
-                    <span className="editorial-book-title">{item.title}</span>
-                    <span className="editorial-book-maker">{roleNames(item,'author')[0] || item.creators[0] || 'TAIYOU LIBRARY'}</span>
-                  </span>
-                  <span className="editorial-art-hover-label" aria-hidden="true">{item.title}</span>
-                </a>)}
-            </div> : <div className="editorial-empty-plate">
-              <span className="editorial-plate-icon">✦</span>
-              <span>TAIYOU'S MANGA LIBRARY</span>
-              <strong>Your next chapter belongs here.</strong>
-              <small>PRIVATE · PERSONAL · YOURS</small>
-            </div>}
-            <span className="editorial-art-caption">{demo?'A GLIMPSE INTO THE READER':'THE PERSONAL ARCHIVE'}</span>
-          </div>
-        </section>}
-        {screen.section === 'home' && <section className="editorial-overview" aria-label="Your library at a glance">
-          <div><strong>{catalogue.length}</strong><span>{catalogue.length===1?'Series':'Series'} in the library</span></div>
-          <div><strong>{counts.reading}</strong><span>Currently reading</span></div>
-          <div><strong>{counts.finished}</strong><span>Personally finished</span></div>
-          <div><strong>{offlineChapterIds.size}</strong><span>Chapters saved offline</span></div>
-        </section>}
-        {screen.section === 'home' && continueReading.length > 0 && <section className="continue-section" aria-label="Continue reading">
-          <div className="shelf-heading">
-            <div><p className="eyebrow">PICK UP WHERE YOU LEFT OFF</p><h2>Continue reading</h2></div>
-            <p>Saved on this device</p>
-          </div>
-          <div className="continue-list">
-            {continueReading.map(({ item, resume }) => {
-              const ordered = orderedChapters(item);
-              const index = ordered.findIndex(chapter => chapter.id === resume.chapterId);
-              const totalPages = manifests.get(resume.chapterId)?.pages.length ?? 0;
-              return <a key={item.id} className="continue-card"
-                href={routeHref({kind:'reader',mangaId:item.id,chapterId:resume.chapterId,pageIndex:resume.pageIndex},import.meta.env.BASE_URL,catalogue)}
-                onClick={event=>followLink(event,()=>openChapter(item,undefined,true))}>
-                <strong>{item.title}</strong>
-                <span>Chapter {index + 1} of {ordered.length} · Page {resume.pageIndex + 1} of {totalPages}</span>
-                <span className="continue-action">Resume chapter ↗</span>
-              </a>;
-            })}
-          </div>
-        </section>}
-        {screen.section === 'offline' ? <section className="offline-shelf" aria-label="Offline manga chapters">
+        {screen.section==='home' && (catalogue.length>0 ? <MangaEditorialHome
+          key={demo?'home-demo':'home-private'}
+          books={homeBooks} allBooks={homeBooks} collections={homeCollections}
+          onBrowseAll={()=>goCatalogue('library')}
+          onBrowseShelf={section=>goCatalogue(section)}
+          onBrowseTag={value=>jumpToFilter('tag',value)}
+          onBrowseCollection={filterPersonalCollection}
+          onOpen={book=>navigateTo({kind:'details',mangaId:book.id})}
+          onRead={book=>{
+            const item=catalogue.find(entry=>entry.id===book.id);
+            if(!item)return;
+            if(!item.chapters.length){navigateTo({kind:'details',mangaId:item.id});return;}
+            void openChapter(item,undefined,!!progress[item.id]);
+          }}
+          hrefFor={book=>routeHref({kind:'details',mangaId:book.id},
+            import.meta.env.BASE_URL,catalogue)}
+          readHrefFor={book=>{
+            const item=catalogue.find(entry=>entry.id===book.id);
+            const first=item?orderedChapters(item)[0]:undefined;
+            const saved=progress[book.id];
+            return first?routeHref({kind:'reader',mangaId:book.id,
+              chapterId:saved&&item?.chapters.some(ch=>ch.id===saved.chapterId)
+                ?saved.chapterId:first.id,
+              pageIndex:saved&&item?.chapters.some(ch=>ch.id===saved.chapterId)
+                ?saved.pageIndex:0},import.meta.env.BASE_URL,catalogue)
+              :routeHref({kind:'details',mangaId:book.id},import.meta.env.BASE_URL,catalogue);
+          }}
+          cover={(book,featured,onArtworkStateChange)=>{
+            const item=catalogue.find(entry=>entry.id===book.id);
+            return item?<MangaHomeCover entry={item} featured={featured}
+              onArtworkStateChange={onArtworkStateChange}/>:null;
+          }}/>
+          :<section className="empty-state manga-home-empty" aria-label="Your library front page">
+            <h1>Your manga library awaits</h1>
+            <p>{cloud.status==='connected'
+              ?'Your private collection is connected and ready for its first manga.'
+              :'Sign in with Hugging Face to view your private manga collection.'}</p>
+            <button className="secondary" type="button" onClick={()=>goCatalogue('library')}>Browse All Manga</button>
+          </section>)}
+        {screen.section === 'home' ? null : screen.section === 'offline' ? <section className="offline-shelf" aria-label="Offline manga chapters">
           <p className="eyebrow">READY WHEN DISCONNECTED</p>
           <h1>Offline chapters</h1>
           <p>Only chapters you explicitly saved appear here. Removing a copy never clears reading progress.</p>
