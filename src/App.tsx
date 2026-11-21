@@ -294,6 +294,8 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
           }
         }else if(bookmarked.kind==='not-found'){
           setScreen({kind:'not-found'});
+        }else if(bookmarked.kind==='master'){
+          setScreen({kind:'master'});
         }else{
           setScreen({kind:'catalogue',section:bookmarked.kind});
         }
