@@ -1,3 +1,5 @@
+> **Current implementation note, 21 November 2026:** This file contains the original 20 November screenshot audit and a source-driven follow-up. The implementation has since moved to six visible primary shelves (Home, Currently Reading, Trying Out, Available Offline, Finished, All Manga), with Analytics inside Master Controls and legacy To Be Read bookmarks preserved. PRs #56–#64 completed the Master route, analytics, homepage containment/contrast/toasts and rolling chart dates. Use [AGENTS.md](../AGENTS.md), [PROJECT_STATUS.md](PROJECT_STATUS.md) and [PROJECT_HISTORY.md](PROJECT_HISTORY.md) for the current approved behaviour. The older table below is historical context, not a current component inventory.
+
 # Manga Library versus Novel Library: UI parity audit
 
 **Date:** 20 November 2026  
@@ -27,7 +29,7 @@
 - Manga requires a continuous image-based chapter reader. Novel Library's EPUB controls and chapter rendering must **not** be copied.
 - Novel Library already has cover artwork and a populated private dataset. The Manga dataset currently has no manga. The UI must not show invented cover art, featured manga or reading progress on the private homepage.
 - Novel Library has Owner/Master controls and ingestion actions. Those will not be faked or enabled here until the manga Storage Controller's format and permissions are approved.
-- Existing eight manga navigation sections, six saved themes, owner-only Hugging Face OAuth and all browser-local personal records remain in place.
+- Six visible primary shelves remain in place, with Analytics inside Master Controls and legacy To Be Read URLs preserved. Six saved themes, owner-only Hugging Face OAuth and browser-local personal records remain in place.
 - Offline chapters and manual personal backup are reachable independent of cloud connectivity. Backups live in the cloud *menu as a library-tools entry*, but are still device-local data.
 - Colour alone is not considered design parity: masthead information architecture, two-row navigation, cloud settings placement, empty state, density and editorial layout are all included.
 
