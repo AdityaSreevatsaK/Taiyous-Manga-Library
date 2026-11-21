@@ -1,5 +1,6 @@
 import {useState} from 'react';
 import type {MangaEntry} from '../domain/types';
+import {PencilIcon} from './SharedLibraryIcons';
 
 /** An explicitly personal synopsis layer. The source catalogue on Hugging Face
  * stays immutable and never receives browser credentials or unreviewed writes. */
@@ -46,11 +47,11 @@ export function MangaSynopsisCard({entry}:{entry:MangaEntry}){
   return <section className="manga-detail-card manga-synopsis-card">
     <div className="manga-synopsis-heading">
       <div><p className="manga-card-overline">ABOUT THE STORY</p><h2>Synopsis</h2></div>
-      <button type="button" className="manga-synopsis-edit"
+      <button type="button" className="manga-synopsis-edit details-text-action"
         aria-expanded={editing} onClick={()=>{
           if(editing){setEditing(false);setMessage('');}
           else{setDraft(override??entry.synopsis??'');setEditing(true);setMessage('');}
-        }}>{editing?'Cancel':'✎ Edit synopsis'}</button>
+        }}><PencilIcon size={15}/>{editing?'Cancel':'Edit summary'}</button>
     </div>
     {editing?<>
       <label htmlFor="manga-synopsis-draft" className="manga-synopsis-label">
