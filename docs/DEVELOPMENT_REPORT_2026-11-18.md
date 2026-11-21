@@ -1,3 +1,5 @@
+> **Historical development report, 18 November 2026.** Its scaffold/runner/deployment limitations were later superseded by successful CI, merged reader features, Cloudflare deployment and private Hugging Face integration. Preserve this file as provenance only; use [PROJECT_STATUS.md](PROJECT_STATUS.md) for the current state.
+
 # Development and verification report: Manga fixture reader
 
 **Date:** 18 November 2026  
