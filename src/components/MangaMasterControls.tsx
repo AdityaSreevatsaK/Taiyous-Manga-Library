@@ -1,14 +1,16 @@
-import {useMemo,useState,type MouseEvent} from 'react';
+import {useEffect,useMemo,useState,type FormEvent,type MouseEvent} from 'react';
 import type {MangaEntry,MangaProgress} from '../domain/types';
 import type {PersonalAnnotation,AnnotationPatch} from '../domain/personalAnnotations';
 import type {PersonalShelf,ShelfSelection} from '../domain/personalShelves';
 import {MangaMasterRecordEditor} from './MangaMasterRecordEditor';
+import {getMangaMasterStatus,lockMangaMaster,saveMangaPublication,unlockMangaMaster,
+  type MangaMasterStatus,type MangaMetadataPatch} from '../data/masterGateway';
 import './manga-master-record-editor.css';
 import type {computeLocalReadingAnalytics} from '../domain/advancedDiscovery';
 import {MangaAnalyticsPanel} from './MangaAnalyticsPanel';
 
 interface Props {
-  connected:boolean;checking:boolean;owner?:string;refreshing:boolean;
+  connected:boolean;checking:boolean;owner?:string;refreshing:boolean;revision?:string;
   entries:readonly MangaEntry[];
   annotations:Readonly<Record<string,PersonalAnnotation>>;
   progress:Readonly<Record<string,MangaProgress>>;
@@ -25,7 +27,7 @@ interface Props {
   onReading:()=>void;
   onOpenAnalyticsDetails:(event:MouseEvent<HTMLAnchorElement>,mangaId:string)=>void;
   analyticsDetailHref:(mangaId:string)=>string;
-  onRefresh:()=>void;
+  onRefresh:()=>Promise<void>;
   backHref:string;onBack:(event:MouseEvent<HTMLAnchorElement>)=>void;
   hrefFor:(entry:MangaEntry)=>string;
   onOpenDetails:(event:MouseEvent<HTMLAnchorElement>,entry:MangaEntry)=>void;
@@ -35,13 +37,46 @@ const privateDataset='https://huggingface.co/datasets/AdityaSreevatsaK/Taiyous-M
 
 /** Dedicated Master page. Personal records edit locally; protected cloud media
  * deletion remains exclusively the responsibility of the Storage Controller. */
-export function MangaMasterControls({connected,checking,owner,refreshing,entries,
+export function MangaMasterControls({connected,checking,owner,refreshing,entries,revision,
   annotations,progress,personalShelves,onSaveAnnotation,onSetShelf,onResetProgress,onSaveSynopsis,
   offlineChapterIds,analytics,view,overviewHref,analyticsHref,onView,
   onReading,onOpenAnalyticsDetails,analyticsDetailHref,onRefresh,backHref,onBack,hrefFor,onOpenDetails}:Props){
   const [search,setSearch]=useState('');
   const [limit,setLimit]=useState(30);
   const [expanded,setExpanded]=useState<string|null>(null);
+  const [grant,setGrant]=useState<MangaMasterStatus|null>(null);
+  const [ownerPassphrase,setOwnerPassphrase]=useState('');
+  const [grantError,setGrantError]=useState('');
+  const [grantMessage,setGrantMessage]=useState('');
+  const [grantBusy,setGrantBusy]=useState(false);
+  useEffect(()=>{
+    if(!connected||view!=='overview')return;
+    let mounted=true;
+    void getMangaMasterStatus().then(value=>{if(mounted)setGrant(value);})
+      .catch(error=>{if(mounted)setGrantError(error instanceof Error?error.message:'Unable to check owner access');});
+    return ()=>{mounted=false;};
+  },[connected,view]);
+  async function unlock(event:FormEvent<HTMLFormElement>){
+    event.preventDefault();setGrantBusy(true);setGrantError('');setGrantMessage('');
+    try{
+      const value=await unlockMangaMaster(ownerPassphrase);
+      setGrant(value);setOwnerPassphrase('');setGrantMessage('Owner access verified for ten minutes.');
+    }catch(error){setGrantError(error instanceof Error?error.message:'Unable to unlock owner controls');}
+    finally{setGrantBusy(false);}
+  }
+  async function lock(){
+    setGrantBusy(true);setGrantError('');setGrantMessage('');
+    try{await lockMangaMaster();setGrant(previous=>previous?{...previous,unlocked:false}:previous);}
+    catch(error){setGrantError(error instanceof Error?error.message:'Unable to lock controls');}
+    finally{setGrantBusy(false);}
+  }
+  const canPublish=!!grant?.unlocked&&!!grant.writeScope&&!!revision;
+  async function publish(entry:MangaEntry,fields:Omit<MangaMetadataPatch,'mangaId'|'revision'>){
+    if(!canPublish||!revision)throw Error('Unlock owner controls with write access and refresh the catalogue first.');
+    await saveMangaPublication({mangaId:entry.id,revision,...fields});
+    await onRefresh();
+    setGrantMessage('Publication metadata saved to Hugging Face. Immutable IDs and manga images are unchanged.');
+  }
   const results=useMemo(()=>{
     const needle=search.trim().toLocaleLowerCase();
     return [...entries].filter(entry=>!needle||
@@ -74,6 +109,31 @@ export function MangaMasterControls({connected,checking,owner,refreshing,entries
         <a className="primary" href="/api/auth/login">Sign in with Hugging Face</a>
       </section>:<>
       <p className="manga-master-owner">Private catalogue connected as <strong>{owner??'the authenticated owner'}</strong></p>
+      <section className="manga-master-panel manga-master-owner-panel" aria-label="Owner authorisation">
+        <h2>Owner controls</h2>
+        <p>Personal ratings, notes, tags and reading progress can be managed on this device.
+          Source title, creator and publication corrections require the independent owner passphrase
+          and a Hugging Face write-authorised session. Analytics does not need this passphrase.</p>
+        {grant===null&&!grantError&&<p role="status">Checking protected owner access…</p>}
+        {grant&&!grant.configured&&<p role="status">Cloud metadata editing is locked.
+          Configure the TAIYOU_OWNER_PASSPHRASE Cloudflare Production secret (at least 16 characters)
+          to enable protected catalogue corrections. Local personal controls remain available.</p>}
+        {grant?.configured&&!grant.unlocked&&<form className="manga-master-unlock" onSubmit={event=>{void unlock(event);}}>
+          <label htmlFor="manga-owner-passphrase">Independent owner passphrase</label>
+          <input id="manga-owner-passphrase" type="password" autoComplete="off"
+            value={ownerPassphrase} onChange={event=>setOwnerPassphrase(event.target.value)} maxLength={256}/>
+          <button type="submit" disabled={grantBusy||ownerPassphrase.length<16}>Unlock controls</button>
+        </form>}
+        {grant?.unlocked&&<div className="manga-master-unlocked">
+          <strong>Owner access verified</strong>
+          <button type="button" disabled={grantBusy} onClick={()=>{void lock();}}>Lock now</button>
+        </div>}
+        {grant&&!grant.writeScope&&<p className="manga-master-write-notice">
+          This sign-in has read-only Hugging Face permissions.
+          <a href="/api/auth/login-write"> Reconnect with write permission</a> to edit source metadata.</p>}
+        {grantError&&<p role="alert" className="manga-master-edit-error">{grantError}</p>}
+        {grantMessage&&<p role="status" className="manga-master-edit-success">{grantMessage}</p>}
+      </section>
       <div className="manga-master-summary" aria-label="Private catalogue summary">
         <div><strong>{entries.length.toLocaleString()}</strong><span>Manga titles</span></div>
         <div><strong>{started.toLocaleString()}</strong><span>Reading records</span></div>
@@ -83,7 +143,7 @@ export function MangaMasterControls({connected,checking,owner,refreshing,entries
       <section className="manga-master-panel" aria-labelledby="manga-master-storage">
         <h2 id="manga-master-storage">Storage and synchronisation</h2>
         <p>Your catalogue and artwork remain in your private Hugging Face dataset.
-          Uploads, publication changes and deletion are performed through the Manga Storage Controller.</p>
+          Media uploads and complete manga deletion are performed through the Manga Storage Controller.</p>
         <div className="manga-master-actions">
           <button type="button" className="primary" disabled={refreshing}
             onClick={onRefresh}>{refreshing?'Refreshing…':'Refresh catalogue'}</button>
@@ -95,7 +155,7 @@ export function MangaMasterControls({connected,checking,owner,refreshing,entries
       <section className="manga-master-panel" aria-labelledby="manga-master-records">
         <div className="manga-master-records-head"><div>
           <h2 id="manga-master-records">Manage manga records</h2>
-          <p>Expand a manga to edit rating, notes, personal tags, synopsis, shelf and reading progress. Source metadata and deletion remain protected by the Storage Controller.</p></div>
+          <p>Expand a manga to edit rating, notes, personal tags, synopsis, shelf and reading progress. Cloud publication edits are available after owner verification; source media deletion remains with the Storage Controller.</p></div>
           <label>Search master records
             <input type="search" value={search} placeholder="Title, author or ID…"
               onChange={event=>{setSearch(event.target.value);setLimit(30);}}/>
@@ -129,7 +189,8 @@ export function MangaMasterControls({connected,checking,owner,refreshing,entries
               <MangaMasterRecordEditor entry={entry} annotation={annotations[entry.id]}
                 progress={progress[entry.id]} shelf={personalShelves[entry.id]}
                 onSaveAnnotation={onSaveAnnotation} onSetShelf={onSetShelf}
-                onResetProgress={onResetProgress} onSaveSynopsis={onSaveSynopsis}/>
+                onResetProgress={onResetProgress} onSaveSynopsis={onSaveSynopsis}
+                canPublish={canPublish} onSavePublication={publish}/>
             </div>}
           </article>)}
         </div>:<p role="status">No manga match your search.</p>}
