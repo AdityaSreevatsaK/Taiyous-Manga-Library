@@ -78,7 +78,7 @@ export function MangaAnalyticsPanel({analytics,entries,detailHref,onOpenDetails,
       <div><strong>{analytics.trying}</strong><span>Trying Out</span></div>
       <div><strong>{analytics.downloadedChapters}</strong><span>Offline chapters in {analytics.offlineSeries} series</span></div>
       <div><strong>{analytics.avgRating??'–'}</strong><span>Average rating / 10 ({analytics.rated} rated)</span></div>
-      <div><strong>{analytics.total}</strong><span>Manga in catalogue</span></div>
+      <div><strong>{analytics.total}</strong><span>Catalogue series</span></div>
     </div>
     <div className="manga-usage-panels">
       <section className="manga-usage-panel" aria-label="Last 14 days of reading activity">
