@@ -52,7 +52,7 @@ A private chapter manifest is requested only when a chapter is opened or a direc
 
 For a selected private chapter, src/data/chapterPreloader.ts starts page requests in page order with bounded concurrency (default 3, maximum 4). VerticalReader keeps stable page placeholders and mounts/decodes only the visible page and nearby images. Page loading is actual media traffic, not catalogue metadata fetching.
 
-The canonical private page fast path accepts the immutable revision and page descriptor already obtained from the authenticated catalogue/manifest. The server still validates the owner session, current revision, page identity, path, MIME, byte length and SHA-256. The compatibility path remains available for legacy layouts. Private API responses are no-store and the service worker excludes /api/*.
+The canonical private page fast path accepts the immutable revision and page descriptor already obtained from the authenticated catalogue/manifest. The browser validates manga → chapter → page membership before requesting it. The server validates the owner session, revision/descriptor format, safe ID-derived path, MIME, byte length and SHA-256 of the returned bytes. It deliberately does not re-resolve the moving main revision or refetch catalogue/manifest metadata for each canonical asset request; the supplied revision is immutable. Legacy requests without a pinned descriptor use the slower server-side catalogue/manifest membership path. Private API responses are no-store and the service worker excludes /api/*.
 
 ### 4. Personal data and analytics
 
