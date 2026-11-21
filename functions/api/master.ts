@@ -1,4 +1,5 @@
 import {parseCloudCatalogue} from './library';
+import {slugify} from '../../src/domain/routes';
 import {REPO,ORIGIN,configured,production,getSession,privateRepo,hfFetch,json,seal,unseal,clear,
   type Env,type SessionData} from '../_lib/mangaAuth';
 interface Context{request:Request;env:Env}
@@ -78,7 +79,11 @@ export function applyMetadataCorrection(document:unknown,patch:MetadataCorrectio
  if(matches.length!==1)throw Error('Manga ID not found or duplicated');
  const next=JSON.parse(JSON.stringify(document)) as typeof original;
  const entry=next.entries.find(e=>e.id===patch.mangaId)!;
- if(patch.title!==undefined)entry.title=patch.title;
+ if(patch.title!==undefined){
+   // Keep the public URL unchanged even for older records that lack a stored slug.
+   if(!entry.slug)entry.slug=slugify(String(entry.title));
+   entry.title=patch.title;
+ }
  if(patch.creators!==undefined){
    entry.creators=patch.creators;
    // Preserve existing artists and their attribution when correcting author names.
