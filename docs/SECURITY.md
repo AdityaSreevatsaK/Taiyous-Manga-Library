@@ -34,8 +34,8 @@ Trust boundaries:
 
 - GET /api/library returns the complete validated catalogue at an immutable private dataset revision. It is owner-only and no-store.
 - GET /api/media/cover, /manifest and /page are owner-only, same-origin and no-store.
-- Every private media request validates object membership and safe path structure. The gateway validates actual MIME, byte length and SHA-256 against trusted catalogue/manifest metadata.
-- Canonical page fast paths use a revision and validated descriptor supplied by the authenticated app, but do not bypass owner/session or integrity checks.
+- Every private media request validates the owner session, identifier/path syntax and descriptor bounds. The browser supplies canonical cover/page descriptors only after validating the owner-authenticated catalogue/manifest. The gateway validates the ID-derived private path, actual MIME, byte length and SHA-256.
+- Canonical fast paths use the immutable revision and validated descriptor supplied by the authenticated app. They do not re-resolve the moving main revision or refetch catalogue/manifest membership for each asset request. Legacy requests retain server-side catalogue/manifest membership checks. This is a single-owner application, not a multi-tenant permission boundary.
 - The service worker explicitly excludes /api/* and private media is never part of the public app-shell cache.
 - Verified covers may be cached in a bounded IndexedDB store for repeat display. Sign-out clears that store. This does not make private chapter pages available offline.
 - Private chapter downloads are not implemented. Only synthetic sample chapters have explicit offline downloads.
