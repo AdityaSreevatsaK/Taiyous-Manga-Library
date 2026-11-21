@@ -82,6 +82,13 @@ test('analytics matches Novel dual-series chart and four-card layout at mobile a
     await expect(page.getByRole('heading',{name:'Reading analytics'})).toBeVisible();
     await expect(page.getByRole('heading',{name:'Last 14 days'})).toBeVisible();
     await expect(page.locator('.manga-usage-track')).toHaveCount(14);
+    // A date is labelled every three calendar days, always including today.
+    const ticks=await page.locator('.manga-usage-date-label').allTextContents();
+    expect(ticks).toHaveLength(14);
+    expect(ticks.flatMap((label,index)=>label.trim()?[index]:[])).toEqual([1,4,7,10,13]);
+    expect(ticks[13]?.trim()).toBe(await page.evaluate(()=>
+      new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short'})));
+
     await expect(page.getByRole('heading',{name:'Most read manga'})).toBeVisible();
     await expect(page.locator('.manga-usage-more')).not.toHaveAttribute('open','');
     const graph=page.locator('.manga-usage-track').last();
