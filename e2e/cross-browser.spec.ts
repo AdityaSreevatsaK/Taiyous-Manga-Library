@@ -11,7 +11,7 @@ async function noHorizontalScroll(page: Page) {
 test('home, desktop navigation and transparent brand assets work on both engines', async ({page}) => {
   await page.setViewportSize({width:1280,height:900});
   await page.goto('/');
-  await expect(page.getByRole('heading',{name:/Where worlds unfold/})).toBeVisible();
+  await expect(page.getByRole('heading',{name:/Every panel holds a story/})).toBeVisible();
   await expect(page.locator('.manga-nav-links > .site-nav-link')).toHaveCount(6);
   await expect(page.locator('.wordmark .brand-sun')).toHaveAttribute('src',/sun-light.webp$/);
   await expect(page.locator('.app-shell')).toHaveClass(/theme-sepia/);
@@ -75,7 +75,7 @@ test('personal shelves persist without changing publication status',async({page}
   await page.goto('/manga/mng_lanternarchive');
   const original=await page.locator('.detail-sub').textContent();
   await page.getByRole('button',{name:'Add to Trying Out'}).click();
-  await expect(page.locator('.success-toast')).toContainText('Trying Out');
+  await expect(page.locator('.collection-change-toast')).toContainText('Trying Out');
   await page.goto('/trying');
   await expect(page.locator('.book-card')).toHaveCount(1);
   await page.reload();
