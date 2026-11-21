@@ -38,7 +38,7 @@ test.describe('local manga catalogue and chapter reader', () => {
     test('responsive shelf and details at ' + width + 'px', async ({ page }) => {
       await page.setViewportSize({ width, height: 860 });
       await page.goto('/');
-      await expect(page.getByRole('heading', { name: /Where worlds unfold/ })).toBeVisible();
+      await expect(page.getByRole('heading', { name: /Every panel holds a story/ })).toBeVisible();
       await expect(page.locator('.editorial-journal')).toBeVisible();
       await expect(page.locator('.editorial-shelves')).toBeVisible();
       await assertNoHorizontalOverflow(page);
@@ -270,11 +270,11 @@ test.describe('browser history and deep links', () => {
 
   test('home and library have distinct navigation URLs', async ({ page }) => {
     await page.goto('/');
-    await expect(page.getByRole('heading', { name: /Where worlds unfold/ })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Every panel holds a story/ })).toBeVisible();
     await page.locator('.editorial-index-row').first().click();
     await page.getByRole('link', { name: 'Back to the shelf' }).click();
     await expect(page).toHaveURL('/library');
-    await expect(page.getByRole('heading', { name: /Where worlds unfold/ })).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: /Every panel holds a story/ })).toHaveCount(0);
     await page.getByRole('link', { name: 'Taiyou Manga home' }).click();
     await expect(page).toHaveURL('/');
   });
@@ -878,7 +878,7 @@ test.describe('nested personal manga collections',()=>{
     await page.getByRole('dialog',{name:'Collections for The Lantern Archive'})
       .getByRole('checkbox',{name:'Favourites / Romance'}).check();
     await page.getByRole('button',{name:'Done'}).click();
-    await expect(page.locator('.success-toast')).toContainText('Added manga to collection');
+    await expect(page.locator('.collection-change-toast')).toContainText('Added manga to collection');
     await expect(page.locator('.details-hero-membership')).toContainText('Favourites / Romance');
     await expect(page.locator('.detail-sub')).toHaveText(publicationBefore);
     await page.locator('.details-hero-membership').filter({hasText:'Favourites / Romance'}).click();
@@ -1086,7 +1086,7 @@ test('mock authenticated empty HF dataset replaces sample catalogue with a truth
   await page.getByRole('button',{name:'Sign out of Hugging Face'}).click();
   await expect(page.getByRole('button',{name:'My library (0)'})).toBeVisible();
   await expect(page.locator('.editorial-journal')).toBeVisible();
-  await expect(page.getByRole('heading',{name:/Where worlds unfold/})).toBeVisible();
+  await expect(page.getByRole('heading',{name:/Every panel holds a story/})).toBeVisible();
 });
 
 test('Novel editorial home is complete, readable and navigable at split-screen widths',async({page})=>{
@@ -1094,7 +1094,7 @@ test('Novel editorial home is complete, readable and navigable at split-screen w
   await page.setViewportSize({width,height:900});
   await page.goto('/');
   await expect(page.locator('.editorial-grand')).toBeVisible();
-  await expect(page.getByRole('heading',{name:/Where worlds unfold/})).toBeVisible();
+  await expect(page.getByRole('heading',{name:/Every panel holds a story/})).toBeVisible();
   await expect(page.locator('.editorial-journal')).toBeVisible();
   await expect(page.locator('.editorial-journal-index .editorial-index-row')).toHaveCount(3);
   await expect(page.locator('.editorial-shelves')).toBeVisible();
@@ -1206,8 +1206,8 @@ test('authenticated manga homepage mirrors Novel floating gallery with three com
   const entries=Array.from({length:4},(_,i)=>{
     const id='mng_visualparity'+String(i).padStart(3,'0');
     return {kind:'manga',id,title:'Featured Manga '+(i+1),aliases:[],
-      creators:['Example Creator'],tags:['Romance','Slice of Life'],
-      publicationStatus:'completed',direction:'vertical',synopsis:'A real series from the private library.',
+      creators:['Creator '+(i+1)],tags:['Romance','Slice of Life'],
+      publicationStatus:'completed',direction:'vertical',synopsis:'Synopsis for featured manga '+(i+1)+'.',
       chapters:[{id:'ch_visualparity'+String(i).padStart(3,'0'),
         label:'Chapter 1',sequence:1,pageCount:1}],
       cover:{assetPath:'covers/'+id+'.webp',mimeType:'image/webp',
@@ -1275,6 +1275,16 @@ test('authenticated manga homepage mirrors Novel floating gallery with three com
   }
   await page.setViewportSize({width:1280,height:850});
   await page.goto('/');
+  await expect(page.locator('.editorial-art-book:not(.editorial-art-book-pending)')).toHaveCount(3);
+  const centre=page.locator('.editorial-art-book-1');
+  const centreTitle=(await centre.getAttribute('aria-label'))?.replace('Preview and open ','');
+  expect(centreTitle).toBeTruthy();
+  const details=page.locator('.editorial-featured-book');
+  await expect(details.getByRole('heading',{level:2})).toHaveText(centreTitle!);
+  const featuredTitle=details.getByRole('heading',{level:2});
+  await expect.poll(()=>featuredTitle.evaluate(el=>getComputedStyle(el).color)).toBe('rgb(255, 243, 213)');
+  await expect.poll(()=>details.locator('.editorial-featured-synopsis')
+    .evaluate(el=>getComputedStyle(el).color)).toBe('rgb(232, 238, 249)');
   const first=page.locator('.editorial-art-book:not(.editorial-art-book-pending)').first();
   await expect(first).toBeVisible();
   await expect(first).toHaveAttribute('href',/\/manga\//);
@@ -1283,7 +1293,18 @@ test('authenticated manga homepage mirrors Novel floating gallery with three com
   const oldScale=await first.evaluate(el=>getComputedStyle(el).scale);
   await first.hover();
   await expect(label).toBeVisible();
+  const firstTitle=(await first.getAttribute('aria-label'))!.replace('Preview and open ','');
+  await expect(featuredTitle).toHaveText(firstTitle);
+  const firstNumber=Number(firstTitle.replace('Featured Manga ',''));
+  await expect(details.locator('.editorial-featured-author')).toHaveText('by Creator '+firstNumber);
+  await expect(details.locator('.editorial-featured-synopsis'))
+    .toContainText('Synopsis for featured manga '+firstNumber);
+  await expect(page.locator('.editorial-grand-actions .editorial-secondary')).toHaveAttribute('href',await first.getAttribute('href')??'');
   await expect.poll(()=>first.evaluate(el=>getComputedStyle(el).scale)).not.toBe(oldScale);
+  await page.locator('.editorial-grand-tagline').hover();
+  await expect(featuredTitle).toHaveText(centreTitle!);
+  await first.focus();
+  await expect(featuredTitle).toHaveText(firstTitle);
   await first.click();
   await expect(page.locator('.manga-details-hero')).toBeVisible();
 });
@@ -1629,7 +1650,7 @@ test('Novel-style collection picker opens from the manga hero and preserves memb
   await expect(modal.getByRole('button',{name:'Close collection picker'})).toBeFocused();
   await modal.getByRole('checkbox',{name:'Favourites'}).check();
   await expect(modal.getByRole('checkbox',{name:'Favourites'})).toBeChecked();
-  await expect(page.locator('.success-toast')).toContainText('Added manga to collection');
+  await expect(page.locator('.collection-change-toast')).toContainText('Added manga to collection');
   await page.keyboard.press('Escape');
   await expect(modal).toHaveCount(0);
   await expect(opener).toBeFocused();
