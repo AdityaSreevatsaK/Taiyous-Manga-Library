@@ -1076,6 +1076,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
       {screen.kind==='master'&&<MangaMasterControls
         connected={cloud.status==='connected'} checking={cloud.status==='checking'}
         owner={cloud.status==='connected'?cloud.owner:undefined}
+        revision={cloud.status==='connected'?cloud.revision:undefined}
         refreshing={refreshingMetadata} entries={remoteEntries}
         analytics={analytics} view={screen.view==='analytics'?'analytics':'overview'}
         overviewHref={routeHref({kind:'master'},import.meta.env.BASE_URL,catalogue)}
@@ -1091,7 +1092,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
         onSetShelf={changeShelf}
         onResetProgress={resetMangaProgress}
         onSaveSynopsis={saveMangaSynopsis}
-        onRefresh={()=>{void refreshPrivateCatalogue();}}
+        onRefresh={refreshPrivateCatalogue}
         backHref={routeHref({kind:'library'},import.meta.env.BASE_URL,catalogue)}
         onBack={event=>followLink(event,()=>goCatalogue('library'))}
         hrefFor={item=>routeHref({kind:'details',mangaId:item.id},import.meta.env.BASE_URL,remoteEntries)}
