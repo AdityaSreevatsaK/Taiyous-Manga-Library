@@ -1,5 +1,5 @@
 import type {MouseEvent} from 'react';
-import {LockKeyholeIcon} from './SharedLibraryIcons';
+import {Settings2Icon} from './SharedLibraryIcons';
 
 /** Direct, bookmarkable Master Controls navigation. The separate Manage manga
  * link and the small dropdown are deliberately removed. */
@@ -10,6 +10,6 @@ export function MangaOwnerTools({connected,href,onOpen,active=false}:{
  return <a className="manga-master-entry" href={href}
    title={connected?'Open Master Controls and Analytics':'View Analytics or sign in for owner administration'}
    aria-current={active?'page':undefined} onClick={onOpen}>
-   <LockKeyholeIcon size={16}/><span>Master</span>
+   <Settings2Icon size={16}/><span>Master</span>
  </a>;
 }

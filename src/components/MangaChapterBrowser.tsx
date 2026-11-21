@@ -1,6 +1,6 @@
 import {useEffect,useMemo,useState,type FormEvent,type ReactNode} from 'react';
 import type {MangaChapter} from '../domain/types';
-import {BookMarkedIcon} from './SharedLibraryIcons';
+import {BookMarkedIcon,ListIcon,SearchIcon} from './SharedLibraryIcons';
 
 /**
  * Port of Novel Library src/components/ChapterBrowser.tsx, with only the
@@ -56,7 +56,7 @@ export function MangaChapterBrowser({chapters,mangaId,currentChapterId,busy,
   <div className="details-section-header">
    <div><span className="details-label">PICK UP ANYWHERE</span>
     <h2 id="detail-chapters-heading">Chapters</h2></div>
-   <span className="details-section-icon" aria-hidden="true">☷</span>
+   <ListIcon size={21} className="details-section-icon"/>
   </div>
   <div className="chapter-topline">
    <strong>{chapters.length.toLocaleString()} chapters available</strong>
@@ -68,7 +68,7 @@ export function MangaChapterBrowser({chapters,mangaId,currentChapterId,busy,
     </button>}
   </div>
   <div className="chapter-tools">
-   <label className="chapter-search"><span aria-hidden="true">⌕</span>
+   <label className="chapter-search"><SearchIcon size={15}/>
     <span className="manga-sr-only">Search chapters</span>
     <input type="search" placeholder="Search chapter titles or numbers" value={search}
       onChange={event=>{setSearch(event.target.value);setPage(0);}}/>
