@@ -67,7 +67,7 @@ function shuffleForVisit<T>(items: readonly T[], seed: number): T[] {
     state ^= state >>> 17;
     state ^= state << 5;
     const j = (state >>> 0) % (i + 1);
-    [result[i], result[j]] = [result[j], result[i]];
+    [result[i], result[j]] = [result[j]!, result[i]!];
   }
   return result;
 }
@@ -170,14 +170,14 @@ export function selectHomeShelves(
     };
     for (let i = candidates.length - 1; i > 0; i--) {
       const j = Math.floor(random() * (i + 1));
-      [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+      [candidates[i], candidates[j]] = [candidates[j]!, candidates[i]!];
     }
     // Each chosen shelf also varies its cover without ever reusing the same
     // book as another shelf's preview (allocation below enforces uniqueness).
     for (const candidate of candidates) {
       for (let i = candidate.members.length - 1; i > 0; i--) {
         const j = Math.floor(random() * (i + 1));
-        [candidate.members[i], candidate.members[j]] = [candidate.members[j], candidate.members[i]];
+        [candidate.members[i], candidate.members[j]] = [candidate.members[j]!, candidate.members[i]!];
       }
     }
   }
@@ -186,7 +186,7 @@ export function selectHomeShelves(
   const previews = new Map<number, LibraryBook>();
   const selected: number[] = [];
   function allocate(index: number, visited: Set<string>): boolean {
-    for (const book of candidates[index].members) {
+    for (const book of candidates[index]!.members) {
       if (visited.has(book.id)) continue;
       visited.add(book.id);
       const owner = owners.get(book.id);
@@ -203,10 +203,10 @@ export function selectHomeShelves(
     if (allocate(index, new Set())) selected.push(index);
   }
   return selected.map(index => ({
-    kind: candidates[index].kind,
-    id: candidates[index].id,
-    name: candidates[index].name,
-    count: candidates[index].count,
+    kind: candidates[index]!.kind,
+    id: candidates[index]!.id,
+    name: candidates[index]!.name,
+    count: candidates[index]!.count,
     preview: previews.get(index)!,
   }));
 }
