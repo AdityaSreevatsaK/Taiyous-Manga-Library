@@ -3,7 +3,7 @@ import { demoEntries,demoManifests } from '../data/fixtures';
 import { UnconnectedPrivateMedia,verifyPageIdentity,verifyPrivateCatalogue,
   verifyPrivateManifest,verifyPrivateRights } from './privateMediaContracts';
 
-describe('safe, server-gated private media port',()=>{
+describe('legacy unconnected media stub and private identity validation',()=>{
   it('denies all operations by default without fetching or claiming a cloud session',async()=>{
     const gateway=new UnconnectedPrivateMedia();
     const spy=vi.spyOn(globalThis,'fetch');
