@@ -64,7 +64,7 @@ test.describe('local manga catalogue and chapter reader', () => {
     await expect(page.locator('.book-card')).toHaveCount(2);
     await page.locator('.manga-cloud-menu > summary').click();
     await page.getByRole('button', { name: 'My library (0)' }).click();
-    await expect(page.getByText('Your collection is not connected yet')).toBeVisible();
+    await expect(page.getByRole('heading',{name:'Your manga library awaits'})).toBeVisible();
     await expect(page.locator('.book-card')).toHaveCount(0);
   });
   test('scrolls an entire chapter without clicking page controls and resumes the exact position', async ({ page }) => {
@@ -1102,7 +1102,7 @@ test('Novel editorial home is complete, readable and navigable at split-screen w
   await expect(page.locator('.editorial-grand-ledger button')).toHaveCount(4);
   await assertNoHorizontalOverflow(page);
  }
- await page.getByRole('button',{name:/Browse all 4 manga/}).click();
+ await page.locator('.editorial-browse-all').click();
  await expect(page).toHaveURL('/library');
  await expect(page.locator('.book-card')).toHaveCount(4);
  await expect(page.locator('.status-ribbon').filter({hasText:'Story Complete'})).toHaveCount(2);
@@ -1694,7 +1694,7 @@ test('Novel status labels and book icon are distinct from publication ribbons',a
   await expect(page.locator('.detail-sub')).not.toContainText('Story Complete');
   await expect(page.locator('.manga-chapter-stat svg')).toBeVisible();
   await expect(page.locator('.manga-chapter-stat')).toContainText('chapters');
-  await page.goto('/');
+  await page.goto('/library');
   await expect(page.locator('.status-ribbon').filter({hasText:'Story Complete'})).toHaveCount(2);
 });
 
