@@ -4,6 +4,7 @@ import { resolvePrivatePage } from '../data/privateMedia';
 import { preloadChapterPages } from '../data/chapterPreloader';
 import { anchoredPageIndex, pagePrefetchWindow } from '../domain/pageViewport';
 import type { ChapterManifest } from '../domain/types';
+import {BookOpenIcon} from './SharedLibraryIcons';
 
 /**
  * Continuous chapter scrolling with stable image aspect ratios.
@@ -232,17 +233,35 @@ export function VerticalReader({ manifest, privateMangaId, privateRevision, fit 
   const displayedStart=Math.max(0,visibleIndex-3);
   const displayedEnd=Math.min(manifest.pages.length-1,visibleIndex+5);
   return <>
-    {privateMangaId&&<div className="chapter-preload-progress" role="status" aria-live="polite">
+    {privateMangaId&&<section className={'chapter-preload-progress'+
+      (preload.done?' is-finished':'')} aria-label="Chapter download status">
       <div className="chapter-preload-heading">
-        <strong>{preload.done ? 'Chapter download attempted' : 'Loading the entire chapter…'}</strong>
-        <span>{preload.ready} of {manifest.pages.length} pages ready</span>
+        <span className="chapter-preload-emblem" aria-hidden="true"><BookOpenIcon size={19}/></span>
+        <div className="chapter-preload-message">
+          <span className="chapter-preload-eyebrow">YOUR READING ROOM</span>
+          <strong>{preload.done
+            ? preload.failed?'Chapter loaded with missing pages':'Chapter ready'
+            : 'Preparing the entire chapter'}</strong>
+        </div>
+        <span className="chapter-preload-count" aria-live="polite">
+          <b>{preload.ready}</b><span> / {manifest.pages.length} pages ready</span>
+        </span>
       </div>
-      <progress value={preload.attempted} max={manifest.pages.length}
-        aria-label="Pages attempted in this chapter"/>
-      <p>{preload.done
-        ? preload.failed ? preload.failed+' page(s) failed. Use Retry page on any affected image.' : 'All pages are ready to read.'
-        : 'Downloading pages in order while you read. Scrolling does not trigger downloads.'}</p>
-    </div>}
+      {(!preload.done||preload.failed>0)&&
+        <div className="chapter-preload-track" role="progressbar" aria-label="Chapter pages ready"
+          aria-valuemin={0} aria-valuemax={manifest.pages.length}
+          aria-valuenow={preload.ready}
+          aria-valuetext={preload.ready+' of '+manifest.pages.length+' pages ready'}>
+          <div className="chapter-preload-fill"
+            style={{width:(100*preload.ready/Math.max(1,manifest.pages.length))+'%'}}/>
+        </div>}
+      <p className="chapter-preload-note" role={preload.failed?'alert':undefined}>
+        {preload.done
+          ? preload.failed?preload.failed+' page(s) need another attempt. Use Retry page on affected artwork.'
+            :'All pages are ready. Enjoy reading.'
+          : 'Pages are downloaded in reading order. You can start reading immediately.'}
+      </p>
+    </section>}
     <div ref={root} className={"vertical-reader reader-fit-" + fit}
       aria-label="Complete manga chapter, continuous vertical scroll">
     {manifest.pages.map((page, index) =>
