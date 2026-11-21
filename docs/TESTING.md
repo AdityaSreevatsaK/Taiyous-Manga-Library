@@ -54,7 +54,8 @@ This is a dated evidence record. Check current GitHub Actions before making a ne
 - src/domain: IDs, validation, routing, filters, reader ordering, progress, personal records, backup import/export, collections, advanced discovery, analytics and chart date calculations.
 - src/data: private catalogue, cover cache, private media gateway, offline chapters and chapter preloader.
 - functions/api/master.test.ts: protected metadata patch validation, immutable lineage, revisions and owner correction logic.
-- functions/api/master.test.ts and functions/api/library.ts tests: synthetic API/security behaviour.
+- src/data/privateLibrary.test.ts: catalogue response and private-library client behaviour.
+- src/domain/mangaCloudGateway.test.ts and mangaPrivateMediaGateway.test.ts: legacy no-network port and private media identity validation helpers.
 - e2e/manga-reader.spec.ts: reader journeys, progress, chapter controls, synthetic offline and responsive interactions.
 - e2e/manga-master-parity.spec.ts: Master Controls, analytics metrics/events, owner edit gates and responsive dashboard parity.
 - e2e/cross-browser.spec.ts: focused Firefox/WebKit route and reader checks.
