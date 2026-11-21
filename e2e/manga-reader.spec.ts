@@ -1231,6 +1231,35 @@ test('authenticated manga homepage mirrors Novel floating gallery with three com
     const visible=page.locator('.editorial-art-book:not(.editorial-art-book-pending)');
     await expect(visible).toHaveCount(3,{timeout:20000});
     await expect(visible.locator('.cover-has-image')).toHaveCount(3);
+    // Regression: the source-port had a missing wrapper class, so intrinsic
+    // JPG/WEBP dimensions escaped the hero and made every shelf image enormous.
+    await expect(page.locator('.manga-editorial-home')).toBeVisible();
+    const imageContainment=await visible.locator('.cover').evaluateAll(covers=>covers.map(el=>{
+      const img=el.querySelector('img.manga-cover-image');
+      const frame=el.getBoundingClientRect(),image=img?.getBoundingClientRect();
+      return image?{
+        frameWidth:frame.width,frameHeight:frame.height,
+        imageWidth:image.width,imageHeight:image.height,
+        frameOverflowX:Math.max(frame.left-image.left,image.right-frame.right),
+        frameOverflowY:Math.max(frame.top-image.top,image.bottom-frame.bottom),
+      }:null;
+    }));
+    expect(imageContainment).toHaveLength(3);
+    for(const art of imageContainment){
+      expect(art).not.toBeNull();
+      expect(art!.frameWidth).toBeLessThan(220);
+      expect(art!.imageWidth).toBeLessThanOrEqual(art!.frameWidth+1);
+      expect(art!.imageHeight).toBeLessThanOrEqual(art!.frameHeight+1);
+      expect(art!.frameOverflowX).toBeLessThanOrEqual(1);
+      expect(art!.frameOverflowY).toBeLessThanOrEqual(1);
+    }
+    const shelfArt=await page.locator('.editorial-shelf-cover .cover').evaluateAll(arts=>
+      arts.map(el=>({width:el.getBoundingClientRect().width,
+        imageWidth:el.querySelector('img')?.getBoundingClientRect().width??0})));
+    for(const art of shelfArt){
+      expect(art.width).toBeLessThanOrEqual(66);
+      expect(art.imageWidth).toBeLessThanOrEqual(art.width+1);
+    }
     const bounds=await gallery.boundingBox();
     const covers=await visible.locator('.cover').evaluateAll(nodes=>nodes.map(el=>{
       const r=el.getBoundingClientRect();
