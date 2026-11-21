@@ -29,7 +29,7 @@ Individual media requests are expected:
 - A chapter manifest is requested when a chapter is opened.
 - Page bytes are requested for the chapter being read through the authenticated media gateway.
 
-The private dataset is AdityaSreevatsaK/Taiyous-Manga. The separate Taiyou-Manga-Storage-Controller manages original media imports, backups, migrations and deletion. Public GitHub and Cloudflare assets contain source and synthetic fixtures only.
+The private dataset is AdityaSreevatsaK/Taiyous-Manga. The separate Taiyou-Manga-Storage-Controller manages original media imports, backups, migrations and deletion. Public GitHub and Cloudflare assets contain source, approved brand artwork and public demo imagery/fixtures only.
 
 Personal progress, ratings, notes, tags, collections and analytics remain in browser-local storage. Manual JSON backup is the current transfer path. Automatic cross-device personal-data sync is not implemented.
 
