@@ -3,7 +3,7 @@ import { entries as realEntries } from './data/catalogue';
 import { fetchPrivateLibrary, type CloudRead } from './data/privateLibrary';
 import { fetchPrivateChapter, privateResumeChapter } from './data/privateMedia';
 import { demoEntries, demoManifests, fixtureStatement } from './data/fixtures';
-import { verifyOfflineChapter } from './data/offlineChapters';
+import { verifyOfflineChapter,removeOfflineChapter } from './data/offlineChapters';
 import { OfflineChapterControl } from './components/OfflineChapterControl';
 import { CollectionManager } from './components/CollectionManager';
 import { LocalBackupControl } from './components/LocalBackupControl';
@@ -824,6 +824,17 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
       'Browser storage is unavailable or full. The annotation was not saved.');
     return false;
   }
+  async function removeVerifiedOffline():Promise<{removed:number;kept:number}>{
+    let removed=0,kept=0;
+    for(const id of offlineChapterIds){
+      const target=demoManifests.get(id);
+      if(!target||(await verifyOfflineChapter(target)).status!=='complete'){kept++;continue;}
+      try{await removeOfflineChapter(target);removed++;}
+      catch{kept++;}
+    }
+    setInventoryRevision(previous=>previous+1);
+    return {removed,kept};
+  }
   function resetMangaProgress(item:MangaEntry):boolean{
     const store=browserStorage();
     if(!store){setStorageNotice('Browser storage is unavailable.');return false;}
@@ -1091,6 +1102,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
         onSaveAnnotation={(item,patch,message)=>changeAnnotation(item,patch,message)}
         onSetShelf={changeShelf}
         onResetProgress={resetMangaProgress}
+        onRemoveOffline={removeVerifiedOffline}
         onSaveSynopsis={saveMangaSynopsis}
         onRefresh={refreshPrivateCatalogue}
         backHref={routeHref({kind:'library'},import.meta.env.BASE_URL,catalogue)}
