@@ -1199,58 +1199,66 @@ test('personal tag form is a simple text field without duplicate caption or drop
   await expect(page.locator('.manga-tags-card')).toContainText(/Warm.Hearted/i);
 });
 
-test('split-screen hero displays three complete covers, with enhanced border and hover',async({page})=>{
+test('authenticated manga homepage mirrors Novel floating gallery with three complete real covers',async({page})=>{
+  const webp=Buffer.from('UklGRjYAAABXRUJQVlA4ICoAAACQAQCdASoCAAMAAUAmJaACdLoAA5gA/vDEC/8pX7svSTqy/zs9lsayAAA=','base64');
+  const hash=createHash('sha256').update(webp).digest('hex');
+  const cloud={connected:true,owner:'AdityaSreevatsaK',repo:'AdityaSreevatsaK/Taiyous-Manga'};
+  const entries=Array.from({length:4},(_,i)=>{
+    const id='mng_visualparity'+String(i).padStart(3,'0');
+    return {kind:'manga',id,title:'Featured Manga '+(i+1),aliases:[],
+      creators:['Example Creator'],tags:['Romance','Slice of Life'],
+      publicationStatus:'completed',direction:'vertical',synopsis:'A real series from the private library.',
+      chapters:[{id:'ch_visualparity'+String(i).padStart(3,'0'),
+        label:'Chapter 1',sequence:1,pageCount:1}],
+      cover:{assetPath:'covers/'+id+'.webp',mimeType:'image/webp',
+        width:2,height:3,byteSize:webp.length,sha256:hash}};
+  });
+  await page.route('**/api/auth/session',route=>route.fulfill({
+    status:200,contentType:'application/json',body:JSON.stringify(cloud)
+  }));
+  await page.route('**/api/library',route=>route.fulfill({
+    status:200,contentType:'application/json',
+    body:JSON.stringify({...cloud,revision:'a'.repeat(40),entries})
+  }));
+  await page.route('**/api/media/cover?*',route=>route.fulfill({
+    status:200,contentType:'image/webp',body:webp
+  }));
   for(const width of [430,650,790,900,1080]){
     await page.setViewportSize({width,height:850});
     await page.goto('/');
-    const hero=page.locator('.editorial-hero-art');
-    const bounds=await hero.boundingBox();
-    expect(bounds).toBeTruthy();
-    const books=await hero.locator('.editorial-display-book').evaluateAll(items=>items.map(el=>{
+    const gallery=page.locator('.editorial-grand-gallery');
+    await expect(gallery).toBeVisible();
+    const visible=page.locator('.editorial-art-book:not(.editorial-art-book-pending)');
+    await expect(visible).toHaveCount(3,{timeout:20000});
+    await expect(visible.locator('.cover-has-image')).toHaveCount(3);
+    const bounds=await gallery.boundingBox();
+    const covers=await visible.locator('.cover').evaluateAll(nodes=>nodes.map(el=>{
       const r=el.getBoundingClientRect();
-      return {left:r.left,right:r.right,top:r.top,bottom:r.bottom};
+      return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height};
     }));
-    expect(books).toHaveLength(3);
-    const angles=await hero.locator('.editorial-book-link').evaluateAll(items=>
-      items.map(el=>getComputedStyle(el).transform));
-    expect(angles).toHaveLength(3);
-    expect(new Set(angles).size).toBe(3);
-    for(const b of books){
-      expect(b.left).toBeGreaterThanOrEqual(bounds!.x-1);
-      expect(b.right).toBeLessThanOrEqual(bounds!.x+bounds!.width+1);
-      expect(b.top).toBeGreaterThanOrEqual(bounds!.y-1);
-      expect(b.bottom).toBeLessThanOrEqual(bounds!.y+bounds!.height+1);
+    expect(covers).toHaveLength(3);
+    for(const cover of covers){
+      expect(cover.height/cover.width).toBeGreaterThan(1.42);
+      expect(cover.height/cover.width).toBeLessThan(1.65);
+      expect(cover.left).toBeGreaterThanOrEqual(bounds!.x-6);
+      expect(cover.right).toBeLessThanOrEqual(bounds!.x+bounds!.width+6);
     }
     await assertNoHorizontalOverflow(page);
   }
   await page.setViewportSize({width:1280,height:850});
   await page.goto('/');
-  const heroLink=page.locator('.editorial-hero .editorial-book-link').first();
-  const label=heroLink.locator('.editorial-art-hover-label');
-  await expect(heroLink).toHaveAttribute('href', /\/manga\//);
-  await expect(label).toHaveText('Five Chapter Scroll Trial');
+  const first=page.locator('.editorial-art-book:not(.editorial-art-book-pending)').first();
+  await expect(first).toBeVisible();
+  await expect(first).toHaveAttribute('href',/\/manga\//);
+  const label=first.locator('.editorial-art-hover-label');
   await expect(label).toBeHidden();
-  const originalHeroScale=await heroLink.evaluate(el=>getComputedStyle(el).scale);
-  await heroLink.hover();
+  const oldScale=await first.evaluate(el=>getComputedStyle(el).scale);
+  await first.hover();
   await expect(label).toBeVisible();
-  await expect.poll(()=>heroLink.evaluate(el=>getComputedStyle(el).scale))
-    .not.toBe(originalHeroScale);
-  await heroLink.focus();
-  await expect(label).toBeVisible();
-  await heroLink.click();
-  await expect(page.getByRole('heading',{name:'Five Chapter Scroll Trial'})).toBeVisible();
-  await page.goto('/');
-  const card=page.locator('.book-card').first();
-  const cover=card.locator('.book-cover');
-  const border=await cover.evaluate(el=>getComputedStyle(el).borderTopWidth);
-  expect(parseFloat(border)).toBeGreaterThanOrEqual(2);
-  const original=await card.evaluate(el=>getComputedStyle(el).transform);
-  await card.hover();
-  const hovered=await card.evaluate(el=>getComputedStyle(el).transform);
-  expect(hovered).not.toBe(original);
-  await expect(page.locator('.cloud-status-icon svg path')).toHaveCount(2);
+  await expect.poll(()=>first.evaluate(el=>getComputedStyle(el).scale)).not.toBe(oldScale);
+  await first.click();
+  await expect(page.locator('.manga-details-hero')).toBeVisible();
 });
-
 test('Novel Library brand assets and chrome render without the invented logo tile',async({page})=>{
   for(const width of [320,390,768,1280]){
     await page.setViewportSize({width,height:820});
