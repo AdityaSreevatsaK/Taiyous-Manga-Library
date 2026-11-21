@@ -3,11 +3,15 @@ import { parseAppRoute, resolveAppRoute, routeHref, publicSeriesSlug, slugify } 
 import {demoEntries} from '../data/fixtures';
 
 describe('stable browser routes', () => {
-  it('routes all eight library sections without breaking old library bookmarks', () => {
-    for (const section of ['reading','trying','offline','finished','to-read','library','analytics'] as const) {
+  it('keeps six visible shelves and sends legacy bookmarks to their replacement views', () => {
+    for (const section of ['reading','trying','offline','finished','library'] as const) {
       expect(parseAppRoute('/'+section)).toEqual({kind:section});
       expect(routeHref({kind:section})).toBe('/'+section);
     }
+    expect(parseAppRoute('/to-read')).toEqual({kind:'library'});
+    expect(parseAppRoute('/analytics')).toEqual({kind:'master',view:'analytics'});
+    expect(routeHref({kind:'master',view:'analytics'})).toBe('/master?view=analytics');
+    expect(parseAppRoute('/master','?view=analytics')).toEqual({kind:'master',view:'analytics'});
     expect(parseAppRoute('/unknown-section')).toEqual({kind:'not-found'});
   });
   it('exposes a dedicated Master route without adding a ninth shelf',()=>{
@@ -17,6 +21,10 @@ describe('stable browser routes', () => {
       .toEqual({kind:'master'});
     expect(routeHref({kind:'master'},'/Taiyous-Manga-Library/'))
       .toBe('/Taiyous-Manga-Library/master');
+    expect(parseAppRoute('/Taiyous-Manga-Library/analytics','','/Taiyous-Manga-Library/'))
+      .toEqual({kind:'master',view:'analytics'});
+    expect(routeHref({kind:'master',view:'analytics'},'/Taiyous-Manga-Library/'))
+      .toBe('/Taiyous-Manga-Library/master?view=analytics');
     expect(resolveAppRoute({kind:'master'},demoEntries)).toEqual({kind:'master'});
   });
   it('distinguishes home, library, details, and chapter page', () => {
