@@ -31,7 +31,7 @@ export function readMangaUsage():MangaUsage {
           typeof e.at!=='string'||!Number.isFinite(Date.parse(e.at)))continue;
         const event:MangaUsageEvent={at:new Date(e.at).toISOString(),mangaId:e.mangaId,kind:e.kind};
         if(e.chapterId&&ID.test(e.chapterId))event.chapterId=e.chapterId;
-        if(Number.isSafeInteger(e.page)&&e.page>=1&&e.page<=100000)event.page=e.page;
+        if(typeof e.page==='number'&&Number.isSafeInteger(e.page)&&e.page>=1&&e.page<=100000)event.page=e.page;
         if(typeof e.detail==='string')event.detail=e.detail.slice(0,80);
         u.events.push(event);
       }
