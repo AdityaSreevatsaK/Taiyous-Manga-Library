@@ -18,6 +18,7 @@ interface Props {
   onSaveAnnotation:(entry:MangaEntry,patch:AnnotationPatch,message:string)=>boolean;
   onSetShelf:(entry:MangaEntry,shelf:ShelfSelection)=>void;
   onResetProgress:(entry:MangaEntry)=>boolean;
+  onRemoveOffline:()=>Promise<{removed:number;kept:number}>;
   onSaveSynopsis:(entry:MangaEntry,value:string)=>boolean;
   offlineChapterIds:ReadonlySet<string>;
   analytics:ReturnType<typeof computeLocalReadingAnalytics>;
@@ -38,7 +39,7 @@ const privateDataset='https://huggingface.co/datasets/AdityaSreevatsaK/Taiyous-M
 /** Dedicated Master page. Personal records edit locally; protected cloud media
  * deletion remains exclusively the responsibility of the Storage Controller. */
 export function MangaMasterControls({connected,checking,owner,refreshing,entries,revision,
-  annotations,progress,personalShelves,onSaveAnnotation,onSetShelf,onResetProgress,onSaveSynopsis,
+  annotations,progress,personalShelves,onSaveAnnotation,onSetShelf,onResetProgress,onRemoveOffline,onSaveSynopsis,
   offlineChapterIds,analytics,view,overviewHref,analyticsHref,onView,
   onReading,onOpenAnalyticsDetails,analyticsDetailHref,onRefresh,backHref,onBack,hrefFor,onOpenDetails}:Props){
   const [search,setSearch]=useState('');
@@ -49,6 +50,10 @@ export function MangaMasterControls({connected,checking,owner,refreshing,entries
   const [grantError,setGrantError]=useState('');
   const [grantMessage,setGrantMessage]=useState('');
   const [grantBusy,setGrantBusy]=useState(false);
+  const [confirmOffline,setConfirmOffline]=useState(false);
+  const [offlineConfirmText,setOfflineConfirmText]=useState('');
+  const [offlineBusy,setOfflineBusy]=useState(false);
+  const [offlineMessage,setOfflineMessage]=useState('');
   useEffect(()=>{
     if(!connected||view!=='overview')return;
     let mounted=true;
@@ -151,6 +156,30 @@ export function MangaMasterControls({connected,checking,owner,refreshing,entries
             Manga Storage Controller ↗</a>
           <a href={privateDataset} target="_blank" rel="noopener noreferrer">View private dataset ↗</a>
         </div>
+        {offlineChapterIds.size>0&&<div className="manga-master-offline-cleanup">
+          <p>{offlineChapterIds.size} verified offline chapter copies on this device.
+            Only verified synthetic offline copies are removable here; private manga originals
+            and your reading progress are never affected.</p>
+          {!confirmOffline?<button className="manga-master-danger" type="button"
+            onClick={()=>setConfirmOffline(true)}>Remove verified offline downloads</button>:
+            <div className="manga-master-confirm" role="group" aria-label="Confirm offline cleanup">
+              <p>Type REMOVE DOWNLOADS to clear verified local copies. Unverified copies are preserved.</p>
+              <label htmlFor="manga-offline-confirm">Confirmation phrase</label>
+              <input id="manga-offline-confirm" value={offlineConfirmText}
+                onChange={event=>setOfflineConfirmText(event.target.value)} autoComplete="off"/>
+              <button type="button" disabled={offlineBusy||offlineConfirmText!=='REMOVE DOWNLOADS'}
+                onClick={()=>{void (async()=>{
+                  setOfflineBusy(true);
+                  try{const result=await onRemoveOffline();
+                    setOfflineMessage(result.removed+' verified chapters removed, '+result.kept+' copies preserved.');
+                    setConfirmOffline(false);setOfflineConfirmText('');
+                  }catch(e){setOfflineMessage(e instanceof Error?e.message:'Unable to remove offline copies.');}
+                  finally{setOfflineBusy(false);}
+                })();}}>Confirm offline cleanup</button>
+              <button type="button" disabled={offlineBusy} onClick={()=>{setConfirmOffline(false);setOfflineConfirmText('');}}>Cancel</button>
+            </div>}
+          {offlineMessage&&<p role="status">{offlineMessage}</p>}
+        </div>}
       </section>
       <section className="manga-master-panel" aria-labelledby="manga-master-records">
         <div className="manga-master-records-head"><div>
