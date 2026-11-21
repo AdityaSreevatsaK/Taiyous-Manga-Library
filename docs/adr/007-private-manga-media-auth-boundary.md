@@ -26,7 +26,7 @@ The implementation lives in:
 1. OAuth uses state and PKCE, confidential code exchange and exact owner identity verification.
 2. Session data is encrypted in a Secure, HttpOnly, origin-bound cookie.
 3. GET /api/library authenticates the owner, resolves the immutable HF dataset revision and returns the complete validated data/library.json catalogue. Normal catalogue filtering remains in memory.
-4. GET /api/media/cover, /manifest and /page require the owner session and validate immutable object lineage, current revision, safe path, MIME, byte length and SHA-256.
+4. GET /api/media/cover, /manifest and /page require the owner session. The browser validates canonical manga/chapter/page membership from the authenticated catalogue/manifest; canonical asset requests carry the immutable revision and validated descriptor. The server validates descriptor bounds, ID-derived path, MIME, byte length and SHA-256. It does not re-resolve the moving main revision or refetch catalogue/manifest for each canonical asset. Legacy requests without pinned descriptors retain server-side catalogue/manifest membership checks.
 5. Private responses are no-store. The service worker excludes /api/*.
 6. Verified private covers may be cached in bounded IndexedDB for faster repeat display; logout clears this cache. Private chapter pages are not downloaded for offline use.
 7. The reader makes chapter-manifest and page-asset requests when the user opens a chapter. This is distinct from per-manga catalogue metadata fetching.
