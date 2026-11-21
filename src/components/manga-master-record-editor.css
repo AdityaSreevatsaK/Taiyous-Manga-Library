@@ -51,3 +51,11 @@
 .app-shell .manga-master-editor .manga-master-field input:focus-visible,
 .app-shell .manga-master-editor .manga-master-field select:focus-visible,
 .app-shell .manga-master-editor .manga-master-field textarea:focus-visible{outline:2px solid var(--editorial-accent);outline-offset:2px}
+
+.app-shell .manga-master-offline-cleanup{padding-top:16px;margin-top:16px;border-top:1px solid var(--editorial-line)}
+.app-shell .manga-master-offline-cleanup>.manga-master-danger{padding:10px 13px;min-height:40px;
+ border:1px solid #b87575;border-radius:8px;color:var(--editorial-ink);background:var(--editorial-soft)}
+.app-shell .manga-master-offline-cleanup .manga-master-confirm{margin-top:12px}
+.app-shell .manga-master-offline-cleanup .manga-master-confirm input{width:min(320px,100%)}
+.app-shell .manga-master-offline-cleanup .manga-master-confirm button{padding:9px 13px;
+ background:var(--editorial-soft);color:var(--editorial-ink);border:1px solid var(--editorial-line);border-radius:8px}
