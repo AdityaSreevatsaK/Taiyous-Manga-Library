@@ -40,7 +40,7 @@ Before implementation, produce a concise internal plan containing: observed bran
 - The canonical private catalogue is data/library.json in the private HF dataset. Its schema and paths are described in docs/HF_READONLY_CONNECTION.md and the Controller contract. Legacy catalogue reads are compatibility-only and must remain fail-closed.
 - Private personal progress, shelves, ratings, notes, tags, favourites, chapter-completion markers, nested collections and usage analytics remain device-local. Manual JSON backups are private user files. There is no automatic cross-device personal-data sync.
 - The reader displays a whole chapter in one continuous vertical flow. Previous/Next navigate chapters, not individual pages. Preserve immutable manga/chapter/page IDs and zero-based internal page indexes.
-- Private manga media is online-only. The synthetic sample has a separate explicit offline chapter-download flow. Never claim private media is offline or encrypted.
+- Private chapter pages are online-only. Verified private covers may be cached locally for display; this is not private chapter offline reading. The synthetic sample has a separate explicit offline chapter-download flow. Never claim private media is encrypted.
 - Owner source-metadata corrections are limited to the protected Master flow. They require the authenticated owner, a separate short-lived owner grant, Hugging Face write scope and revision-safe server validation. The Storage Controller remains responsible for media uploads, deletion and migrations.
 - Keep the app usable without Shared Core or the parent Hub. Do not introduce runtime coupling merely to reuse UI.
 
@@ -61,7 +61,7 @@ Before implementation, produce a concise internal plan containing: observed bran
 
 ## Security, privacy and data safety
 
-- Public Git contains source and synthetic fixtures only. Never commit manga images, archives, manifests containing private media paths, private catalogue exports, personal backups, credentials, OAuth tokens, owner passphrases, private URLs or real user records.
+- Public Git contains source, approved brand assets and public demo imagery/fixtures only. Never commit manga images, archives, manifests containing private media paths, private catalogue exports, personal backups, credentials, OAuth tokens, owner passphrases, private URLs or real user records.
 - VITE_* variables are public browser configuration. Secrets belong only in Cloudflare Pages Functions runtime secrets.
 - Private reads must pass server-side owner/session checks and object-level validation. Preserve Cache-Control: no-store on private API responses. The service worker must never intercept or cache /api/*.
 - Do not weaken OAuth state/PKCE, owner checks, SameSite/HttpOnly/Secure cookies, Origin/CSRF checks, content validation, revision guards or private media integrity checks to make a test pass.
