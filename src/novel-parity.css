@@ -326,56 +326,90 @@
   border-radius:8px;min-height:37px;
 }
 .app-shell .manga-nav-tools .header-menu>summary svg{flex:none}
-.app-shell .manga-master-menu{position:relative;flex:0 0 auto}
-.app-shell .manga-master-menu>summary{
-  display:inline-flex;align-items:center;gap:7px;justify-content:center;
-  min-height:37px;padding:7px 9px;border:1px solid var(--editorial-line);
-  border-radius:8px;list-style:none;cursor:pointer;
-  background:var(--editorial-soft);color:var(--editorial-ink);
-  font-size:11px;font-weight:750;white-space:nowrap;
+/* Master is a full-page owner workspace, not an overlay on navigation. */
+.app-shell .manga-master-entry{
+ display:inline-flex;align-items:center;justify-content:center;gap:8px;
+ min-height:38px;padding:8px 13px;border:1px solid var(--editorial-line);
+ border-radius:8px;background:var(--editorial-soft);color:var(--editorial-ink);
+ font-size:12px;font-weight:750;text-decoration:none;white-space:nowrap
 }
-.app-shell .manga-master-menu>summary::-webkit-details-marker{display:none}
-.app-shell .manga-master-menu>summary:hover,
-.app-shell .manga-master-menu[open]>summary{
-  background:var(--editorial-paper);border-color:var(--editorial-accent);
+.app-shell .manga-master-entry:hover,.app-shell .manga-master-entry[aria-current=page]{
+ background:var(--editorial-paper);border-color:var(--editorial-accent)
 }
-.app-shell .manga-master-menu>summary:focus-visible,
-.app-shell .manga-nav-manage:focus-visible{
-  outline:2px solid var(--editorial-accent);outline-offset:2px;
+.app-shell .manga-master-entry:focus-visible{
+ outline:2px solid var(--editorial-accent);outline-offset:3px
 }
+.app-shell .manga-master-page{max-width:1320px;margin:0 auto;min-height:65vh;padding:42px 0 85px}
+.app-shell .manga-master-page-head{
+ display:flex;align-items:start;justify-content:space-between;gap:24px;
+ margin-bottom:25px
+}
+.app-shell .manga-master-page-head h1{font-size:clamp(30px,4vw,45px);margin:4px 0 9px}
+.app-shell .manga-master-page-head p:not(.eyebrow){color:var(--editorial-muted);font-size:13px}
+.app-shell .manga-master-back,.app-shell .manga-master-record-open{
+ text-decoration:none;border:1px solid var(--editorial-line);border-radius:7px;
+ padding:10px 12px;white-space:nowrap;font-size:12px;font-weight:700
+}
+.app-shell .manga-master-back:hover,.app-shell .manga-master-record-open:hover{
+ border-color:var(--editorial-accent);background:var(--editorial-soft)
+}
+.app-shell .manga-master-owner{font-size:12px;color:var(--editorial-muted)}
+.app-shell .manga-master-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:0 0 20px}
+.app-shell .manga-master-summary>div{
+ display:flex;flex-direction:column;gap:7px;min-width:0;
+ padding:16px;border:1px solid var(--editorial-line);
+ background:var(--editorial-surface);border-radius:10px
+}
+.app-shell .manga-master-summary strong{font:650 28px/1.1 Georgia,serif;color:var(--editorial-ink)}
+.app-shell .manga-master-summary span{font-size:11px;color:var(--editorial-muted)}
 .app-shell .manga-master-panel{
-  position:absolute;z-index:150;right:0;top:calc(100% + 8px);
-  width:min(330px,calc(100vw - 24px));max-height:min(60dvh,450px);
-  overflow-y:auto;display:flex;flex-direction:column;gap:8px;
-  padding:15px;border-radius:9px;
-  background:var(--editorial-surface);color:var(--editorial-ink);
-  border:1px solid var(--editorial-line);box-shadow:0 18px 54px #191b194a;
+ padding:22px;margin:18px 0;background:var(--editorial-surface);
+ border:1px solid var(--editorial-line);border-radius:12px
 }
-.app-shell .manga-master-panel>strong{font-size:14px;color:var(--editorial-ink)}
-.app-shell .manga-master-panel p{margin:0;font-size:11px;color:var(--editorial-muted);line-height:1.5}
-.app-shell .manga-master-panel a,.app-shell .manga-master-panel button{
-  display:flex;align-items:center;text-align:left;min-height:40px;width:100%;
-  padding:9px 10px;border:1px solid var(--editorial-line);
-  border-radius:6px;color:var(--editorial-ink);background:var(--editorial-paper);
-  text-decoration:none;font-size:12px;font-weight:650;
+.app-shell .manga-master-panel h2{margin:0 0 10px;font-size:23px}
+.app-shell .manga-master-panel p{color:var(--editorial-muted);font-size:12px;line-height:1.65}
+.app-shell .manga-master-actions{display:flex;align-items:center;flex-wrap:wrap;gap:9px;margin-top:15px}
+.app-shell .manga-master-actions>a{
+ display:inline-flex;align-items:center;min-height:42px;
+ border:1px solid var(--editorial-line);border-radius:7px;
+ padding:9px 12px;text-decoration:none;font-size:12px
 }
-.app-shell .manga-master-panel a:hover,.app-shell .manga-master-panel button:hover{
-  border-color:var(--editorial-accent);
+.app-shell .manga-master-actions>a:hover{border-color:var(--editorial-accent)}
+.app-shell .manga-master-records-head{
+ display:flex;align-items:end;justify-content:space-between;gap:18px;margin-bottom:19px
 }
-.app-shell .manga-master-panel .manga-master-note{margin-top:4px;font-size:10px}
-.app-shell .manga-nav-manage{
-  display:inline-flex;align-items:center;justify-content:center;gap:7px;
-  min-height:37px;padding:9px 13px;
-  border:1px solid #203956;border-radius:8px;
-  background:#203956;color:#fff;
-  text-decoration:none;font-size:12px;font-weight:650;white-space:nowrap;
+.app-shell .manga-master-records-head>div{min-width:0}
+.app-shell .manga-master-records-head label{display:grid;gap:7px;flex:0 1 310px;min-width:185px;font-size:11px}
+.app-shell .manga-master-records-head input{
+ width:100%;border:1px solid var(--editorial-line);background:var(--editorial-paper);
+ color:var(--editorial-ink);border-radius:8px;padding:10px 12px
 }
-.app-shell .manga-nav-manage:hover{background:#2b4d70;color:#fff}
+.app-shell .manga-master-record{display:grid;align-items:center;gap:13px;
+ grid-template-columns:minmax(160px,1.4fr) minmax(75px,.6fr) minmax(145px,.9fr) auto;
+ border-top:1px solid var(--editorial-line);padding:12px 0
+}
+.app-shell .manga-master-record>div:first-child{min-width:0;display:grid;gap:5px}
+.app-shell .manga-master-record strong{overflow-wrap:anywhere;font-size:13px}
+.app-shell .manga-master-record>div:first-child span{color:var(--editorial-muted);font-size:11px;overflow-wrap:anywhere}
+.app-shell .manga-master-record-meta{font-size:11px;color:var(--editorial-muted)}
+.app-shell .manga-master-publication{font-size:11px}
+.app-shell .manga-master-show-more{margin-top:15px;min-height:42px;padding:8px 14px}
+@media(max-width:850px){
+ .app-shell .manga-master-record{grid-template-columns:minmax(0,1fr) auto}
+ .app-shell .manga-master-record-meta{grid-column:1;grid-row:2}
+ .app-shell .manga-master-record-open{grid-column:2;grid-row:2}
+ .app-shell .manga-master-summary{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:520px){
+ .app-shell .manga-master-page{padding:24px 0 60px}
+ .app-shell .manga-master-page-head,.app-shell .manga-master-records-head{flex-direction:column;align-items:stretch}
+ .app-shell .manga-master-panel{padding:15px}
+ .app-shell .manga-master-records-head label{flex:auto;min-width:0}
+ .app-shell .manga-master-entry{padding:8px}
+}
 @media(max-width:900px){
   .app-shell .manga-nav-tools{gap:4px}
   .app-shell .manga-nav-tools .header-menu>summary{gap:4px;padding:8px 6px}
-  .app-shell .manga-master-menu>summary{gap:5px;padding:7px 6px}
-  .app-shell .manga-nav-manage{gap:5px;padding:9px 8px}
 }
 @media(max-width:740px){
   .app-shell .manga-logo-frame{width:34px;height:34px;flex-basis:34px}
@@ -383,17 +417,6 @@
   .app-shell .manga-theme-swatches{gap:1px;padding:2px}
   .app-shell .manga-theme-swatch{width:25px;height:25px;flex-basis:25px}
   .app-shell .manga-theme-dot{width:19px;height:19px}
-  .app-shell .manga-master-menu{position:static}
-  .app-shell .manga-master-panel{
-    position:absolute;left:12px;right:12px;top:calc(100% + 2px);
-    width:auto;max-width:none;
-  }
-}
-@media(max-width:520px){
-  .app-shell .manga-master-menu>summary span,
-  .app-shell .manga-nav-manage span{display:none}
-  .app-shell .manga-master-menu>summary{min-width:36px;padding:7px}
-  .app-shell .manga-nav-manage{min-width:36px;padding:8px}
 }
 @media(max-width:390px){
   .app-shell .manga-theme-swatches{gap:0}
