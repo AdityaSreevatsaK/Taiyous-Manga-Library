@@ -85,7 +85,7 @@ export default function EditorialHome({
   const featuredAction = featuredFinished ? 'Read again'
     : featured.progress > 0 ? 'Continue reading' : 'Begin reading';
 
-  return <div className="editorial-home" aria-label="Your library front page">
+  return <div className="editorial-home manga-editorial-home" aria-label="Your library front page">
     <section className="editorial-grand" aria-labelledby="editorial-grand-heading">
       <div className="editorial-grand-inner">
         <div className="editorial-grand-copy">
