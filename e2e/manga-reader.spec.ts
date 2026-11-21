@@ -1771,7 +1771,7 @@ test('manga details reproduce Novel Library icons, structure, footer and scroll 
     await page.setViewportSize({width,height:850});
     await page.goto('/manga/mng_lanternarchive');
     const header=page.locator('.manga-details-topbar');
-    await expect(header.getByRole('link',{name:"Taiyou's Personal Manga Library home"})).toBeVisible();
+    await expect(header.getByRole('link',{name:"Taiyou's Manga Library home"})).toBeVisible();
     await expect(header.locator('.taiyou-brand-mark')).toHaveAttribute('width','32');
     await expect(header.getByRole('navigation',{name:'Navigate library'})).toBeVisible();
     await expect(header.getByRole('button',{name:/Choose colour theme/})).toBeVisible();
@@ -1790,7 +1790,7 @@ test('manga details reproduce Novel Library icons, structure, footer and scroll 
     await expect(page.locator('.manga-synopsis-edit')).toContainText('Edit summary');
     await expect(page.locator('.manga-synopsis-edit svg')).toHaveCount(1);
     await expect(page.locator('.manga-synopsis-card .detail-description')).toHaveAttribute('tabindex','0');
-    await expect(page.locator('.site-credit-footer')).toContainText("Taiyou's Personal Manga Library");
+    await expect(page.locator('.site-credit-footer')).toContainText("Taiyou's Manga Library");
     await expect(page.locator('.site-credit-footer')).toContainText('Created by Taiyou');
     await expect(page.locator('.site-credit-footer')).not.toContainText('No cloud progress sync');
     await assertNoHorizontalOverflow(page);
