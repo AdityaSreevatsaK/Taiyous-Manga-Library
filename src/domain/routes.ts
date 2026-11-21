@@ -6,6 +6,7 @@ export const CATALOGUE_SECTIONS=['home','reading','trying','offline','finished',
 export type CatalogueSection=typeof CATALOGUE_SECTIONS[number];
 export type AppRoute=
  | {kind:CatalogueSection}
+ | {kind:'master'}
  | {kind:'details';mangaId:string}
  | {kind:'reader';mangaId:string;chapterId:string;pageIndex:number}
  | {kind:'not-found'};
@@ -52,6 +53,7 @@ export function parseAppRoute(pathname:string,search='',basePath='/'):AppRoute{
  const relative=prefix?pathname.slice(prefix.length):pathname;
  const parts=relative.split('/').filter(Boolean);
  if(parts.length===0)return {kind:'home'};
+ if(parts.length===1&&parts[0]==='master')return {kind:'master'};
  if(parts.length===1&&CATALOGUE_SECTIONS.includes(parts[0] as CatalogueSection)&&parts[0]!=='home')
    return {kind:parts[0] as CatalogueSection};
  if(parts[0]!=='manga')return {kind:'not-found'};

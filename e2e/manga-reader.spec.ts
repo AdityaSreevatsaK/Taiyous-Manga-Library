@@ -1279,17 +1279,52 @@ test('verified manga owner sees useful Master controls without unsafe upload API
   }));
   await page.goto('/');
   await expect(page.getByText('Your private shelves are ready.',{exact:false})).toBeVisible();
-  const master=page.locator('.manga-master-menu');
-  await expect(master.getByText('Master',{exact:true})).toBeVisible();
-  await master.locator('summary').click();
-  await expect(master.getByText('Connected as AdityaSreevatsaK.')).toBeVisible();
-  await expect(master.getByRole('link',{name:'Manga Storage Controller'}))
+  const master=page.getByRole('link',{name:'Master',exact:true});
+  await expect(master).toHaveAttribute('href','/master');
+  await expect(page.getByRole('link',{name:'Manage manga'})).toHaveCount(0);
+  await expect(page.locator('.manga-master-menu')).toHaveCount(0);
+  await master.click();
+  await expect(page).toHaveURL('/master');
+  await expect(page.getByRole('heading',{name:'Master Controls'})).toBeVisible();
+  await expect(page.getByText('Private catalogue connected as')).toContainText('AdityaSreevatsaK');
+  await expect(page.getByRole('link',{name:/Manga Storage Controller/}))
     .toHaveAttribute('href','https://github.com/AdityaSreevatsaK/Taiyou-Manga-Storage-Controller');
-  await expect(page.getByRole('link',{name:'Manage manga'})).toHaveAttribute('href',
-    'https://github.com/AdityaSreevatsaK/Taiyou-Manga-Storage-Controller/actions');
-  await master.getByRole('button',{name:'Open my private library'}).click();
-  await expect(master).not.toHaveAttribute('open','');
+  await expect(page.getByRole('link',{name:/View private dataset/}))
+    .toHaveAttribute('href','https://huggingface.co/datasets/AdityaSreevatsaK/Taiyous-Manga');
+  await expect(page.getByRole('button',{name:'Refresh catalogue'})).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('heading',{name:'Master Controls'})).toBeVisible();
+  await page.getByRole('link',{name:'Back to library'}).click();
   await expect(page.getByRole('heading',{name:'Your private library is empty'})).toBeVisible();
+});
+
+test('Novel cloud indicator occupies the upper-right desktop tools without changing its glyph',async({page})=>{
+  await page.setViewportSize({width:1280,height:850});
+  await page.goto('/');
+  const cloud=page.locator('.manga-cloud-menu');
+  const wordmark=page.locator('.manga-topbar .wordmark');
+  const cloudBox=await cloud.boundingBox(),logoBox=await wordmark.boundingBox();
+  expect(cloudBox).toBeTruthy();
+  expect(logoBox).toBeTruthy();
+  expect(cloudBox!.x).toBeGreaterThan(logoBox!.x+logoBox!.width+100);
+  const glyph=cloud.locator('svg').first();
+  await expect(glyph).toHaveAttribute('width','25');
+  await expect(glyph).toHaveAttribute('height','25');
+  await expect(glyph).toHaveAttribute('stroke-width','1.9');
+  await expect(cloud.locator('.cloud-status-dot')).toHaveCount(1);
+  await cloud.locator(':scope > summary').click();
+  await expect(page.getByRole('heading',{name:'Cloud library settings'})).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(cloud).not.toHaveAttribute('open','');
+});
+
+test('unauthenticated Master route never exposes a private catalogue',async({page})=>{
+  await page.goto('/master');
+  await expect(page.getByRole('heading',{name:'Master Controls'})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Private owner access required'})).toBeVisible();
+  await expect(page.getByRole('link',{name:'Sign in with Hugging Face'})).toHaveAttribute('href','/api/auth/login');
+  await expect(page.locator('.manga-master-record')).toHaveCount(0);
+  await expect(page.getByRole('link',{name:'Manage manga'})).toHaveCount(0);
 });
 
 test('private ReLIFE-style chapter list opens verified images without endless scrolling',async({page})=>{
@@ -1337,6 +1372,12 @@ test('private ReLIFE-style chapter list opens verified images without endless sc
   await page.getByRole('button',{name:/Chapter 87/}).click();
   await expect(page.locator('.vertical-page-image')).toBeVisible();
   await expect(page.locator('.vertical-page-image')).toHaveAttribute('alt','Manga page 1 of 1');
+  const chapterStatus=page.locator('.chapter-preload-progress');
+  await expect(chapterStatus).toBeVisible();
+  await expect(chapterStatus.locator('progress')).toHaveCount(0);
+  await expect(chapterStatus.locator('.chapter-preload-message')).toContainText('Chapter ready');
+  await expect(chapterStatus.locator('.chapter-preload-count')).toContainText('1');
+  await expect(chapterStatus.locator('.chapter-preload-emblem svg')).toBeVisible();
   await expect(page.getByRole('button',{name:'Next chapter →'})).toBeEnabled();
   await page.reload();
   await expect(page.locator('.vertical-page-image')).toBeVisible();

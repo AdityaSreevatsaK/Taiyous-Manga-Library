@@ -1,5 +1,6 @@
 import {useEffect,useMemo,useState,type FormEvent,type ReactNode} from 'react';
 import type {MangaChapter} from '../domain/types';
+import {BookMarkedIcon} from './SharedLibraryIcons';
 
 /**
  * Port of Novel Library src/components/ChapterBrowser.tsx, with only the
@@ -60,8 +61,10 @@ export function MangaChapterBrowser({chapters,mangaId,currentChapterId,busy,
   <div className="chapter-topline">
    <strong>{chapters.length.toLocaleString()} chapters available</strong>
    {currentNumber>0&&currentNumber<=chapters.length&&
-    <button type="button" className="chapter-current-link" onClick={showCurrent}>
-      ◈ Show my last chapter ({currentNumber})
+    <button type="button" className="chapter-current-link" onClick={showCurrent}
+      title={'Show chapter '+currentNumber+' in the list'}
+      aria-label={'Show my last chapter ('+currentNumber+')'}>
+      <BookMarkedIcon size={15}/><span>Show my last chapter ({currentNumber})</span>
     </button>}
   </div>
   <div className="chapter-tools">

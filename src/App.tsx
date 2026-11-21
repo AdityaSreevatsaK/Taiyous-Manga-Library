@@ -10,6 +10,7 @@ import { LocalBackupControl } from './components/LocalBackupControl';
 import { MangaCloudMenu } from './components/MangaCloudMenu';
 import { MangaBrandMark } from './components/MangaBrandMark';
 import { MangaOwnerTools } from './components/MangaOwnerTools';
+import { MangaMasterControls } from './components/MangaMasterControls';
 import { SearchIcon, HashIcon, LibraryIcon, BookOpenIcon, ChevronDownIcon } from './components/SharedLibraryIcons';
 import { MangaThemeSwatches } from './components/MangaThemeSwatches';
 import { VerticalReader } from './components/VerticalReader';
@@ -64,7 +65,7 @@ const publicationCaption:Record<PublicationStatus,string>={
 const ribbonCaption:Record<PublicationStatus,string>={
   completed:'Story Complete',ongoing:'Updating',hiatus:'On Hiatus',unknown:'Unknown',
 };
-type Screen = { kind: 'catalogue'; section: CatalogueSection } | { kind: 'details' | 'reader'; id: string } | { kind: 'not-found' };
+type Screen = { kind: 'catalogue'; section: CatalogueSection } | {kind:'master'} | { kind: 'details' | 'reader'; id: string } | { kind: 'not-found' };
 function currentBrowserRoute(): AppRoute {
   return typeof window === 'undefined' ? { kind: 'home' } :
     parseAppRoute(window.location.pathname, window.location.search, import.meta.env.BASE_URL);
@@ -116,6 +117,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
     status:'checking',message:'Checking private library connection…',
   });
   const [screen, setScreen] = useState<Screen>(() => {
+    if(initialRoute.kind==='master')return {kind:'master'};
     if (initialRoute.kind !== 'details' && initialRoute.kind !== 'reader' && initialRoute.kind !== 'not-found') {
       return { kind: 'catalogue', section: initialRoute.kind };
     }
@@ -292,6 +294,8 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
           }
         }else if(bookmarked.kind==='not-found'){
           setScreen({kind:'not-found'});
+        }else if(bookmarked.kind==='master'){
+          setScreen({kind:'master'});
         }else{
           setScreen({kind:'catalogue',section:bookmarked.kind});
         }
@@ -590,6 +594,10 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
         window.history.replaceState(null,'',canonical);
     }
     setNotice('');
+    if(route.kind==='master'){
+      exitImmersive();setLocation(null);setScreen({kind:'master'});
+      return;
+    }
     if (route.kind !== 'details' && route.kind !== 'reader' && route.kind !== 'not-found') {
       exitImmersive();
       setLocation(null);
@@ -936,12 +944,31 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
             </div>
           </details>
           <MangaOwnerTools connected={cloud.status==='connected'}
-            owner={cloud.status==='connected'?cloud.owner:undefined}
-            openPrivate={()=>changeDemo(false)}/>
+            href={routeHref({kind:'master'},import.meta.env.BASE_URL,catalogue)}
+            active={screen.kind==='master'}
+            onOpen={event=>followLink(event,()=>{
+              if(demo){
+                setDemo(false);
+                setPersonalShelves(loadShelves(remoteEntries).shelves);
+                setAnnotations(loadAnnotations(remoteEntries).annotations);
+              }
+              navigateTo({kind:'master'});
+            })}/>
         </div>
       </nav>
     </header>
     <main id="content" className="main-area">
+      {screen.kind==='master'&&<MangaMasterControls
+        connected={cloud.status==='connected'} checking={cloud.status==='checking'}
+        owner={cloud.status==='connected'?cloud.owner:undefined}
+        refreshing={refreshingMetadata} entries={remoteEntries}
+        progress={progress} annotations={annotations} offlineChapterIds={offlineChapterIds}
+        onRefresh={()=>{void refreshPrivateCatalogue();}}
+        backHref={routeHref({kind:'library'},import.meta.env.BASE_URL,catalogue)}
+        onBack={event=>followLink(event,()=>goCatalogue('library'))}
+        hrefFor={item=>routeHref({kind:'details',mangaId:item.id},import.meta.env.BASE_URL,remoteEntries)}
+        onOpenDetails={(event,item)=>followLink(event,()=>navigateTo({kind:'details',mangaId:item.id}))}
+      />}
       {screen.kind === 'catalogue' && <>
         {screen.section === 'home' && <section className="hero editorial-hero" aria-label="Library introduction">
           <div className="editorial-hero-intro">
