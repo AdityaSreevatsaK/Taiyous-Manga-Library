@@ -3,6 +3,7 @@ import type {MangaEntry,MangaProgress} from '../domain/types';
 import {canonicalTags,type AnnotationPatch,type PersonalAnnotation} from '../domain/personalAnnotations';
 import type {PersonalShelf,ShelfSelection} from '../domain/personalShelves';
 import {recordMangaAction} from '../domain/usageAnalytics';
+import type {MangaMetadataPatch} from '../data/masterGateway';
 
 interface Props{
  entry:MangaEntry;annotation?:PersonalAnnotation;progress?:MangaProgress;
@@ -11,6 +12,8 @@ interface Props{
  onSetShelf:(entry:MangaEntry,shelf:ShelfSelection)=>void;
  onResetProgress:(entry:MangaEntry)=>boolean;
  onSaveSynopsis:(entry:MangaEntry,value:string)=>boolean;
+ canPublish:boolean;
+ onSavePublication:(entry:MangaEntry,fields:Omit<MangaMetadataPatch,'mangaId'|'revision'>)=>Promise<void>;
 }
 const SYNOPSIS='taiyou-manga:personal-synopsis:v1:';
 function currentSynopsis(entry:MangaEntry):string{
@@ -18,7 +21,12 @@ function currentSynopsis(entry:MangaEntry):string{
  catch{return entry.synopsis??'';}
 }
 export function MangaMasterRecordEditor({entry,annotation,progress,shelf,
- onSaveAnnotation,onSetShelf,onResetProgress,onSaveSynopsis}:Props){
+ onSaveAnnotation,onSetShelf,onResetProgress,onSaveSynopsis,canPublish,onSavePublication}:Props){
+ const [title,setTitle]=useState(entry.title);
+ const [creators,setCreators]=useState(entry.creators.join(', '));
+ const [publication,setPublication]=useState(entry.publicationStatus);
+ const [cloudBusy,setCloudBusy]=useState(false);
+ const [confirmCloud,setConfirmCloud]=useState(false);
  const [rating,setRating]=useState(annotation?.rating??null);
  const [notes,setNotes]=useState(annotation?.notes??'');
  const [tags,setTags]=useState((annotation?.tags??[]).join(', '));
@@ -29,11 +37,12 @@ export function MangaMasterRecordEditor({entry,annotation,progress,shelf,
  const [confirmFinished,setConfirmFinished]=useState(false);
  const [error,setError]=useState('');
  const [success,setSuccess]=useState('');
- useEffect(()=>{setRating(annotation?.rating??null);setNotes(annotation?.notes??'');
+ useEffect(()=>{setTitle(entry.title);setCreators(entry.creators.join(', '));setPublication(entry.publicationStatus);
+   setRating(annotation?.rating??null);setNotes(annotation?.notes??'');
    setTags((annotation?.tags??[]).join(', '));setSynopsis(currentSynopsis(entry));
    setSelectedShelf(shelf??null);setConfirmReset(false);setResetText('');setConfirmFinished(false);
    setError('');setSuccess('');
- },[entry.id]);
+ },[entry.id,entry.title,entry.publicationStatus,entry.creators.join(',')]);
  const run=(label:string,action:()=>boolean)=>{
    setError('');setSuccess('');
    if(action())setSuccess(label);else setError('Change could not be saved; the original record remains untouched.');
@@ -45,6 +54,47 @@ export function MangaMasterRecordEditor({entry,annotation,progress,shelf,
  };
  return <div className="manga-master-editor" aria-label={'Edit personal record for '+entry.title}>
    <div className="manga-master-editor-grid">
+     <section className="manga-master-field">
+       <h3>Source title, authors and publication status</h3>
+       <p>Correct original metadata without changing manga, chapter or page IDs.
+         This action commits the catalogue to Hugging Face, not your personal reading progress.</p>
+       <label htmlFor={'manga-source-title-'+entry.id}>Title</label>
+       <input id={'manga-source-title-'+entry.id} value={title} maxLength={180}
+         onChange={e=>setTitle(e.target.value)}/>
+       <label htmlFor={'manga-source-authors-'+entry.id}>Authors, comma-separated</label>
+       <input id={'manga-source-authors-'+entry.id} value={creators} maxLength={3000}
+         onChange={e=>setCreators(e.target.value)}/>
+       <label htmlFor={'manga-source-publication-'+entry.id}>Publication status, not personal reading status</label>
+       <select id={'manga-source-publication-'+entry.id} value={publication}
+         onChange={e=>setPublication(e.target.value as MangaEntry['publicationStatus'])}>
+         <option value="unknown">Unknown</option><option value="ongoing">Ongoing</option>
+         <option value="completed">Completed</option><option value="hiatus">Hiatus</option>
+         <option value="dropped">Dropped</option>
+       </select>
+       {!canPublish&&<p>Unlock owner controls and reconnect with write permission above before saving source metadata.</p>}
+       {!confirmCloud?<button type="button" disabled={!canPublish||cloudBusy}
+         onClick={()=>{setError('');setConfirmCloud(true);}}>Review source correction</button>:
+         <div className="manga-master-confirm" role="group" aria-label="Confirm source correction">
+           <p>Save corrected title, creator and publication metadata to the private Hugging Face catalogue?
+             Existing page files and immutable IDs are preserved.</p>
+           <button type="button" disabled={cloudBusy} onClick={()=>{void (async()=>{
+             const values=creators.split(',').map(s=>s.trim()).filter(Boolean);
+             if(!title.trim()||values.length===0||values.length>24||new Set(values.map(v=>v.toLocaleLowerCase())).size!==values.length){
+               setError('Enter a valid title and a unique comma-separated author list.');return;
+             }
+             const patch:Omit<MangaMetadataPatch,'mangaId'|'revision'>={};
+             if(title.trim()!==entry.title)patch.title=title.trim();
+             if(values.join('|')!==entry.creators.join('|'))patch.creators=values;
+             if(publication!==entry.publicationStatus)patch.publicationStatus=publication;
+             if(!Object.keys(patch).length){setConfirmCloud(false);setSuccess('No publication changes to save.');return;}
+             setCloudBusy(true);setError('');setSuccess('');
+             try{await onSavePublication(entry,patch);setSuccess('Publication metadata saved.');setConfirmCloud(false);}
+             catch(e){setError(e instanceof Error?e.message:'Publication metadata could not be saved.');}
+             finally{setCloudBusy(false);}
+           })();}}>Confirm source correction</button>
+           <button type="button" disabled={cloudBusy} onClick={()=>setConfirmCloud(false)}>Cancel</button>
+         </div>}
+     </section>
      <section className="manga-master-field">
        <h3>Rating and notes</h3>
        <label htmlFor={'manga-master-rating-'+entry.id}>Personal rating</label>
