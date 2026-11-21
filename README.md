@@ -1,83 +1,92 @@
 # Taiyou's Manga Library
 
-> **Live Manga Library:** [taiyous-manga-library.pages.dev](https://taiyous-manga-library.pages.dev/). The public build contains only fictional demonstration artwork. Private catalogue metadata, original covers and chapter pages are read through owner-only Cloudflare Pages Functions after Hugging Face OAuth. No private manga images, Hugging Face tokens or catalogue documents are included in the static build.
->
-> **Release checks:** GitHub Actions runs TypeScript, unit, production-build and Chromium browser tests. After each `master` push, a separate live workflow verifies Cloudflare has deployed the exact build, its deep links and offline service worker. Passing CI does not replace real-device testing.
->
-> **Privacy:** Owner-only read access to a private Hugging Face dataset is available through server-side OAuth. Authenticated chapter-image delivery and original covers are enabled. Private chapter offline downloads, in-app uploads and automatic cross-device progress sync are **not** enabled. User-controlled v2 manual JSON backups remain local and private.
+**Live application:** https://taiyous-manga-library.pages.dev/
 
-## Mission
-Read and organise legitimately acquired manga with chapter/page-level progress and optional offline access. The user experience should remain readable, fast, polished and accessible on phones, tablets and desktop. The existing novel library is the visual inspiration, not an implementation dependency.
+Taiyou's Manga Library is an independent personal manga catalogue and image-based reader. It supports a continuous vertical chapter reader, chapter/page progress, personal organisation, a private owner-authenticated manga catalogue and an explicit offline demonstration flow for synthetic sample chapters.
 
-## Place in the five-repository ecosystem
-- [Shared Core and parent Personal Hub](https://github.com/AdityaSreevatsaK/Taiyous-Shared-Core): experimental common contracts, presentation pieces and navigation. **Not a mandatory network dependency.**
-- [Novel Library](https://github.com/AdityaSreevatsaK/Taiyous-Personal-Library): existing production EPUB app. It must not be modified by this repo's agents.
-- **This repo:** owns manga-specific models, local UX, future storage adapter and future release pipeline.
-- Other modules remain independently versioned and deployed.
+The existing Novel Library is a visual reference for approved shared chrome and interaction patterns. This application has its own manga domain, OAuth client, private dataset gateway and reader. It does not depend on the Novel Library or Shared Core at runtime.
 
-## Quick start (Node.js 22+)
-1. Clone this public repository and open it in your editor.
-2. Run `npm ci` to install dependencies from the committed lockfile.
-3. Run `npm run dev` and open the Vite URL displayed in the terminal (normally http://127.0.0.1:5173).
-4. Run `npm run typecheck`, `npm test`, and `npm run build`.
-5. Review [AGENTS.md](AGENTS.md) and [the session handover](docs/SESSION_HANDOVER_PROMPT.md) before feature development.
+## Current features
 
-## Implemented on `master`
+- **Editorial library:** three-cover featured Home, six visible primary shelves, six themes (Sepia default), approved Sun branding, cloud status indicator and responsive details pages.
+- **Private catalogue:** dedicated Hugging Face OAuth and same-origin Cloudflare Pages Functions. The app loads the complete validated catalogue in one request, then filters tags, creators, shelves, collections, status and search locally.
+- **Private artwork and reader:** owner-authenticated, revision-pinned cover, chapter manifest and page endpoints with MIME/size/SHA validation. Covers load lazily and use a bounded verified IndexedDB cache.
+- **Continuous reader:** the whole chapter is one vertical flow. Previous/Next navigate chapters only. Readable permalinks resolve to immutable manga/chapter IDs and progress includes immutable page identity.
+- **Personal organisation:** device-local progress, shelves, 1–10 ratings, notes, personal tags, favourites, explicit chapter completion and nested collections.
+- **Master Controls:** password-free device-only Analytics plus a protected Library management workspace. Narrow source corrections (title, creators and publication status) require an independent owner passphrase, Hugging Face write scope and revision-safe server validation.
+- **Analytics:** prospective, opt-out device-only active/reading/offline time, per-manga duration and activity journal. The 14-day paired chart has rolling date labels every three days.
+- **Manual backup:** validated version-2 JSON export/import for personal data. No manga media or credentials are included.
+- **Offline sample:** explicit opt-in synthetic chapter downloads and a verified offline app shell.
 
-- Confidential Hugging Face OAuth for the exact Manga Library owner and a read-only private catalogue connection. An empty dataset is shown as empty, not silently filled with fictional manga. See [HF connection and acceptance](docs/HF_READONLY_CONNECTION.md).
-- Continuous full-chapter vertical scrolling for synthetic and authenticated private manga, with Previous/Next navigating **chapters only**, mobile layouts, focus mode and reading preferences.
-- Readable, canonical manga and chapter permalinks, old-ID bookmark compatibility, native Back/Forward navigation and chapter-wide lazy-image preloading.
-- Eight primary catalogue sections with mobile More navigation, six persisted themes (Sepia default), approved Taiyou Sun artwork and status ribbons.
-- Novel Library-style 1–10 personal rating, notes, confirmed tag edits, favourites, **explicit per-chapter completion markers**, reading shelves and arbitrary nested collections with validated device-local storage and green success notices. Completion markers are manual and never inferred from scrolling. On Home, favourites are shown first; All Manga retains alphabetical sorting.
-- Advanced on-device Search and personal Analytics derived from real saved positions and ratings, not fabricated reading durations.
-- Versioned local progress, Continue Reading, and manual JSON v2 backups including personal metadata and collections. Malformed data is preserved; v1 backups still import.
-- Opt-in offline downloads for fictional chapters, offline navigation, release-fingerprinted service worker and cache-integrity checks.
-- Authenticated cover and page endpoints validate the private HF dataset revision, immutable ownership, image type, byte length and SHA-256; never hotlink private HF media.
-- Private catalogue connection now makes one owner-attested API request, while the image gateway briefly reuses only SHA-pinned validated metadata. Private media bytes, sessions and tokens are never cached.
-- Accessibility, error recovery, responsive Chromium browser tests, separate Firefox/WebKit smoke checks and automatic live Cloudflare deployment verification.
+The optional public sample catalogue includes **Five Chapter Scroll Trial**, an original synthetic series with five chapters and 36 generated illustration pages. It is separate from the private catalogue.
 
-The optional **sample** catalogue includes **Five Chapter Scroll Trial**, containing 36 original illustration pages over five chapters. The private dataset is connected separately through read-only OAuth; verified original covers and chapter images load only through the owner-authenticated gateway. See the [chapter reader acceptance checklist](docs/CHAPTER_READER_ACCEPTANCE.md) to test scrolling, chapter navigation, offline copies and progress on mobile.
+## Data loading and privacy
 
-## Non-negotiable boundaries
-- The owner has authorised public repository source visibility. Verify the actual GitHub setting before asserting that the change is live. No personal media or private credentials may be added to Git.
-- No real private media or credentials in Git, browser bundles, test fixtures or GitHub Actions logs.
-- The owner permits routine green, non-destructive PR merges without waiting for another approval; `master` automatically deploys through Cloudflare. Always verify the live smoke check after merge. Secrets and destructive private actions require separate approval.
-- No cross-app single sign-on promises. The deployed Novel Library's Hugging Face OAuth cookie cannot simply authenticate unrelated app origins.
-- No copied entire Novel Library, no Git submodules, no premature shared database.
-- No unlicensed manga downloads, paywall bypass, scraping of protected sites, reader requests to arbitrary URLs, or remote image proxying without SSRF protection.
+The initial private catalogue request is GET /api/library and returns the complete validated catalogue at an immutable dataset revision. Normal catalogue filtering is performed in memory; the app does not fetch each manga's metadata separately.
 
-## Read these in order
-1. [Agent working agreement](AGENTS.md)
-2. [Architecture](docs/ARCHITECTURE.md)
-3. [Data contract](docs/DATA_CONTRACTS.md)
-4. [Security](docs/SECURITY.md)
-5. [Integration](docs/INTEGRATION.md)
-6. [Design standards](docs/DESIGN_SYSTEM.md)
-7. [Development and CI](docs/OPERATIONS.md)
-8. [Verification matrix](docs/TESTING.md)
-9. [Roadmap and acceptance](docs/ROADMAP.md)
-10. [Decision log](docs/DECISIONS.md)
-11. [GitHub metadata/settings](docs/REPOSITORY_SETTINGS.md)
-12. [Copyable agent handover](docs/SESSION_HANDOVER_PROMPT.md)
+Individual media requests are expected:
+- Covers are requested lazily for visible/prioritised manga and cached locally after verification.
+- A chapter manifest is requested when a chapter is opened.
+- Page bytes are requested for the chapter being read through the authenticated media gateway.
 
-## Development and deployment
+The private dataset is AdityaSreevatsaK/Taiyous-Manga. The separate Taiyou-Manga-Storage-Controller manages original media imports, backups, migrations and deletion. Public GitHub and Cloudflare assets contain source, approved brand artwork and public demo imagery/fixtures only.
 
-Node.js 22+:
-
-```bash
-npm ci
-npm run typecheck
-npm test
-npm run build
-E2E_PRODUCTION=1 npm run test:e2e
-```
-
-The production source branch is `master`, with Cloudflare Pages Git integration expected to deploy `npm ci && npm run build` from `dist`. A successful GitHub CI run confirms repository code quality, **not** that Cloudflare has published the same commit. See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+Personal progress, ratings, notes, tags, collections and analytics remain in browser-local storage. Manual JSON backup is the current transfer path. Automatic cross-device personal-data sync is not implemented.
 
 ## Current limitations
 
-Private HF catalogue and cover metadata, per-app OAuth and verified original manga image delivery are implemented. The separate Storage Controller manages approved private imports. **Automatic** cross-device progress sync, authenticated private-media offline caching and in-app uploads remain future work. Multi-engine automated smoke is now available; physical iOS/Android and 300–1,000-page low-memory stress testing remain to be verified. Manual personal data transfer is available through the local backup panel. No private manga belongs in public Git or static hosting.
+- Private chapter pages are online-only. The synthetic sample reader has explicit offline chapter downloads; verified private cover caching is not private chapter offline support.
+- No automatic cross-device personal-data synchronisation.
+- No in-app original-media upload, bulk migration or permanent deletion. Use the separate Storage Controller.
+- Owner-authenticated private media and protected metadata correction require real production OAuth/secret configuration and separate owner acceptance; anonymous CI does not prove these paths.
+- Private chapters currently preload every page at concurrency 3 and retain page sources until the chapter closes; only the visible image window is mounted/decoded. Total source memory can therefore grow with chapter size. Physical iOS Safari/Android Chrome acceptance and measured low-memory 300–1,000-page hardware testing remain manual unless recorded in docs/REAL_DEVICE_ACCEPTANCE.md.
+- No standalone software licence has been selected. Public source visibility does not grant rights to manga artwork.
 
-## Licensing
+## Quick start
 
-A public repository does not grant a manga redistribution licence. No standalone software licence has been selected; treat the repository as source-visible rather than licensed open-source code until one is chosen.
+Requirements: Node.js 22+, npm and Git.
+
+    git clone https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library.git
+    cd Taiyous-Manga-Library
+    npm ci
+    npm run dev
+
+The Vite development server binds to 127.0.0.1. Synthetic sample features can be exercised locally. Production OAuth and private media routes require the Cloudflare Pages Functions environment.
+
+## Validation
+
+    npm ci
+    npm run typecheck
+    npm test
+    npm run build
+    node scripts/check-bundle.mjs
+
+Production-build Chromium E2E:
+
+    npm run build
+    E2E_PRODUCTION=1 npm run test:e2e
+
+Firefox/WebKit smoke:
+
+    npm run build
+    npx playwright test --config playwright.cross-browser.config.ts
+
+## Deployment
+
+Cloudflare Pages deploys master using npm ci && npm run build, output dist, Node.js 22. The GitHub Actions live smoke verifies the deployed asset fingerprint and anonymous security boundary after a master push. A merge is not proof of deployment; check the exact post-merge smoke run.
+
+Private runtime configuration is described in docs/DEPLOYMENT.md and docs/HF_READONLY_CONNECTION.md. Never put secrets in VITE_* variables or public files.
+
+## Documentation guide
+
+1. AGENTS.md — mandatory dynamic state-awareness and engineering rules.
+2. docs/PROJECT_STATUS.md — dated current state and latest evidence.
+3. docs/PROJECT_HISTORY.md — original vision, evolution, decisions and lessons.
+4. docs/ARCHITECTURE.md — runtime and source-code map.
+5. docs/DATA_CONTRACTS.md — domain, private dataset and local record schemas.
+6. docs/SECURITY.md — privacy, OAuth, media and rights boundaries.
+7. docs/DEPLOYMENT.md and docs/HF_READONLY_CONNECTION.md — production operations.
+8. docs/TESTING.md and docs/REAL_DEVICE_ACCEPTANCE.md — automated/manual verification.
+9. docs/ROADMAP.md and docs/DECISIONS.md — outstanding priorities and durable decisions.
+
+Dated audit reports from 18–20 November are retained as historical evidence. They do not override current source or GitHub state.

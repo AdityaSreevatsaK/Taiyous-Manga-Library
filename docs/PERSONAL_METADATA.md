@@ -1,13 +1,30 @@
-# Device-local personal annotations (19 November 2026)
+# Personal manga metadata
 
-Personal reading status and personal annotations are distinct from imported publication metadata.
+Personal reading state is separate from imported publication metadata and remains local to the current browser/device.
 
-- `taiyou-manga:personal-shelf:v1:<mangaId>`: Trying Out, Finished or To Be Read.
-- `taiyou-manga:personal-annotation:v1:<mangaId>`: 1–10 personal rating, personal notes up to 5,000 characters, up to 24 unique case-insensitive Title Case personal tags (48 characters maximum).
-- All records are JSON envelopes with `schemaVersion:1`, `mediaKind:'manga'` and immutable series IDs. Invalid existing data is preserved and never silently overwritten.
-- Public fixture genres remain distinct from the personal tag collection. The UI lets users filter by either.
-- No personal annotation is shipped in public JavaScript, logged to external analytics or synchronised to a provider.
-- Browser storage can be evicted. Back up personal data before clearing site data. The v2 personal JSON export includes progress, reader settings, reading shelves, ratings, notes, tags and nested collections. It does not contain manga images. The importer also accepts legacy v1 reader-only backups. Users explicitly opt in to personal metadata restoration. Existing nonempty shelves and newer personal annotations are never overwritten; invalid local data stays intact.
+## Personal records
 
-## Regression contract
-Do not change continuous full-chapter scrolling, saved progress IDs, bounded image decode or explicit offline downloads. Never import a damaged record over valid local state.
+- Shelf key: taiyou-manga:personal-shelf:v1:<mangaId>. Values are Trying Out, Finished or legacy To Be Read. Currently Reading is derived from saved progress and shelf overrides.
+- Annotation key: taiyou-manga:personal-annotation:v1:<mangaId>. Fields include a 1–10 personal rating, notes (maximum 5,000 characters), up to 24 unique personal tags (48 characters maximum), optional favourite and explicit completed chapter IDs.
+- Reader progress and preferences use their own versioned keys.
+- Nested collections use a revisioned collection document.
+- Personal synopsis edits are local overrides; they do not update the private HF source synopsis.
+
+Imported source genres/tags, creator metadata and publication status are not overwritten by personal tags or shelf changes. Source publication status is displayed with a ribbon and remains independent of personal Finished state.
+
+## Completion semantics
+
+- A manga is personally Finished only after an explicit shelf action.
+- A chapter is complete only after an explicit chapter-completion action.
+- Scrolling to the end or saving a last-page position does not automatically mark a chapter/manga complete.
+- Publication status completed does not mark the personal shelf Finished.
+
+## Privacy and backup
+
+Personal records remain in localStorage. They are not uploaded to Hugging Face and are not included in the public static bundle. The version-2 manual JSON backup includes progress, preferences, shelves, annotations and optional collections, but no images, private media or credentials.
+
+Keep backup files private. Browser storage can be cleared or evicted. Invalid local records are preserved as recovery evidence. Import is a validated merge, not a replace-all operation.
+
+The protected Master source editor is separate: it can correct title, creators and publicationStatus in the private catalogue after owner verification and HF write scope. It does not sync personal annotations or synopsis overrides.
+
+See docs/LOCAL_PERSISTENCE.md, docs/COLLECTIONS.md and docs/DATA_CONTRACTS.md.

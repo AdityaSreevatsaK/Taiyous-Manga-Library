@@ -1,54 +1,71 @@
 # Real-device and production acceptance checklist
 
-**Status:** Manual verification pending. This document is a test procedure, not evidence of a pass.
+**Status:** Manual acceptance remains unverified unless a dated result is recorded below. This file is a procedure, not evidence of a pass.
 
-## Record for each session
+## Record each session
 
 | Field | Value |
-| --- | --- |
-| Date and tester | |
-| Device / memory capacity | |
+|---|---|
+| Date / tester | |
+| Device and memory | |
 | OS and version | |
 | Browser and version | |
-| Tested release commit SHA | |
-| Cloudflare deployment / live-smoke run URL | |
-| Test network: Wi-Fi / mobile / airplane | |
-| Failures, screenshots and reproduction | |
+| Tested master commit SHA | |
+| Cloudflare deployment / live-smoke run | |
+| Network state | |
+| Steps, result and evidence | |
 
-Use the synthetic **Five Chapter Scroll Trial**. Never submit private licensed manga to public GitHub Actions, Cloudflare assets or support screenshots.
+Use the original synthetic Five Chapter Scroll Trial for public reader tests. Never upload private licensed manga to public CI or screenshots.
 
-## Production release checks
+## Production shell and deployment
 
-- [ ] Compare the current `master` SHA with the Cloudflare deployment; do not infer successful deployment from merging a PR.
-- [ ] Check `/`, `/library`, series details and direct chapter/page URLs in a fresh tab and after reload.
-- [ ] Check the current generated `/sw.js` fingerprint against the published application assets.
-- [ ] Confirm the app is a clearly labelled fictional demonstration with no third-party private media requests.
-- [ ] Check installed logo, favicon and PWA artwork in Sepia, Paper, Charcoal, Midnight, Ocean and Plum.
-- [ ] Confirm a fresh browser, previously installed browser and offline cold start all show the correct release.
-- [ ] Install a second distinct release with the same browser profile. Verify no partial release becomes the offline fallback; keep an older complete shell for rollback.
-- [ ] Check error behaviour when a release download is interrupted halfway through, without clearing unrelated offline chapters or personal data.
+- [ ] Confirm current master SHA and Cloudflare deployment match.
+- [ ] Check /, /library, /offline, /master, manga details and direct chapter/page routes.
+- [ ] Verify service-worker fingerprint and cold offline app-shell launch.
+- [ ] Check the six visible primary shelves: Home, Currently Reading, Trying Out, Available Offline, Finished and All Manga.
+- [ ] Check Master Controls and Analytics route, including /master?view=analytics.
+- [ ] Confirm theme-specific Sun mark, favicon and PWA artwork across all six themes.
+- [ ] Confirm public shell contains only synthetic demo data and no private manga assets or credentials.
 
-## Android Chrome and iOS Safari (repeat on each)
+## Reader and UI
 
-- [ ] Start at 320–430 px portrait width, landscape, tablet layout where available; inspect safe areas, controls, menu positioning and horizontal overflow.
-- [ ] Navigate all eight sections. Confirm mobile More has no duplicate active navigation destinations.
-- [ ] Save a theme and reopen. Default is Sepia for new profiles; opening the theme menu must not mutate the selection.
-- [ ] Open the five-chapter trial and scroll through **every page of a whole chapter** without individual-page Next/Previous controls.
-- [ ] Confirm previous bottom-left, chapter selection bottom-centre and next bottom-right; check first/final chapter disabled boundaries.
-- [ ] Jump directly to a page, reload and restore chapter, page and approximate tall-image offset.
-- [ ] Suspend, background, rotate and reopen the browser. Verify reading position and keyboard/touch focus.
-- [ ] Observe only nearby decoded images during scrolling; check tall pages for no distortion, gap, overlap or flash.
-- [ ] Save favourites and manual chapter-completion markers; confirm they survive reload and do not change publication status or reading position.
-- [ ] Edit notes, tags, collections and reading shelves. Export a private JSON backup, restore into a second disposable browser profile and verify non-destructive merge.
-- [ ] Download a chapter, turn off connectivity, cold-start the app and read the cached chapter.
-- [ ] Remove an offline chapter and confirm reading progress and unrelated downloads remain intact. No Owner mode is needed for offline removal.
-- [ ] Simulate low quota/blocked storage in a disposable profile. Verify truthful error messages and no silent loss of the only copy.
-- [ ] Check focus visibility, screen-reader labels, large touch targets and reduced-motion behaviour.
+- [ ] Test 320–430px portrait, landscape, split-screen, tablet and desktop layouts.
+- [ ] Check the cloud status control immediately after the wordmark, real connection state and keyboard access.
+- [ ] Check three-cover Home hero: all three covers visible and contained, centre selected initially, hover/focus updates title/creator/synopsis/actions.
+- [ ] Test whole-chapter vertical scrolling without per-page Next/Previous controls.
+- [ ] Confirm Previous/Next navigate chapters only and chapter-boundary controls disable correctly.
+- [ ] Verify direct links, page selection, Back/Forward and reload.
+- [ ] Resume saved progress at the correct immutable page ID and approximate tall-page offset.
+- [ ] Test focus, keyboard, touch, rotation, app background/resume and reduced motion.
+- [ ] Verify no horizontal overflow, clipped controls, unreadable contrast or distorted covers.
 
-## Long chapter memory acceptance
+## Local personal data
 
-Use **owned/generated disposable images**, representative of the intended image resolutions, with 300, 500 and 1,000 pages. The current deterministic geometry tests are not a hardware performance benchmark.
+- [ ] Change theme, personal shelf, rating, notes, tags, favourites and explicit chapter-completion markers.
+- [ ] Create nested collections, add/remove membership and test confirmation/revision conflicts.
+- [ ] Export the personal JSON backup and restore into a disposable browser profile.
+- [ ] Confirm invalid/stale local records are preserved and unrelated records remain unchanged.
+- [ ] Check usage analytics opt-out, per-manga reading time, action history, JSON export and typed-confirmation clearing.
+- [ ] Confirm clearing analytics does not clear reading progress or annotations.
+- [ ] Download a synthetic chapter, cold-start offline and verify checksum-backed reading.
+- [ ] Remove the synthetic offline copy and confirm progress and other copies remain.
 
-Record for each size: initial render latency, scroll smoothness/jank, peak browser memory where supported, live image count, decoding failures, rotation/restart behaviour and recovery after cache eviction.
+## Owner-authenticated private dataset checks
 
-**Release decision:** Pass only when the evidence links above are recorded. If no physical iOS or Android device is available, record *Not tested* rather than assuming WebKit/Chromium emulation proves it.
+These checks require the actual owner account and must not be inferred from anonymous CI.
+
+- [ ] Sign in through the dedicated Manga Hugging Face OAuth flow.
+- [ ] Confirm the complete private catalogue loads and local tag/shelf/search filtering does not generate per-title metadata calls.
+- [ ] Confirm a known private cover loads through /api/media/cover and the network panel shows no HF bearer token or private HF URL.
+- [ ] Open a known private chapter, load its manifest and pages, and verify chapter navigation and saved position.
+- [ ] Sign out and confirm private API reads are denied and the local private cover cache is cleared.
+- [ ] Verify the separate write OAuth scope and configured Master passphrase without exposing their values.
+- [ ] Test one title/creator/publicationStatus correction against a disposable dataset or explicitly approved test record; confirm revision conflict behaviour and immutable IDs/slugs.
+
+## Long chapter acceptance
+
+Use owned/generated disposable images representing intended page sizes at 300, 500 and 1,000 pages. Record initial render, total downloaded bytes, retained page-source count/memory, scroll responsiveness, peak memory where available, decoded image count, failures, rotation/restart and recovery after cache eviction. Deterministic unit geometry tests are not a hardware memory benchmark.
+
+## Current result log
+
+No physical-device or owner-authenticated pass is asserted by this checklist. Add dated evidence only after the test is actually performed. If unavailable, record **Not tested**.

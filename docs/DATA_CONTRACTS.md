@@ -1,65 +1,132 @@
-# Manga Library data contracts: current status, 19 November 2026
+# Manga Library data contracts
 
-**Core:** immutable IDs `mng_*`, `ch_*`, `pg_*` backed by runtime validation in `src/domain/validation.ts`. Page identity is the immutable ID plus a zero-based chapter page index. Manifest order changes do not silently advance saved progress. Only raster `image/jpeg`, `image/png`, `image/webp` and `image/avif` private asset path shapes pass validation.
+**Current implementation:** src/domain/types.ts and src/domain/validation.ts.  
+**Private dataset:** AdityaSreevatsaK/Taiyous-Manga, canonical data/library.json.  
+**Reader ownership:** this repository reads private catalogue/media and makes narrow protected metadata corrections; the Storage Controller owns media ingestion, backup, migration and deletion.
 
-**Local versioned records:**
-- `taiyou-manga:progress:v1:<mangaId>`: validated current chapter, page and approximate vertical offset, timestamp.
-- Reader preferences: persisted six-theme UI state, page fit and reading direction; old Dark/Light values migrate to Charcoal/Paper.
-- `taiyou-manga:personal-shelf:v1:<mangaId>`: Trying Out, Finished, To Be Read; Currently Reading is derived from real saved progress.
-- `taiyou-manga:personal-annotation:v1:<mangaId>`: integer personal rating 1–10, bounded notes, personal tags, optional favourite flag and optional immutable chapter-completion ID set. Absent fields in older backups mean no favourite/completed chapters. A chapter is only completed by an explicit toggle, never by scroll progress. Import rejects foreign chapter ownership; personal data remains distinct from imported genres.
-- `taiyou-manga:personal-collections:v1`: revisioned nested collection tree with cycle prevention, unique sibling names and stable collection membership IDs.
+## 1. Catalogue envelope and MangaEntry
 
-**Backup:** `taiyou-manga-local-personal-backup` schemaVersion 2, exported progress/preferences/shelves/annotations and optional validated nested collection tree. Importer understands old v1 reader backups and older v2 backups lacking collections. Nonempty local shelves, newer local notes and existing collections are never overwritten without a new explicit conflict policy; invalid local bytes are preserved.
+Canonical catalogue envelope:
 
-**Privacy:** Public catalogue samples and imported publication status are separate from personal notes/status. Storage currently stays on this browser, and manual JSON files must be handled privately. No server persistence, Hugging Face private resolver, automatic multi-device conflict resolution or authenticated owner deletion exists.
+- schemaVersion: 1
+- mediaKind: manga
+- entries: array of MangaEntry
 
-## Historical scaffold data-contract notes, retained
+A MangaEntry contains:
 
-The original statements below about having no persisted schemas, no lockfile or no deployed reader are historical and **superseded** by the implementation above.
+| Field | Meaning |
+|---|---|
+| kind | Literal manga |
+| id | Immutable opaque mng_ identifier |
+| title | Source title, mutable display field |
+| slug | Optional stable public URL slug; ID remains the identity |
+| aliases | Alternative publication titles |
+| creators | Backwards-compatible creator names |
+| creatorRoles | Optional author/artist role records |
+| metadataSources | Optional per-field provenance for imported publication metadata |
+| tags | Imported/publication genres and tags |
+| publicationStatus | unknown, ongoing, completed, hiatus or dropped |
+| direction | rtl, ltr or vertical |
+| chapters | Ordered MangaChapter records |
+| synopsis | Source synopsis; a personal local override is separate |
+| cover | Optional verified cover descriptor |
+| rating | Synthetic fixture-only rating; private personal ratings belong in browser-local annotations |
+| collections | Optional catalogue grouping labels where present; personal nested collections use separate browser-local records |
 
----
+MangaChapter has immutable ch_ ID, display label, unique sequence, and optional stable slug, volume and informational pageCount. Titles, labels, slugs and chapter numbers are not primary keys.
 
-# Manga Data Contracts, Identity and Migration
+### Cover descriptor
 
-**Current type definitions:** `src/domain/types.ts`. They are intentionally local and preliminary. No persisted schema or migration has been deployed.
+The exact cover object fields are assetPath, mimeType, width, height, byteSize and sha256. The path must belong to the same manga ID under covers/ and retain the original image extension. Supported image MIME types are JPEG, PNG, WebP and AVIF. Runtime validation checks path ownership, extension/MIME agreement, positive bounded dimensions, pixel budget, byte size and lowercase SHA-256 format. The gateway verifies actual bytes against the descriptor.
 
-## Core entities
-MangaEntry, MangaChapter, MangaProgress
-Panel and page ordering, right-to-left versus left-to-right reading, vertical scrolling, chapter/volume structure, image dimensions, page preload limits and full-screen touch navigation.
+### Creator and provenance metadata
 
-## Stable identity
-Use immutable opaque IDs scoped to this media kind; never use mutable titles, list positions or episode labels as keys. Keep external provider IDs in optional source/provenance records rather than replacing local IDs. Preserve aliases, rename history and canonical IDs when imports change.
+creatorRoles entries contain name and role (author or artist). The legacy creators array remains for older consumers. metadataSources is keyed by the publication field it describes and records provider, sourceId, uncredentialled HTTPS sourceUrl and UTC retrievedAt. Provenance URLs are metadata references, not media URLs and must never be used as image sources.
 
-## Ownership of fields
-- **Public descriptive metadata:** title, alternative names, genres, release information and licensed artwork references; verify provenance and terms.
-- **Private personal data:** ratings (integer 1–10; absent means unrated), annotations, tags, watch/read state, custom collections and updated timestamps. This must never be published to static bundles.
-- **Protected asset references:** images or files, manifests, checksums, rights/provenance; do not use arbitrary remote URLs as trusted assets.
-- **Sync metadata:** opaque revision, updatedAt, tombstones, origin/device identifier if required and conflict records, separate from display data.
+Publication genres/status are independent from personal tags and the Finished reading shelf. A publication status of completed never marks the user's personal shelf as Finished.
 
-## Versioning and validation
-Future persisted documents must declare `schemaVersion`, `mediaKind`, revision and validated arrays/objects. Validate at the untrusted boundary (runtime, not only TypeScript), limit lengths/counts and reject duplicate IDs. Keep backward-compatible migrations version-to-version with reversible backups. Unsupported future schema versions must fail closed, never silently truncate. Do not add database or sync until an ADR chooses a store.
+## 2. Chapters, manifests and pages
 
-## Progress and edge cases
-Chapter ID plus zero-based page index, distinct from scroll position. Missing/reordered pages must not silently advance progress.
-Maintain atomic record-level updates when multiple devices edit; compare remote version before write. Support 'unrated', unknown episode count, missing chapters, deleted records, stale local caches, out-of-order updates and offline divergence. Do not infer an irreversible completion event from a title match.
+A chapter manifest is a version-1 manga document with chapterId and an ordered pages array. Each page has an immutable pg_ ID, relative assetPath, MIME type, dimensions, byte size and optional SHA-256 in the domain type. The canonical private Controller layout provides original page bytes under data/manga/<manga-id>/<chapter-id>/<page-id>.<ext> and manifests under data/manifests/<chapter-id>.json.
 
-## Storage contract
-Private original files and verified image manifests, with browser IndexedDB cache only after consent. No external source URLs should be saved as durable private media pointers.
-Shared Core's `MediaIdentity` is a potential exchange boundary, not a replacement for this repository's current types. Do not import the Novel Library's 24-character EPUB hashes into manga as a universal ID format.
+Supported image MIME types are image/jpeg, image/png, image/webp and image/avif. Arbitrary absolute URLs, foreign origins, traversal paths, mismatched IDs, unsupported types, duplicate page IDs, excessive page counts and unsafe dimensions must fail validation. The reader never treats an untrusted assetPath as a browser URL.
 
-## Privacy and deletion
-Distinguish reversible removal from a shelf, clearing an offline cache, soft-deleting personal metadata and permanent deletion of originals. Permanent deletion requires explicit owner action, confirmation of affected objects, backups and a tested recovery path. Never cascade across other media repos.
+The browser validates the exact manga → chapter → page lineage against the authenticated catalogue and chapter manifest. For canonical imports it sends the immutable catalogue revision and validated page descriptor. The server checks the owner session, revision/descriptor format, ID-derived path, MIME, byte length and SHA-256 of the bytes. It does not re-read the moving main revision or catalogue/manifest for every canonical page request; the supplied revision is immutable. Legacy requests without a pinned descriptor re-resolve catalogue and manifest membership server-side.
 
-## Next schema work
-Write `docs/DECISIONS.md` ADR for source/provider mapping; add runtime parsers and fixtures with valid, invalid and legacy versions; write migration tests; then implement an adapter behind a typed interface. Until then, the current catalogue is empty by design.
+## 3. Progress identity and semantics
 
+MangaProgress contains:
 
-## Feature-branch runtime parser checkpoint (18 November 2026)
+- mangaId: immutable manga identity
+- chapterId: immutable chapter identity
+- pageIndex: zero-based index in the validated chapter manifest
+- pageId: immutable page identity at that index
+- updatedAt: UTC timestamp
+- optional readingMode
+- optional verticalOffsetRatio from 0 to 1 for approximate tall-page anchor restoration
 
-`src/domain/validation.ts` now accepts `unknown` at input boundaries and validates opaque IDs, series and chapter arrays, duplicate IDs/order keys, zero-based progress with manifest bounds, versioned chapter image records, strict relative asset paths, allowed raster MIME types, dimensions, archive-entry metadata and source-rights evidence. `src/domain/reader.ts` preserves exact chapter/page progress and refuses to silently skip missing manifests. Tests exist on draft PR #2, but local npm/CI execution has not succeeded.
+A saved page index without a matching immutable pageId is insufficient. If a manifest is reordered or no longer matches, fail closed and preserve the record rather than silently restoring to a different image. Human-facing route page numbers are one-based; internal progress is zero-based.
 
-This **does not** provide a deployed persisted schema, image bytes inspection, actual ZIP extraction, cloud auth, database migration, persistence or sync. The rights and private adapter proposal is documented in `docs/adr/006-manga-rights-and-private-asset-adapter.md`; it is not approved for real data.
+Reading progress is not proof that a chapter was completed. Chapter completion is a separate explicit per-chapter marker. Personal Finished status is a separate explicit shelf selection. Publication completion is a separate source field.
 
-## Immutable page identity (feature branch, 18 November 2026)
+## 4. Browser-local personal schemas
 
-The local prototype's `MangaProgress` now requires both `chapterId`, a **zero-based** `pageIndex` and immutable `pageId`. Runtime parsing and resume reject a record if `pageId` no longer matches the page at `pageIndex` in the validated chapter manifest. This is intentional fail-closed behaviour rather than quietly restoring to the wrong image after page reordering. Since there is no deployed progress persistence, this adds no data migration. Any future legacy migration must explicitly reconcile missing IDs before enabling resumption.
+| Record | Key / scope | Data |
+|---|---|---|
+| Reader progress | taiyou-manga:progress:v1:<mangaId> | Validated MangaProgress envelope |
+| Reader preferences | taiyou-manga:reader-preferences | Theme, fit and optional reading direction |
+| Personal shelf | taiyou-manga:personal-shelf:v1:<mangaId> | trying, finished or to-read |
+| Personal annotation | taiyou-manga:personal-annotation:v1:<mangaId> | 1–10 rating, notes, personal tags, favourite, explicit completed chapter IDs and timestamp |
+| Collections | taiyou-manga:personal-collections:v1 | Versioned tree, stable IDs, parent links, manga membership and revision |
+| Usage journal | taiyou-manga:usage:v1 | Device-only app/reading/offline durations, per-manga totals and bounded action history |
+
+Currently Reading is derived from a real saved progress record and personal shelf overrides. Available Offline is derived from verified local sample chapter receipts. Imported publication status is not used to infer personal completion.
+
+Personal notes are bounded to 5,000 characters. Personal tags are limited to 24 unique values, up to 48 characters each. Collections validate unique IDs, parent existence, sibling names, membership, revision and cycle prevention. Invalid stored records are preserved as recovery evidence.
+
+## 5. Manual backup contract
+
+The full personal JSON backup uses schemaVersion 2 and includes validated progress, preferences, shelves, annotations and optional nested collections. It does not include manga covers, page bytes, private HF metadata, credentials, sessions or private dataset content.
+
+The importer supports legacy v1 reader backups and earlier v2 documents without collections. It validates before writing, merges non-destructively and preserves newer or invalid local records. Users must keep downloaded backup files private. This is not cloud sync or a replacement for an independent media backup.
+
+## 6. Reading usage journal
+
+The usage journal is stored locally under taiyou-manga:usage:v1. It is prospective; it does not reconstruct time from old progress timestamps.
+
+- Time sampling occurs every 10 seconds while the tab is visible, focused and recently active.
+- A sample is discarded when the elapsed gap exceeds 30 seconds or the user has been idle for more than 3 minutes.
+- Each stored sample is capped at 30 seconds.
+- The journal retains up to 400 daily buckets, 500 recent actions and up to 2,500 per-manga duration keys.
+- It supports opt-out, JSON export and typed-confirmation clearing.
+- No analytics are uploaded to Hugging Face or a third-party analytics provider.
+
+## 7. Private dataset and API boundary
+
+Canonical private paths:
+
+- data/library.json
+- data/covers/<manga-id>.<ext>
+- data/manifests/<chapter-id>.json
+- data/manga/<manga-id>/<chapter-id>/<page-id>.<ext>
+
+Reader API:
+- GET /api/library: full catalogue snapshot and immutable revision.
+- GET /api/media/cover: one requested cover.
+- GET /api/media/manifest: one requested chapter manifest.
+- GET /api/media/page: one requested page.
+- POST /api/master?action=update-metadata: protected correction of title, creators or publicationStatus only.
+
+The catalogue endpoint is intentionally bulk. Browser-side filters operate on the full loaded catalogue. Per-manga and per-page requests are for media assets or a selected chapter, not for repeated catalogue metadata. Private responses are no-store. The service worker must not intercept /api/*.
+
+## 8. Versioning and migration rules
+
+- Validate every untrusted response at runtime; TypeScript types alone are not validation.
+- Keep manga/chapter/page IDs immutable through title changes, sorting, imports and metadata corrections.
+- Preserve chapter/page ordering and exact identity. Do not infer completion from scrolling.
+- Unknown schema versions fail closed. Do not silently truncate or normalise away fields.
+- Use revision guards for remote writes. On conflict, refresh and ask for a new explicit correction; never blindly overwrite.
+- Never mutate the private dataset or original media as a side effect of reader UI changes.
+- Schema changes require a backwards-compatible migration plan, tests, backup and ADR.
+
+For storage operations see the separate Manga Storage Controller. This repository does not own upload, full media backup, dataset migration or permanent deletion.

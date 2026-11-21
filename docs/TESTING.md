@@ -1,103 +1,99 @@
-# Manga Library verification: current gates, 19 November 2026
+# Testing and release verification
 
-Canonical CI: [`ci.yml`](../.github/workflows/ci.yml) with Node 22 `npm ci`, `npm run typecheck`, Vitest, service-worker release fingerprint tests, `npm run build`, bundle budgets and full **production-build Chromium** Playwright checks.
+## Current automated quality gates
 
-Independent multi-engine CI: [`cross-browser.yml`](../.github/workflows/cross-browser.yml), with Firefox and WebKit production smoke tests for responsive nav, themes, continuous chapter reader, chapter-only buttons and local shelves.
+### Main workflow: Verify Manga Library
 
-Verified live release after merge #29:
-- [Master quality CI](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/actions/runs/44562765869): passed
-- [Master Firefox/WebKit](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/actions/runs/44562766119): passed
-- [Cloudflare live smoke](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/actions/runs/44562765881): passed
+.github/workflows/ci.yml runs on master pushes, pull requests and manual dispatch. It uses Node 22 and npm ci.
 
-**Local commands:** `npm ci`; `npm run typecheck`; `npm test`; `npm run build`; `node scripts/check-bundle.mjs`; `E2E_PRODUCTION=1 npm run test:e2e`; `npx playwright test --config playwright.cross-browser.config.ts`.
+Quality job:
+1. npm run typecheck
+2. npm test (Vitest)
+3. service-worker fingerprint tests
+4. two-release offline transition tests
+5. npm run build
+6. scripts/check-bundle.mjs
+7. bundle asset reporting
 
-The automated browser engines are not substitute evidence for actual Android Chrome/iOS Safari on hardware, low-memory 300–1,000 page image decode benchmarks, or browser storage eviction tests. Full private session/rights/access/integration tests cannot run until a backend exists.
+Browser job runs after quality:
+- Installs pinned headless Chromium.
+- Builds the production app.
+- Runs E2E_PRODUCTION=1 npm run test:e2e against Vite preview.
+- Retains Playwright traces/screenshots on failure.
 
-## Recent independent development CI (19 November)
+### Cross-browser workflow
 
-- Offline two-release rollback, [PR #32](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/pull/32): TypeScript, unit, release-transition tests, Chromium and Firefox/WebKit passed.
-- 1,000-page geometry bounded reading, [PR #33](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/pull/33): [quality and Chromium CI](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/actions/runs/44586265335) and [Firefox/WebKit](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/actions/runs/44586265753) passed.
-- Favourites and v2 backup, [PR #34](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/pull/34): [quality and Chromium CI](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/actions/runs/44587338561) and [Firefox/WebKit](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/actions/runs/44587338758) passed.
-- Explicit chapter markers and backup ownership, [PR #35](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/pull/35): [quality and Chromium CI](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/actions/runs/44588300489) and [Firefox/WebKit](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/actions/runs/44588300495) passed.
+.github/workflows/cross-browser.yml builds the production app and runs e2e/cross-browser.spec.ts in Firefox and WebKit. This is a focused reader/navigation smoke suite, not a full parity suite in every browser.
 
-These results establish repository/browser CI only. **Post-merge latest Cloudflare deployment** and physical Android/iOS hardware still need independent evidence. Use [real-device acceptance](REAL_DEVICE_ACCEPTANCE.md).
+### Live Cloudflare smoke
 
-## Historical 18 November scaffold test evidence, retained
+.github/workflows/live-cloudflare-smoke.yml builds the current master commit and checks:
+- Public homepage and React shell.
+- Expected built asset names are served.
+- SPA deep links, including manga/chapter routes.
+- Deployed service-worker release fingerprint.
+- Required public security headers.
+- Anonymous private API requests return private no-store JSON denial.
+- OAuth login redirects to Hugging Face through a secure redirect.
+- Built assets are non-empty.
 
-The earlier text below describes draft PRs and unstarted CI which have **since been merged and superseded**. Do not treat its statements about `master` or available browsers as current.
+This workflow verifies the public deployment and anonymous security boundary. It does not sign in as the owner or read private manga.
 
----
+## Latest verified master evidence in the 21 November 2026 snapshot
 
-# Current verified test evidence, 18 November 2026
+All three runs passed for master SHA ff519fc175bb61e234bbdea278679e32afd97fe5:
 
-All validated work remains in draft stacked feature branches; canonical production `master` unchanged.
+- [Typecheck, unit tests, build and Chromium](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/actions/runs/44918275621)
+- [Firefox and WebKit](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/actions/runs/44918275594)
+- [Cloudflare live smoke](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/actions/runs/44918275658)
 
-| PR | Unit tests | Playwright Chromium | Production browser build |
-|---|---:|---:|---|
-| #10 mobile reader | 19 passed | 17 passed | No |
-| #11 deep links | 23 passed | 22 passed | No |
-| #12 local persistence | 29 passed | 27 passed | No |
-| #13 cold offline reading | 29 passed | 32 passed | **Yes** |
-| PR E final hardening | **34 passed** | **37 passed** | **Yes** |
+This is a dated evidence record. Check current GitHub Actions before making a new release claim.
 
-PR #13 success: https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/actions/runs/44363425900
-PR #14 success: https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library/actions/runs/44366411933
+## Important test suites
 
-Full CI runs Node 22 typecheck, Vitest, production build, production Playwright Chromium and static bundle budgets. The previous GitHub Pages publication failure is unrelated to application quality; its redundant job is removed in PR E.
+- src/domain: IDs, validation, routing, filters, reader ordering, progress, personal records, backup import/export, collections, advanced discovery, analytics and chart date calculations.
+- src/data: private catalogue, cover cache, private media gateway, offline chapters and chapter preloader.
+- functions/api/master.test.ts: protected metadata patch validation, immutable lineage, revisions and owner correction logic.
+- src/data/privateLibrary.test.ts: catalogue response and private-library client behaviour.
+- src/domain/mangaCloudGateway.test.ts: Cloudflare OAuth, owner verification, catalogue reads, legacy fallback and anonymous denial.
+- src/domain/mangaPrivateMediaGateway.test.ts: owner-only cover/manifest/page delivery, revision checks, MIME/size/SHA validation and no-store responses.
+- src/domain/privateMediaContracts.test.ts: legacy no-network stub and domain-level private media identity validators.
+- e2e/manga-reader.spec.ts: reader journeys, progress, chapter controls, synthetic offline and responsive interactions.
+- e2e/manga-master-parity.spec.ts: Master Controls, analytics metrics/events, owner edit gates and responsive dashboard parity.
+- e2e/cross-browser.spec.ts: focused Firefox/WebKit route and reader checks.
+- scripts/stamp-service-worker.test.mjs and scripts/sw-release-transitions.test.mjs: release fingerprint and two-version shell rollback.
 
-Remaining manual acceptance: real iOS/Android devices, memory benchmarks on long actual pages, Cloudflare live deep-link/reload/offline deployment smoke, strict-CSP review before private data, and browser storage eviction. Never claim these are automated.
+Read the actual current test source before relying on the list; tests evolve with the implementation.
 
----
+## Required acceptance for changes
 
-# Current quality gates (18 November 2026)
+- Domain changes: positive, invalid, boundary, duplicate-ID and legacy-data tests.
+- API/security changes: anonymous, wrong-owner, expired session, invalid ID/path, wrong revision, invalid MIME/size/hash, upstream error and concurrency cases where relevant.
+- Reader changes: exact page identity/resume, whole-chapter vertical scroll, chapter-only navigation, failed image handling and bounded image loading.
+- Personal data changes: corruption preservation, stale writes, backup compatibility, explicit destructive confirmation and no unrelated record deletion.
+- UI changes: accessible labels/focus, no horizontal overflow, 320/390/768/1280 px minimum and relevant split-screen/mobile widths.
+- Service worker changes: complete staging, offline cold start, old verified shell retention and no deletion of chapter/user caches.
+- Private integration changes: synthetic tests plus a disposable authorised dataset. Never expose live private media or credentials in public CI.
 
-The baseline on `master` passed 19 unit tests and 12 Playwright tests at widths 320/375/390/768/1280. Latest overall workflow failed in GitHub Pages publish configuration. PR A adds continuous vertical-scroll, bounded image window, 430/1024 widths, focus/landscape and broken image tests. **PR A tests are not confirmed passing until GitHub Actions executes them.**
+## Manual acceptance that automation cannot replace
 
-Run `npm ci`, `npm run typecheck`, `npm test`, `npm run build`, `npm run test:e2e`. Review Playwright failure traces. Validate both viewport and fullscreen scrolling without false progress writes, as well as 320px safe areas and keyboard focus. Final real-device swipe and memory benchmarks remain manual acceptance.
+- Owner sign-in and actual private cover/manifest/page rendering.
+- Production Cloudflare secret and OAuth write-scope configuration.
+- Real protected metadata correction and revision-conflict recovery on a disposable private dataset.
+- Physical Android Chrome and iOS Safari behaviour.
+- Low-memory 300–1,000-page image decode/scroll performance.
+- Real browser storage eviction and restoration.
 
----
+Record device, OS/browser, tested commit SHA, Cloudflare smoke URL, steps and result in docs/REAL_DEVICE_ACCEPTANCE.md. If not performed, say "Not tested". Firefox/WebKit automation is not proof of iOS Safari hardware behaviour.
 
-# Test Strategy and Quality Gates
+## Test commands
 
-## Commands
-`npm run typecheck`, `npm test`, `npm run build`. The initial workflow runs all three on pull requests and master; no browser E2E or deployed smoke exists yet. Do not claim they do.
+    npm ci
+    npm run typecheck
+    npm test
+    npm run build
+    node scripts/check-bundle.mjs
+    E2E_PRODUCTION=1 npm run test:e2e
+    npx playwright test --config playwright.cross-browser.config.ts
 
-## Testing layers
-1. **Pure unit:** search, identity, sorting, status transformations, MangaEntry, MangaChapter, MangaProgress, invalid/empty inputs and Unicode names.
-2. **Component:** keyboard and screen-reader labels, focus order, 320–390px overflow, 768px tablet and desktop layouts. Use deterministic fixtures with no private media.
-3. **Repository adapter:** CRUD boundaries, lossless migrations, duplicate IDs, stale revisions, injected errors, cancellation and retries.
-4. **Privacy/security:** redaction, invalid input, absent/expired session, forbidden mutations, path traversal, oversized payloads and unsafe URLs.
-5. **Offline and sync:** cold offline launch after a controlled cache, browser eviction, two-device conflicting edits, tombstone protection, correct rehydration and recovery.
-6. **Domain-specific:** Fixtures prove correct RTL/LTR page ordering, chapter transitions, resume on exact page, keyboard/touch operation and offline behaviour without exposing private image assets.
-
-## Acceptance gates for a feature PR
-Every new path has a positive, negative and boundary case. Tests fail on regressions and must not require external tokens. Assertions verify user-visible behaviour, not just DOM presence. Add a reproducible manual plan for gestures/real devices where automation is not possible.
-
-## Release gates (future)
-Successful locked install, typecheck, tests, build, vulnerability review, browser mobile/desktop checks, private endpoint auth tests, performance review, real-device sign-off and rollback verification. A green CI alone does not authorise deployment. Record the build SHA and scope.
-
-## Risk register
-Initial scaffolds intentionally omit persistence, authentication, image/video delivery, end-to-end tests, production CSP configuration and provider integrations. These omissions are documented, not hidden.
-
-
-## Fixture reader branch test inventory (written, not executed)
-
-`src/domain/validation.test.ts`: valid and duplicate series/chapter IDs, page formats and paths, malicious traversal/URL/SVG input, manifest limits, page-index bounds, rights evidence and archive-entry preflight.
-`src/domain/reader.test.ts`: stable chapter sequence, forward/back chapter boundaries, corrupt/missing manifest rejection, physical RTL/LTR/vertical key/swipe mapping, one-page preloading and exact resume.
-`src/domain/filters.test.ts`: alias search, status, tag, collection and sort semantics.
-`src/data/fixtures.test.ts`: synthetic provenance, coherent page counts and local paths.
-`src/App.test.tsx`: React server-rendered catalogue and honest unconnected-library empty state.
-
-**These test files have been committed but could not run:** npm registry DNS is unavailable, and GitHub Actions has not started any job steps. The React markup tests are *not* interactive browser coverage. Browser verification plan is in `docs/DEVELOPMENT_REPORT_2026-11-18.md`; a future Playwright suite must exercise interactions at 320, 375, 390, 768, 1280 px, chapter transitions and failed image/offline flows. No test pass claim is authorised yet.
-
-The separate `e2e/manga-reader.spec.ts` Playwright suite adds **unexecuted** responsive/browser interaction tests for source switching, filters, keyboard navigation, physical swipes, RTL/LTR/vertical selection, chapter boundaries, exact session resume, synthetic offline operation, corrupt canvas error and retry, and no non-local requests. Install browser binaries with `npx playwright install chromium`, then run `npm run test:e2e` once npm dependencies are available. CI has not reached runner steps.
-
-The reader now requires a loaded active image before page navigation and commits progress only on `img.onload`. The browser corruption test asserts Next/Previous disabled, Retry remains on the same page, and returning to the series does **not** display Continue Reading. CI has two separate jobs, plus `workflow_dispatch`, and retains Playwright failure artefacts. These are committed checks, **not** confirmed passing results.
-
-
-## Master and usage tracking regression, 21 November 2026
-
-Run `src/domain/usageAnalytics.test.ts` (real bounded time, action deduplication, privacy and corruption), `src/domain/progressSummary.test.ts` (safe prior private progress previews), `functions/api/master.test.ts` (immutable lineage, revisions and source corrections), and `e2e/manga-master-parity.spec.ts` (per-title analytics, activity details, privacy clearing, metadata and Master editor protection). Both required GitHub Actions suites must pass for the final head SHA, then the live Cloudflare workflow after merge. The real owner HF write flow cannot be verified with synthetic CI credentials and requires a disposable signed-in owner test.
-
-### Analytics visual parity acceptance, 21 November 2026
-The browser regression in `e2e/manga-master-parity.spec.ts` checks four top-level metrics, 14 paired app/reading bars, their two Novel colours, separate bar positions, optional details collapsed by default and horizontal-overflow protection at 320, 390, 768 and 1280 pixels. Additional analytics are not deleted, but are revealed under the `More manga insights` disclosure. Regression tests that access older summary sections must expand the disclosure first.
+Never remove a failing test or widen a bundle budget just to make CI green. Any budget change needs measured before/after output and a documented reason.

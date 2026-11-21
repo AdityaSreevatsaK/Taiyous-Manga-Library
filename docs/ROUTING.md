@@ -1,34 +1,37 @@
-# Browser Routes and Navigation
+# Browser routes and navigation
 
-**State:** PR B, staged on top of the mobile-reader PR. Not yet merged or deployed.
+## Canonical route contract
 
-## URL contract
+- / : editorial Home.
+- /library : All Manga and local discovery filters.
+- /master : Master Controls overview.
+- /master?view=analytics : Master Controls Analytics.
+- /manga/<readable-series-slug> : manga details.
+- /manga/<readable-series-slug>/chapters/<readable-chapter-slug> : continuous chapter reader.
+- ?page=N : optional human-readable one-based page index. Page 1 is omitted from canonical links.
 
-- `/` is the Home view, including the editorial introduction.
-- `/library` is the searchable sample Library.
-- `/manga/:mangaId` opens series details.
-- `/manga/:mangaId/chapters/:chapterId?page=3` opens page 3 of the chapter.
-- `page` is a human-readable **one-based** query parameter; internal `ReaderLocation.pageIndex` remains zero-based. Manga and chapter IDs are immutable.
-- Unknown series, missing chapters and out-of-range pages show a recoverable Page Unavailable state.
+The route resolves readable slugs against the authenticated catalogue and then uses immutable manga/chapter IDs internally. Existing ID-based bookmarks remain supported. Duplicate slugs are disambiguated with an ID suffix. Ambiguous title/alias matches fail closed.
 
-Navigation uses ordinary `<a href>` links, with History API interception for unmodified left clicks. Modified clicks, copy link, middle-click, right-click and new tabs retain normal browser behaviour. Browser Back/Forward restores routes without erasing in-session progress.
+Legacy /analytics bookmarks resolve to /master?view=analytics. Legacy /to-read resolves to the All Manga view; To Be Read is no longer a primary navigation tab.
 
-For horizontal reader navigation and explicit page selection, a new reader position is pushed to history. Frequent updates while vertically scrolling replace the current history entry rather than creating hundreds of Back entries.
+## Navigation behaviour
 
-## Hosting and fallback
+The app uses ordinary anchor links and History API interception for unmodified left clicks. Modified clicks, middle-click, copy-link and opening in a new tab retain browser-native behaviour.
 
-Cloudflare Pages is the preferred host. It normally serves `index.html` for unknown SPA routes when no top-level `404.html` exists, as described in Cloudflare's serving-pages documentation. **This has not been verified against a live deployment in this project.**
+- Direct deep links and page query parameters are validated.
+- Browser Back/Forward restores the route without discarding the current session's progress.
+- Frequent vertical scroll updates replace the current history entry instead of creating hundreds of Back entries.
+- Unknown series, chapters or out-of-range pages show a recoverable not-found state.
+- Catalogue search/filter query parameters are bookmarkable and do not include private notes, ratings or personal annotations.
 
-The existing GitHub Pages fixture demo is separate and may not serve direct nested URLs without an explicit 404 fallback; treat Cloudflare deployment verification as the release gate for deep links. No second production host is required.
+## Hosting
 
-The route prefix respects `import.meta.env.BASE_URL` so that internally generated links work under `/Taiyous-Manga-Library/` for the GitHub Pages build and under `/` on Cloudflare.
+Cloudflare Pages serves the SPA shell for nested routes. The live smoke checks /library, /offline, /master and synthetic manga/chapter deep links. The Vite base path supports the optional GitHub Pages preview mode, but GitHub Pages is not the production host.
 
-## Security, privacy and compatibility
+## Privacy
 
-Route IDs are validated and never used as raw media URLs. Invalid page indexes are rejected. The public demo uses only synthetic media. Page URLs contain no private user data, cloud tokens, or private source identifiers. Future private auth must authorise server-side asset requests independently of the route parser.
+Route IDs and slugs are not credentials. No route may include private HF tokens, private media URLs, personal notes or ratings. Every private media request independently checks server-side owner access; a route parser is not an authorisation layer.
 
-All prior RTL/LTR/continuous vertical reading controls remain. No persistence, offline downloads or real images are introduced in PR B.
+## Tests
 
-## Required verification
-
-TypeScript, Vitest and browser tests, plus manual Cloudflare direct deep-link and refresh after a permitted deployment. Tests include invalid routes, 1-based page query, Back/Forward, bookmark/reload, home/library distinction and opening series in a separate browser tab.
+See src/domain/routes.test.ts, e2e/manga-reader.spec.ts and scripts/live-cloudflare-smoke.mjs. Verify deep links, one-based page queries, legacy bookmarks, Back/Forward and reload after route changes.

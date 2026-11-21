@@ -1,110 +1,111 @@
 # AI Agent Working Agreement: Taiyou's Manga Library
 
-**Applies to every directory in this repository.** The owner is directing parallel sessions across five GitHub repositories. Your session owns **only** Taiyous-Manga-Library; treat other repositories as external integration partners.
+**Scope:** This file applies to this repository only: **AdityaSreevatsaK/Taiyous-Manga-Library**. It is the working contract for human and AI contributors.
 
-## Agent mission
-Build a secure, maintainable, privacy-respecting manga application to read and organise legitimately acquired manga with chapter/page-level progress and optional offline access. Review the actual current source and issue/PR state on every visit. Do not assume README statements are always current.
+## Mission and ownership
 
-## Mandatory start sequence
-1. Inspect `master`, active branches, pull requests, workflow results and actual package versions.
-2. Read `README.md`, this `AGENTS.md` and **all** `docs/*.md`, especially the repository-specific handover.
-3. Run or review `npm run typecheck`, `npm test`, `npm run build`. If dependency lock is absent, run `npm install` first.
-4. Prepare a brief implementation plan with acceptance conditions and files that will change.
-5. Implement only the current agreed scope on a short-lived feature branch.
-6. Add tests, update docs, run CI, review the PR diff and verify the merge state before claiming completion.
-7. Do not merge changes that break the typecheck, unit tests, build, privacy rules or user-visible core functionality.
-8. The owner has authorised non-destructive merges and subsequent deployments by default. Merge only after green required CI; verify Cloudflare production after merging. Production secrets, destructive changes or private data still require explicit approval.
+Build and maintain a secure, maintainable, privacy-respecting personal manga library for legitimately acquired or otherwise authorised manga. The app provides a catalogue, a continuous image-based chapter reader, chapter/page progress, personal organisation, private owner-only catalogue access and optional offline access for synthetic demonstration chapters.
 
-## Source of truth and boundaries
-- This repository owns its domain types and implementation. Shared Core's v0 contracts are **proposals**, not a migration mandate.
-- Do not edit the Novel Library or other media repos from this session.
-- Use stable opaque IDs, not titles, indexes, or provider-specific season labels as primary keys.
-- Separate imported source metadata, private personal annotations, files and sync metadata.
-- Domain complexity: Panel and page ordering, right-to-left versus left-to-right reading, vertical scrolling, chapter/volume structure, image dimensions, page preload limits and full-screen touch navigation.
-- Model types: MangaEntry, MangaChapter, MangaProgress. See `src/domain/types.ts` and `docs/DATA_CONTRACTS.md`.
-- Shared code is extracted only after a second consuming app demonstrates genuine reuse. Do not create runtime coupling to the hub.
+This repository owns the Manga web application, manga domain model, browser-local personal state, same-origin Cloudflare Pages Functions and the reader-side private-media gateway. The separate **Taiyou-Manga-Storage-Controller** owns approved media ingestion, upload, backup, migration and source-media deletion. The private Hugging Face dataset is **AdityaSreevatsaK/Taiyous-Manga**. Treat both as external integration boundaries: inspect their public contracts when necessary, but **do not modify either repository or dataset from this repository's task**.
 
-## Safety and owner approvals
-No secrets or sensitive content in commit history, tests, screenshots, logs, `.env.example` or `VITE_*` variables. Private media must be served through authorised private storage; do not assume that making a repository private protects public deployments. Do not bypass authentication, paywalls, DRM or third-party restrictions. Never delete private originals or rewrite large catalogues without explicit consent, dry-run, verified backup and revision check. Reject unsafe imports and untrusted URLs. Treat user-authored tags/comments as untrusted strings and never inject into the DOM as HTML.
+Do not modify the Novel Library, Manga Retriever, Shared Core/Hub, Anime or Movies/TV repositories. Novel Library is a visual reference only, not a runtime dependency. Shared Core remains experimental and is not imported by this app.
+
+## Mandatory dynamic state-awareness protocol
+
+**Historical documentation, prior conversation summaries, old AI handovers and previous agent claims are not proof of current state.** Before every substantial task, establish the state of the repository you are actually about to change.
+
+1. **Establish the working tree and exact base.** Run `git status --short --branch`, `git rev-parse HEAD`, `git branch --show-current`, `git remote -v`, `git diff` and `git diff --cached`. Do not discard, reset, stash, overwrite or include pre-existing user changes without explicit direction. If no local checkout is available, say so internally and inspect the remote GitHub refs/files instead; never claim to have checked local Git status.
+2. **Refresh GitHub state.** Inspect the default branch and latest commit, all relevant branches, open and recently merged PRs, issue state, recent commits, workflow runs and check results. Identify in-flight changes before editing. Do not infer that a closed PR was merged; check its merged timestamp and merge SHA.
+3. **Inspect implementation, not just descriptions.** Trace the relevant UI, domain, data adapter, Pages Function, tests, configuration and deployment path. Check package.json, package-lock.json, workflow definitions and current runtime versions. Follow data from user action through storage/API to the rendered result.
+4. **Read the current documentation entry points.** Start with README.md, this file, docs/PROJECT_STATUS.md, docs/ARCHITECTURE.md, docs/DATA_CONTRACTS.md and docs/SECURITY.md. Then read the task-specific docs and relevant ADRs. Dated reports and handovers are historical evidence, not mandatory current instructions; read them only when their history is relevant.
+5. **Classify every material claim.** Use these labels in plans, docs and reports:
+   - **Implemented:** present in the current target branch, with source/test evidence.
+   - **Partially implemented:** some code exists, but a required integration, configuration, acceptance test or user-visible path is missing.
+   - **Planned:** agreed direction without implementation.
+   - **Deprecated:** deliberately no longer used; preserve compatibility only where required.
+   - **Historical / superseded:** accurate only for a named earlier commit or date.
+   - **Unverified:** source/configuration exists, but live or owner-authenticated behaviour has not been demonstrated.
+6. **Record evidence.** For important status claims cite the current source path, test, commit/PR, workflow run or live acceptance record. A passing unit test does not prove OAuth, a production secret, a private dataset write, physical-device behaviour or a deployed release.
+7. **Reconcile contradictions before editing.** When docs disagree, prefer the current implementation and verified CI/deployment evidence. Preserve the old account as clearly labelled history only when it explains a decision or failure. Never silently turn an assumption into a fact.
+
+### Required pre-change note
+
+Before implementation, produce a concise internal plan containing: observed branch/SHA and dirty state; related PRs; current implementation path; state classification; acceptance conditions; affected files; privacy/data/performance risks; tests and deployment checks. If the user asks for direct completion, proceed within the approved scope rather than stopping at the plan.
+
+## Current architecture guardrails
+
+- React 18 + TypeScript strict mode + Vite; Cloudflare Pages hosts the app and same-origin Pages Functions. Node.js 22 is the repository baseline.
+- Private catalogue metadata is read in one owner-authenticated GET /api/library request. The browser filters the in-memory catalogue locally. Do not introduce one metadata request per manga for ordinary catalogue, shelf, tag, collection or search views.
+- Manga-specific requests are appropriate for chapter manifests and actual image assets. Private covers are loaded lazily, deduplicated and cached in a bounded IndexedDB store; private page requests are authenticated and revision/checksum validated. Never expose Hugging Face bearer tokens or private dataset URLs to browser code.
+- The canonical private catalogue is data/library.json in the private HF dataset. Its schema and paths are described in docs/HF_READONLY_CONNECTION.md and the Controller contract. Legacy catalogue reads are compatibility-only and must remain fail-closed.
+- Private personal progress, shelves, ratings, notes, tags, favourites, chapter-completion markers, nested collections and usage analytics remain device-local. Manual JSON backups are private user files. There is no automatic cross-device personal-data sync.
+- The reader displays a whole chapter in one continuous vertical flow. Previous/Next navigate chapters, not individual pages. Preserve immutable manga/chapter/page IDs and zero-based internal page indexes.
+- Private chapter pages are online-only. Verified private covers may be cached locally for display; this is not private chapter offline reading. The synthetic sample has a separate explicit offline chapter-download flow. Never claim private media is encrypted.
+- Owner source-metadata corrections are limited to the protected Master flow. They require the authenticated owner, a separate short-lived owner grant, Hugging Face write scope and revision-safe server validation. The Storage Controller remains responsible for media uploads, deletion and migrations.
+- Keep the app usable without Shared Core or the parent Hub. Do not introduce runtime coupling merely to reuse UI.
+
+## Approved user-experience contract
+
+- End-user branding is **Taiyou's Manga Library**, never "Taiyou's Personal Manga Library".
+- Six visible primary shelves, in order: Home, Currently Reading, Trying Out, Available Offline, Finished, All Manga. The legacy To Be Read state/URL remains supported where necessary but is not a primary navigation item. Analytics is inside the bookmarkable Master Controls route and does not require the owner passphrase.
+- Six persisted themes: Sepia (default), Paper, Charcoal, Midnight, Ocean and Plum. Opening the theme menu must not change the current theme.
+- Use the approved transparent Taiyou Sun mark and matching theme-aware favicon/PWA artwork.
+- Catalogue cloud control sits immediately after the brand wordmark and shows a truthful green/red connection dot. Cloud settings remain in the cloud menu; never fake connectivity.
+- Home is a curated editorial page with three distinct, fully contained manga covers, a selected centre item and hover/focus-driven details/actions. Keep cover artwork inside its intended frame at desktop, split-screen and mobile widths.
+- Match the current Novel Library reference for approved shared chrome, details-card hierarchy, genuine Lucide icon paths, notification palette/placement, Master layout and analytics composition. Inspect the current Novel source before parity work; do not copy its EPUB reader or storage/auth implementation.
+- Publication ribbons (Story Complete, Updating, On Hiatus, Dropped) are source publication state, not personal reading completion. Only an explicit personal action marks a manga Finished.
+- The Manga reader is a continuous whole-chapter vertical image reader. Do not replace it with page-by-page Novel controls.
+- Use accessible, dismissible in-app notices; no browser-native alert/confirm prompts or decorative non-functional controls.
+- Footer: centred © [year] Taiyou's Manga Library · Created by Taiyou.
+- Analytics: device-only, opt-out, prospective actual activity estimates. The rolling 14-day chart has paired active-app/reading bars and dynamically spaced day/month labels every three days, including the current date. Never reconstruct or fabricate historical reading time.
+
+## Security, privacy and data safety
+
+- Public Git contains source, approved brand assets and public demo imagery/fixtures only. Never commit manga images, archives, manifests containing private media paths, private catalogue exports, personal backups, credentials, OAuth tokens, owner passphrases, private URLs or real user records.
+- VITE_* variables are public browser configuration. Secrets belong only in Cloudflare Pages Functions runtime secrets.
+- Private reads must pass server-side owner/session checks and object-level validation. Preserve Cache-Control: no-store on private API responses. The service worker must never intercept or cache /api/*.
+- Do not weaken OAuth state/PKCE, owner checks, SameSite/HttpOnly/Secure cookies, Origin/CSRF checks, content validation, revision guards or private media integrity checks to make a test pass.
+- Treat catalogue fields, notes, tags, imported metadata, archive indexes and URLs as untrusted. Render text safely; never inject HTML.
+- Never scrape protected sources, bypass paywalls/DRM, or fetch arbitrary user-supplied image URLs.
+- Never delete, overwrite or migrate private originals, catalogue records or user progress as a side effect of UI work. Destructive operations require explicit owner approval, a dry run, verified backup, exact revision and a tested recovery path.
+- Invalid local records are recovery evidence. Preserve them rather than silently clearing them.
+- Do not describe browser-local data as encrypted or durable. Browser storage can be cleared or evicted.
 
 ## Engineering standards
-Use TypeScript strict mode, pure domain helpers, explicit discriminated models, short independent modules, keyboard-accessible React components and responsive CSS. Make loading, empty, offline and error states truthful. Avoid unbounded in-memory media blobs or unnecessary network calls. Document performance budgets and measure when possible. UI controls must have useful actions, not decorative placeholders. Add accessible labels and test at 320/375/390/768/1280px when layout changes.
 
-## Tests and quality gates
-Unit tests cover edge cases, identity, ordering, partial data, malformed imports and regressions. Integration tests use a disposable private dataset or mocked adapter only. Browser tests should cover mobile/desktop, offline entry, keyboard navigation, privacy boundaries and failure behaviour. No paid external API calls from CI. A passing CI is necessary but not sufficient for user acceptance. Update `docs/TESTING.md` with new gates.
+- TypeScript strict mode; keep domain logic pure and separately tested.
+- Validate all untrusted JSON at runtime. Preserve stable IDs, ordering and schema compatibility.
+- Keep network requests bounded, cancellable where appropriate, deduplicated and scoped to actual user needs. Avoid N+1 catalogue metadata fetches and eager off-screen image decoding. Important: private chapters currently queue all page bytes immediately at concurrency 3 and retain their PageSource/object URLs until chapter close; only mounted/decoded image elements are viewport-bounded. Do not describe this as viewport-only downloading or a strict total-memory cap. Real-device long-chapter measurement remains outstanding.
+- Preserve the measured production bundle budgets in scripts/check-bundle.mjs. Any budget change requires measured before/after evidence and a narrow justification.
+- Use semantic HTML, keyboard-operable controls, visible focus, screen-reader labels, reduced-motion support and truthful loading/empty/error/offline states.
+- For UI changes, verify 320, 390, 768 and 1280 px at minimum; add 375/740/900/1536 px when the changed layout needs them. Check split-screen widths and no horizontal overflow.
+- Keep tests synthetic and deterministic. Do not make paid/external provider calls in CI.
 
-## Collaboration and reporting
-Propose schema changes as versioned, backwards-compatible ADRs. Never silently modify Shared Core public exports or other repos. State what is implemented, tested, still planned, blocked and deployed. Document affected APIs, migration, rollback and any tests not run. Keep secrets and real personal media out of AI handovers. Preserve owner preference for an independent, aesthetically refined personal library without unnecessary architectural overhead.
+## Standard development and release workflow
 
-## Hard stop conditions
-Stop a destructive operation, forced push, production data migration, deletion of source files, disclosure of private media, unsanctioned external scraping, or authentication weakening pending explicit approval. Stop and ask for the specific required consent rather than guessing it.
+1. Work on a short-lived branch from the latest master; never force-push master.
+2. Implement the smallest coherent change and add unit, component, API or browser tests at the appropriate layer.
+3. Update the authoritative docs and docs/PROJECT_STATUS.md when implementation status changes.
+4. Run npm ci, npm run typecheck, npm test, npm run build, and the relevant production-browser checks. Use E2E_PRODUCTION=1 npm run test:e2e for the Chromium suite against the production build; run npx playwright test --config playwright.cross-browser.config.ts for Firefox/WebKit.
+5. Inspect the final diff and ensure no unrelated or private files are included. Open a PR with exact scope, evidence, risk and rollback.
+6. The owner has authorised routine non-destructive PR merges and subsequent Cloudflare deployment without another approval after required checks pass. Merge only the exact green PR head SHA. Never merge on a partial, stale or cancelled run.
+7. After merge, verify the Live Cloudflare smoke workflow for the merged master SHA. Distinguish merged, deployed and owner-authenticated acceptance.
+8. Report what changed, exact PR/commit/run links, what was verified, what remains unverified and any follow-up gaps.
 
-## First engineering milestone
-A read-only local catalogue with an explicit no-data state, a chapter manifest validator, and a page reader prototype using generated/owned fixture images.
-**Definition of done:** Fixtures prove correct RTL/LTR page ordering, chapter transitions, resume on exact page, keyboard/touch operation and offline behaviour without exposing private image assets. Run all local checks and keep the production system unaffected.
+## Known boundaries and remaining acceptance
 
-## Visibility approval
-The owner authorised public **source code** on 18 November 2026. This is not approval to publish private manga, private datasets, credentials or production access details. Actual GitHub API visibility still needs confirmation; the last report remained private.
+Consult docs/PROJECT_STATUS.md and docs/ROADMAP.md for the current snapshot. Known non-goals/limitations include: no automatic cross-device sync for personal data; no private-media offline downloads; no in-app media upload or permanent media deletion; no general private HF catalogue migration; no verified physical iOS/Android acceptance or low-memory 300–1,000-page benchmark unless a current manual record says otherwise. Do not repeat these as facts without rechecking the code and current acceptance evidence.
 
-## Approved UI specification, 19 November 2026
-- Six visible shelves in exact order: Home, Currently Reading, Trying Out, Available Offline, Finished, All Manga. Previous To Be Read entries are still preserved internally. Analytics lives under the bookmarkable Master Controls view and needs no separate password; private catalogue management remains authenticated.
-- Mobile displays Currently Reading, Trying Out, Available Offline and a More menu, with no duplicated live links.
-- Six themes: Sepia (default), Paper, Charcoal, Midnight, Ocean, Plum. Persist selection; an open menu must not mutate it.
-- The Taiyou Sun artwork is approved and must remain transparent. Use the theme-specific mark, favicon and PWA icons; footer says Created by Taiyou.
-- Reader displays ALL images in one vertical scroll. Previous/Next navigate CHAPTERS only; bottom-centre chapter selector.
-- Personal reading shelf values and publication statuses are independent; shelf state is device-local pending secure cloud sync.
-- Use diagonal text ribbons on covers. No "Unrated" labels, browser-native confirms or fake connectivity.
-- Merge and deploy once CI passes unless the owner explicitly asks to stop. Preserve real user progress, downloaded images and rollback compatibility.
+## Documentation maintenance
 
-## Novel Library is the authoritative UI design reference (21 November 2026)
+- README.md is the concise public entry point.
+- docs/PROJECT_STATUS.md is the dated, evidence-backed state snapshot.
+- docs/PROJECT_HISTORY.md records the vision, evolution and durable lessons.
+- Architecture, data, security, testing, deployment and roadmap docs describe the current implementation.
+- Dated audit reports and old handovers are explicitly historical. Do not append another conflicting "current status" section to an obsolete document.
+- When a feature, API, schema, workflow, dependency, deployment or decision changes, update its owning doc in the same PR.
+- Keep the current status concise; move rationale and chronology to the history/ADR documents.
 
-**Do not approximate or redesign already-approved Novel Library interface details.**
-For every Manga UI change, inspect the corresponding **current** source under
-`AdityaSreevatsaK/Taiyous-Personal-Library/src/components/` and its CSS.
-Reuse exact Lucide SVGs, spacing, component composition, focus/mobile behaviour,
-control placement and footer text layout. Adapt only the Manga-specific
-data/IDs, chapter image reader and private Hugging Face integration.
+## Stop conditions
 
-- **Catalogue header:** Approved sun and title, the 25px/1.9-stroke Lucide cloud
-  immediately after the wordmark (not silently moved to the far right), with a
-  green/red dot inside. Theme controls belong in the opposite header tools.
-- **Manga details header:** Mirror Novel's `BookDetails.tsx` dedicated small
-  header, not the oversized catalogue masthead. Sun mark 32px, title-case brand,
-  centred `QuickNavigation`, compact theme picker. Novel's details header has
-  no cloud control; cloud settings remain reachable from the catalogue/reader.
-- **Details cards:** Follow Novel's `details-section-header` hierarchy and
-  *real* Lucide Bookmark, Info, Tag, Star, LockKeyhole, List and Pencil glyphs,
-  not glyph substitutes or blank ornament spans. Preserve semantics and actions.
-- **Layout:** Reuse Novel's grid proportions, card spacing, serif typography,
-  compact scrollable synopsis and responsive breakpoints; preserve manga-only
-  concepts. Never remove a functional manga control just for visual matching.
-- **Footer:** Centred `© [year] Taiyou's Manga Library · Created by Taiyou`,
-  not debug statements such as cloud-sync limitations or hub independence.
-- **Master Controls:** Use Novel's Settings2 symbol, direct navigation and
-  accessible analytics section; no separate analytics password.
-- **Regression gates:** Assert paths/size/stroke/placement, real icon paths,
-  mobile and split-screen widths (320, 390, 768, 1280), keyboard focus and
-  footer behaviour. CI DOM assertions alone do not establish pixel-perfect
-  parity: inspect representative screenshots when possible.
-- **Private data:** Never modify Novel Library or either private dataset while
-  porting UI. Keep Manga OAuth, source metadata, downloads, progress and IDs.
-
-See `docs/NOVEL_LIBRARY_UI_PARITY_2026-11-20.md` (historical audit plus
-21 November source-driven addendum).
-
-## Personal metadata acceptance
-Keep personal rating, notes, tags and shelves strictly in device-local versioned stores until reviewed server-side authorisation. Do not expose them in public static fixtures, telemetry, assets or URLs. Reader and publication statuses must stay independent. All destructive personal data operations require an application confirmation, not a browser alert. Treat invalid existing storage as immutable recovery evidence.
-
-## Nested collections constraints
-Treat collection IDs as immutable; preserve the tree on invalid data, reject cyclic reparenting and same-parent duplicates, protect writes by revision, and require an app dialog before deleting a collection subtree or membership. Never delete manga image bytes or reading progress as a side effect of collection operations. Deploy after green CI/merge.
-
-## Advanced discovery and analytics
-Never fabricate reading durations, streaks or completed chapters from a single latest-position record. Statistics must derive from validated local progress, personal ratings and actual offline chapter inventory only. Preserve bookmarkable /library filter query strings and Back/Forward behaviour. Advanced search is local-only, never an external metadata or personal-data request.
-
-## Private media security gate (ADR 007)
-The typed authorisation/data port is explicitly disabled and is not backend implementation. Never switch it to real network access without independent per-origin OAuth, server-side object-level authorisation, verified rights, secret isolation, path/MIME/size validation, CSRF protection on mutations, revisioned writes and a disposable-data integration test. Do not embed HF dataset tokens or private image URLs anywhere in frontend assets.
-
-
-## Approved Manga Master and analytics behaviour, 21 November 2026
-
-Use display name **Taiyou's Manga Library** across all end-user headers and footer. Analytics records prospective *actual* device-local foreground/focused/non-idle samples with opt-out, bounded retention, export and typed clearing; never invent historical time from progress timestamps. Private source title, author and publication edits need independent Cloudflare owner passphrase plus separate owner HF write permission and revision-safe data commit. Do not modify immutable manga/chapter/page IDs or delete private originals. Media deletion and upload remain the Storage Controller's responsibility. Always verify green CI on the final PR head before merging.
+Stop and obtain explicit owner approval before destructive private-data changes, permanent deletion, forced history changes, changing repository visibility, changing production secrets/OAuth configuration, widening third-party access, weakening security, or importing/uploading real media. A routine code/documentation change with synthetic tests is not a reason to stop for approval.

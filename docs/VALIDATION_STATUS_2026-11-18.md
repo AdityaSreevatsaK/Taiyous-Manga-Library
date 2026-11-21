@@ -1,3 +1,5 @@
+> **Historical validation snapshot, 18 November 2026.** Its claims that tests had not executed, the repo was private and production was not deployed are obsolete. It is retained for history only. Current evidence is in [PROJECT_STATUS.md](PROJECT_STATUS.md) and live GitHub Actions.
+
 # Scaffolding Validation Status (18 November 2026)
 
 ## What was actually committed

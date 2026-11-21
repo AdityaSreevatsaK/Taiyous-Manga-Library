@@ -1,34 +1,53 @@
-# Synthetic Manga Offline Reading (PR D)
+# Offline behaviour
 
-**Scope:** Public fictional catalogue only. Nothing in this milestone fetches, stores or publishes private or externally owned manga.
+Offline support has two separate scopes. Do not confuse the public application shell, synthetic sample chapter downloads and private cover caching.
 
-## Offline application shell
+## 1. Public application shell
 
-The production build includes `public/sw.js`. It is registered only in production, not the Vite development server. On successful install it fetches the local app's production HTML and its hashed JS/CSS bundle into a **new release-specific cache**. It records a ready marker only after every resource completes. If installation fails, the old release remains available.
+The production app registers public/sw.js. The build stamps the worker with a fingerprint derived from the production assets so changed builds trigger an update.
 
-Service worker navigation is network-first, falling back to a **self-contained offline HTML document** generated from the same verified first-party production JavaScript and CSS. This provides reliable cold starts even if Chromium fails to load separately cached assets. No third-party code or user data is embedded. A future strict CSP must explicitly account for this inline fallback or replace it with a compatible strategy. Hashed assets are cache-first and kept across at least the previous release. Cache cleanup excludes all media caches. This implementation does not promise offline access before a successful online visit.
+The worker:
+- Fetches the current app HTML, hashed JS/CSS and approved brand assets.
+- Stages them in a new release-specific cache.
+- Writes a ready marker only after all required resources and the self-contained offline fallback are complete.
+- Keeps the two newest verified shell releases and removes incomplete/older shell caches.
+- Uses a network-first navigation path and falls back to the newest verified offline shell.
+- Uses cache-first for known public app assets.
+- Excludes /api/*, the service worker script and private media routes from interception/caching.
 
-## Per-chapter media
+The self-contained offline document inlines trusted first-party production JS/CSS. Re-test this fallback if changing CSP or shell generation.
 
-A chapter can be explicitly downloaded from its series details. The app generates its own **synthetic** PNG pages, verifies each binary's PNG magic bytes, stores it in Cache Storage and records SHA-256 checksums and sizes in a separate versioned `localStorage` receipt.
+## 2. Synthetic sample chapter downloads
 
-- Sequential download: bounded memory, byte budget 75 MiB per chapter, per-page progress and cancellation.
-- Two-phase completion: the receipt is committed only **after every cached page has passed integrity checks**. Version 1 receipts require strict UTC completion timestamps, complete page IDs and a maximum total of 75 MiB.
-- Interrupted/failed new downloads clean up only pages written by that attempt. Existing valid copies are never overwritten silently.
-- Corrupt, missing or incomplete copies show an explicit recovery state; remove the damaged copy before a new download.
-- The reader retrieves cached bytes and verifies their checksums before decoding. There is no silent fallback to newly generated pages for a recorded offline chapter.
-- Remove individual offline copies without any Owner mode or access to cloud content; reading progress and preferences remain untouched.
-- The Offline tab only lists verified local chapter copies.
-- No full-series download is automatic.
+The synthetic sample reader supports explicit per-chapter downloads. These are not private manga files.
 
-## Security and limits
+- User initiates each download; no whole-series or automatic download.
+- Pages are fetched/generated sequentially with bounded memory and a 75 MiB per-chapter byte budget.
+- The app verifies PNG bytes and SHA-256 receipts before marking a chapter complete.
+- The receipt is committed only after every page has passed integrity checks.
+- Interrupted or failed attempts remove only the pages written by that attempt.
+- Corrupt or incomplete copies show a recovery state; they are not silently replaced.
+- The Offline shelf lists verified local sample chapter copies.
+- Removing a sample offline copy does not remove reading progress or unrelated copies.
 
-Browser `CacheStorage`, `crypto.subtle`, and `localStorage` must be available; browsers may deny access or evict site data. No auth, Hugging Face data, private URL, token, real manga page or untrusted binary is involved. SHA-256 is local integrity verification, not licensing proof. Real private media will require a separately approved asset adapter and rights checks.
+Chapter downloads use a separate CacheStorage namespace from the app shell.
 
-## Acceptance
+## 3. Private manga media
 
-CI now runs Playwright against `npm run build` + `npm run preview`, not only the development server. Tests cover opt-in downloads, chapter counts, offline image blob use, missing/corrupt page recovery, removal without progress loss, vertical image bounds, no automatic downloads, and **cold offline launch** with a service-worker-controlled production app. Manual mobile-browser/OS storage-eviction tests remain pending.
+Private catalogue and chapter pages require an online owner-authenticated request through Cloudflare Pages Functions. Private chapter pages are not downloaded to CacheStorage and cannot currently be read offline.
 
-## Rollback
+Verified private covers may be stored in a bounded IndexedDB cache for repeat display. This is a cover-performance optimisation only; it does not provide private chapter offline reading. The cover cache is cleared on sign-out.
 
-The app's new service worker cache retains previously verified release assets. The downloaded synthetic chapter cache is separate from shell caches; routine app updates must never delete it. To roll back the app, redeploy the previous known-good Cloudflare production release after owner approval. No automatic purge of personal progress or media.
+## Security and limitations
+
+- CacheStorage, IndexedDB, localStorage and browser quotas may be unavailable or evicted by the browser/OS.
+- Local storage is not device encryption.
+- SHA-256 confirms byte integrity, not ownership, permission or licence.
+- No private HF token, session, private URL or API response is cached by the service worker.
+- Do not clear personal records or offline sample chapters as a generic app rollback.
+
+## Verification
+
+CI tests the production build, synthetic opt-in downloads, cancellation, corruption recovery, offline shell, cold offline launch, service-worker fingerprint and two-release rollback. Physical Android/iOS storage eviction and OS background behaviour remain manual acceptance.
+
+See docs/SERVICE_WORKER_RELEASES.md and docs/REAL_DEVICE_ACCEPTANCE.md.

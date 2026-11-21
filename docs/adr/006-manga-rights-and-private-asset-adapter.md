@@ -1,6 +1,9 @@
 # ADR-006: Manga rights manifest, asset addressing and private adapter boundary
 
-**Status:** Proposed, pending owner review before importing or synchronising any real media  
+> Historical design proposal from 18 November 2026. The private Hugging Face dataset, owner OAuth and authenticated cover/chapter gateway were implemented later. Use ADR-007 and docs/ARCHITECTURE.md for the current implementation. The rights, path-validation and recovery principles below remain relevant.
+
+
+**Status:** Superseded as an implementation proposal by ADR-007 and the live private gateway. Retained as the original rights/manifest design record.  
 **Date:** 18 November 2026  
 **Scope:** Taiyous-Manga-Library only  
 **Source of truth:** Domain validators in `src/domain/validation.ts`; this ADR deliberately does **not** select a provider or grant upload permission.
@@ -80,7 +83,7 @@ The result types must distinguish `unavailable`, `unauthorised`, `offline`, `cor
 
 ## Privacy, sync and deletion
 
-Separate four stores: public descriptive metadata; private personal ratings/tags/progress; protected originals and validated manifests; revisions, tombstones and sync conflicts. Offline caching is opt-in per chapter, limited by quota, with explicit Clear Offline Copy. Permanent deletion must require server-authorised owner confirmation, proven backup and revision guard. The current prototype retains synthetic progress only in React memory and never uploads anything.
+Separate four stores: public descriptive metadata; private personal ratings/tags/progress; protected originals and validated manifests; revisions, tombstones and sync conflicts. Offline caching is opt-in per chapter, limited by quota, with explicit Clear Offline Copy. Permanent deletion must require server-authorised owner confirmation, proven backup and revision guard. At proposal time the prototype retained synthetic progress only in React memory. Current private media access is implemented through the gateway described in ADR-007; media uploads and deletion remain with the Storage Controller.
 
 ## Compatibility, testing and rollback
 

@@ -3,8 +3,10 @@ import { parseCatalogue, parseChapterManifest, parseSourceRights,
 import type { MangaEntry, ChapterManifest, MangaPage, SourceRights } from './types';
 
 /**
- * Phase F boundary for a future same-origin, server-authorised media gateway.
- * These types do not create a session, resolve remote URLs or authenticate a user.
+ * Legacy design-time media-port contract and runtime response validators.
+ * The UnconnectedPrivateMedia stub below is retained for no-network unit tests only.
+ * Production HTTP access is implemented in src/data/privateLibrary.ts and
+ * src/data/privateMedia.ts, with owner authorisation in functions/api/*.
  */
 export type MediaFailure =
   | { status:'not-connected' }
@@ -33,7 +35,7 @@ export interface AuthorisedPrivateMediaPort {
   getPage(identity:MediaPageIdentity,signal?:AbortSignal):
     Promise<MediaResult<VerifiedPageResponse>>;
 }
-/** Intentionally disabled adapter until audited per-app OAuth and server-side authorisation ship. */
+/** Safe no-network stub for tests and legacy callers; never use as the production gateway. */
 export class UnconnectedPrivateMedia implements AuthorisedPrivateMediaPort {
   async getCatalogue(_signal?:AbortSignal):Promise<MediaFailure> {return {status:'not-connected'};}
   async getChapterManifest(_mangaId:string,_chapterId:string,_signal?:AbortSignal):Promise<MediaFailure> {return {status:'not-connected'};}
@@ -41,8 +43,9 @@ export class UnconnectedPrivateMedia implements AuthorisedPrivateMediaPort {
   async getPage(_identity:MediaPageIdentity,_signal?:AbortSignal):Promise<MediaFailure> {return {status:'not-connected'};}
 }
 /**
- * Validates the exact catalogue/chapter/page lineage before any future gateway
- * may deliver authorised media. Caller-supplied URLs are never accepted.
+ * Validates exact catalogue/chapter/page lineage. This is a data-integrity
+ * check, not an authentication check; production authorisation is server-side.
+ * Caller-supplied URLs are never accepted.
  */
 export function verifyPageIdentity(identity:MediaPageIdentity,
   entries:readonly MangaEntry[],manifests:ReadonlyMap<string,ChapterManifest>):MangaPage {
