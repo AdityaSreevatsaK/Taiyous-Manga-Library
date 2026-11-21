@@ -1,5 +1,5 @@
 /** Domain-specific opaque IDs. Display names and chapter labels are never keys. */
-export type PublicationStatus = 'unknown' | 'ongoing' | 'completed' | 'hiatus';
+export type PublicationStatus = 'unknown' | 'ongoing' | 'completed' | 'hiatus' | 'dropped';
 export type ReadingDirection = 'rtl' | 'ltr' | 'vertical';
 export interface MangaChapter {
   id: string;
