@@ -45,3 +45,33 @@
 1. Actual manga covers require a safe, approved private image path, not fake remote URLs.
 2. Populated private catalogue layout requires real metadata. Revisit featured manga, recommendation rails and visual balance with actual entries.
 3. Hardware acceptance on iOS Safari and Android Chrome remains separate from emulated browser tests.
+
+---
+
+## 21 November 2026: Source-driven parity follow-up
+
+The table above records a historical 20 November prototype, **not the current
+navigation or the full accepted visual specification**.
+
+The owner compared two actual details-page screenshots and marked differences
+in the top brand/utility controls, absent card-header icons, chapter heading
+glyph, synopsis actions, footer text alignment and missing return-to-top.
+The implementation must use the Novel Library source as the **contract**:
+
+| Area | Current Novel source | Required Manga adaptation |
+|---|---|---|
+| Details masthead | `BookDetails.tsx` `details-topbar`, `BrandMark` (32px), `QuickNavigation`, compact `ThemeSwitcher` | Dedicated details header with Manga branding, reused sun, quick nav and same six-theme choices, no extra cloud icon here |
+| Catalogue cloud | `LibraryDashboard.tsx` adjacent to wordmark, Lucide `Cloud` 25px/1.9 stroke, 6px dot | Leave adjacent to Manga sun, never independently reposition rightwards; same icon component |
+| Master icon | `LibraryDashboard.tsx`: Lucide `Settings2` 16px | Use exact path instead of LockKeyhole in the Master link |
+| Side cards | `BookDetails.tsx` `details-section-header` with Bookmark, Info, Tag, Star, LockKeyhole | Use identical semantic and decorative SVGs on Manga's corresponding cards |
+| Chapters | `ChapterBrowser.tsx` uses Lucide `List` | Replace plain glyph placeholder with List, preserve Manga's chapter manifests and zero-based page ordering |
+| Synopsis | `BookDetails.tsx`: edit Pencil control, serif scrollable text | Same edit action, typography, scrollbar and keyboard access, while local override never edits private HF metadata |
+| Footer | `site-footer.css`: centred year, site title and “Created by Taiyou” | Replace the former spread-out private-connection/debug text |
+| Back to top | `BackToTop.tsx` / `back-to-top.css` | Same scroll threshold, dimensions and focus/motion behaviour |
+| Navigation | Current owner decision | Six visible shelves. Analytics is under Master, no separate password. Old `/analytics` and `/to-read` links redirect safely |
+
+**Verification:** Expanded browser tests target the actual reference elements at
+320, 390, 768 and 1280px, including status dot, theme controls, card icons,
+scrollable synopsis, navigation and responsive footer. Cross-browser checks,
+production build, Cloudflare smoke and real device acceptance remain distinct.
+Never claim pixel-perfect matching merely because typechecking and tests pass.
