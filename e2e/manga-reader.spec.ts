@@ -1312,7 +1312,7 @@ test('Novel cloud indicator occupies the upper-right desktop tools without chang
   await expect(glyph).toHaveAttribute('height','25');
   await expect(glyph).toHaveAttribute('stroke-width','1.9');
   await expect(cloud.locator('.cloud-status-dot')).toHaveCount(1);
-  await cloud.locator('summary').click();
+  await cloud.locator(':scope > summary').click();
   await expect(page.getByRole('heading',{name:'Cloud library settings'})).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(cloud).not.toHaveAttribute('open','');
