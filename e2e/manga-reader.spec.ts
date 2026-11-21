@@ -1001,15 +1001,16 @@ test.describe('advanced discovery and grounded personal analytics',()=>{
     await expect(page.locator('.vertical-page-image').first()).toBeVisible();
     await page.goto('/analytics');
     await expect(page).toHaveURL('/master?view=analytics');
-    await expect(page.locator('.manga-master-page').getByRole('heading',{name:'Analytics'})).toBeVisible();
+    await expect(page.locator('.manga-master-page').getByRole('heading',{name:'Reading analytics'})).toBeVisible();
     await expect(page.getByRole('navigation',{name:'Master Controls sections'})).toBeVisible();
     await expect(page.getByRole('heading',{name:'Private owner access required'})).toHaveCount(0);
     await expect(page.getByRole('textbox',{name:/passphrase|password/i})).toHaveCount(0);
+    await page.getByText('More manga insights',{exact:true}).click();
     await expect(page.locator('.analytics-grid')).toContainText('1');
     await expect(page.locator('.analytics-grid')).toContainText('8');
     await expect(page.locator('.manga-usage-positions')).toContainText('The Lantern Archive');
     await expect(page.locator('.analytics-ratings')).toContainText('My ratings distribution');
-    await expect(page.locator('.manga-usage-times')).toContainText('Manga reading time');
+    await expect(page.locator('.manga-usage-times')).toContainText('Reading time');
   });
   test('advanced Search header stays usable on small mobile screens',async({page})=>{
     for(const width of [320,375,390,768]){
@@ -1404,6 +1405,7 @@ test('Novel catalogue cloud sits immediately beside sun wordmark without changin
 test('Analytics works without an owner password, with management still protected',async({page})=>{
   await page.goto('/master?view=analytics');
   await expect(page.locator('.manga-master-page .analytics-shelf')).toBeVisible();
+  await page.getByText('More manga insights',{exact:true}).click();
   await expect(page.locator('.analytics-grid')).toContainText('Catalogue series');
   await expect(page.getByRole('heading',{name:'Private owner access required'})).toHaveCount(0);
   await expect(page.locator('input[type=password]')).toHaveCount(0);
