@@ -50,7 +50,7 @@ A chapter manifest is a version-1 manga document with chapterId and an ordered p
 
 Supported image MIME types are image/jpeg, image/png, image/webp and image/avif. Arbitrary absolute URLs, foreign origins, traversal paths, mismatched IDs, unsupported types, duplicate page IDs, excessive page counts and unsafe dimensions must fail validation. The reader never treats an untrusted assetPath as a browser URL.
 
-Private page delivery validates the exact manga → chapter → page lineage. For canonical imports the page gateway can use the authenticated catalogue revision and validated page descriptor; the server still checks owner, current revision, path, MIME, byte length and SHA-256. The older manifest-gated path remains for legacy records.
+The browser validates the exact manga → chapter → page lineage against the authenticated catalogue and chapter manifest. For canonical imports it sends the immutable catalogue revision and validated page descriptor. The server checks the owner session, revision/descriptor format, ID-derived path, MIME, byte length and SHA-256 of the bytes. It does not re-read the moving main revision or catalogue/manifest for every canonical page request; the supplied revision is immutable. Legacy requests without a pinned descriptor re-resolve catalogue and manifest membership server-side.
 
 ## 3. Progress identity and semantics
 
