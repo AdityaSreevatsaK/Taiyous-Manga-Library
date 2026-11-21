@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { entries as realEntries } from './data/catalogue';
 import { fetchPrivateLibrary, type CloudRead } from './data/privateLibrary';
 import { fetchPrivateChapter, privateResumeChapter } from './data/privateMedia';
@@ -12,7 +12,7 @@ import { MangaBrandMark } from './components/MangaBrandMark';
 import { MangaBackToTop } from './components/MangaBackToTop';
 import { MangaSuccessToast } from './components/MangaSuccessToast';
 import { MangaOwnerTools } from './components/MangaOwnerTools';
-import { MangaMasterControls } from './components/MangaMasterControls';
+const MangaMasterControls=lazy(()=>import('./components/MangaMasterControls').then(module=>({default:module.MangaMasterControls})));
 import { SearchIcon, HashIcon, LibraryIcon, BookOpenIcon, ChevronDownIcon, BookmarkIcon, InfoIcon, TagIcon, StarIcon, LockKeyholeIcon } from './components/SharedLibraryIcons';
 import { MangaThemeSwatches } from './components/MangaThemeSwatches';
 import { VerticalReader } from './components/VerticalReader';
@@ -1084,7 +1084,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
       </nav>
     </header>}
     <main id="content" className="main-area">
-      {screen.kind==='master'&&<MangaMasterControls
+      {screen.kind==='master'&&<Suspense fallback={<p role="status">Loading Master Controls…</p>}><MangaMasterControls
         connected={cloud.status==='connected'} checking={cloud.status==='checking'}
         owner={cloud.status==='connected'?cloud.owner:undefined}
         revision={cloud.status==='connected'?cloud.revision:undefined}
@@ -1109,7 +1109,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
         onBack={event=>followLink(event,()=>goCatalogue('library'))}
         hrefFor={item=>routeHref({kind:'details',mangaId:item.id},import.meta.env.BASE_URL,remoteEntries)}
         onOpenDetails={(event,item)=>followLink(event,()=>navigateTo({kind:'details',mangaId:item.id}))}
-      />}
+      /></Suspense>}
       {screen.kind === 'catalogue' && <>
         {screen.section==='home' && (catalogue.length>0 ? <MangaEditorialHome
           key={demo?'home-demo':'home-private'}
