@@ -38,7 +38,8 @@
 - Test Android Chrome and iOS Safari on physical devices using the original synthetic Five Chapter Scroll Trial.
 - Verify whole-chapter scrolling, chapter-only previous/next, touch targets, focus/keyboard, rotation, safe areas, resume after backgrounding and theme contrast.
 - Run authorised disposable 300-, 500- and 1,000-page image sets on a low-memory phone.
-- Measure initial load, scroll jank, peak memory where available, decoded-image count, orientation changes and recovery after storage eviction.
+- Measure initial load, total downloaded bytes, retained page-source memory, scroll jank, peak memory where available, decoded-image count, orientation changes and recovery after storage eviction.
+- Decide from measurements whether private page preloading needs a rolling/chunked window and source eviction; preserve instant scrolling, retry and progress semantics.
 - Do not claim the binary-search geometry tests establish hardware memory performance.
 
 ## P2: private gateway and owner-edit hardening
