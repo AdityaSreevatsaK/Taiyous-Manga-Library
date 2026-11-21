@@ -1298,6 +1298,26 @@ test('verified manga owner sees useful Master controls without unsafe upload API
   await expect(page.getByRole('heading',{name:'Your private library is empty'})).toBeVisible();
 });
 
+test('Novel cloud indicator occupies the upper-right desktop tools without changing its glyph',async({page})=>{
+  await page.setViewportSize({width:1280,height:850});
+  await page.goto('/');
+  const cloud=page.locator('.manga-cloud-menu');
+  const wordmark=page.locator('.manga-topbar .wordmark');
+  const cloudBox=await cloud.boundingBox(),logoBox=await wordmark.boundingBox();
+  expect(cloudBox).toBeTruthy();
+  expect(logoBox).toBeTruthy();
+  expect(cloudBox!.x).toBeGreaterThan(logoBox!.x+logoBox!.width+100);
+  const glyph=cloud.locator('svg').first();
+  await expect(glyph).toHaveAttribute('width','25');
+  await expect(glyph).toHaveAttribute('height','25');
+  await expect(glyph).toHaveAttribute('stroke-width','1.9');
+  await expect(cloud.locator('.cloud-status-dot')).toHaveCount(1);
+  await cloud.locator('summary').click();
+  await expect(page.getByRole('heading',{name:'Cloud library settings'})).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(cloud).not.toHaveAttribute('open','');
+});
+
 test('unauthenticated Master route never exposes a private catalogue',async({page})=>{
   await page.goto('/master');
   await expect(page.getByRole('heading',{name:'Master Controls'})).toBeVisible();
