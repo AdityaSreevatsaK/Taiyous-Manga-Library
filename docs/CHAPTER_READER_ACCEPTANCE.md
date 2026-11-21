@@ -1,36 +1,42 @@
-# Five-chapter continuous reader: acceptance checklist
+# Five-chapter continuous reader acceptance
 
-**Live application:** https://taiyous-manga-library.pages.dev/
+**Live application:** https://taiyous-manga-library.pages.dev/  
+**Synthetic fixture:** Five Chapter Scroll Trial (mng_fivechaptertrial).
 
-The fixture catalogue includes **Five Chapter Scroll Trial** (`mng_fivechaptertrial`), an entirely original synthetic manga created in the browser. It is separate from the empty private catalogue.
+The public fixture is original synthetic demonstration artwork, separate from the private HF catalogue. It contains five chapters and 36 generated sample pages:
 
 | Chapter | ID | Pages |
-| --- | --- | ---: |
-| 01 · The awakening | `ch_trialawakening` | 7 |
-| 02 · The crossroads | `ch_trialcrossroad` | 6 |
-| 03 · The sky bridge | `ch_trialskybridge` | 9 |
-| 04 · A spark of light | `ch_trialstarlight` | 8 |
-| 05 · The new dawn | `ch_trialnewdawn` | 6 |
+|---|---|---:|
+| 01 · The awakening | ch_trialawakening | 7 |
+| 02 · The crossroads | ch_trialcrossroad | 6 |
+| 03 · The sky bridge | ch_trialskybridge | 9 |
+| 04 · A spark of light | ch_trialstarlight | 8 |
+| 05 · The new dawn | ch_trialnewdawn | 6 |
 
-Total: **five chapters, 36 original sample pages.** Neither the manga nor the pages originate from an external website.
+## Public sample test
 
-## Test on phone and desktop
+1. Open Library → Five Chapter Scroll Trial → Read from beginning.
+2. Scroll through the entire chapter in one continuous vertical view.
+3. Use Next chapter once; the next chapter starts at its first page. Previous chapter returns to the prior chapter.
+4. Confirm the first chapter has no Previous chapter and the final chapter has no Next chapter.
+5. Jump to a page, reload and confirm saved chapter/page and approximate vertical offset.
+6. Try Wide view, theme, chapter selector, Jump within chapter, focus view and Back/Forward.
+7. Download one synthetic chapter explicitly, disconnect the network and verify that the sample chapter and app shell work offline.
+8. Remove that offline copy and verify progress and unrelated copies remain.
 
-1. Open **Library → Five Chapter Scroll Trial → Read from beginning**. The chapter's full page sequence must be vertically scrollable without pressing Next for individual pages.
-2. Scroll from the first to the last illustration. All seven pages of chapter 1 occupy the same continuous chapter view; nearby images load as needed.
-3. At the bottom, select **Next chapter** once. Chapter 2 must open at its first page, with all six pages below it. **Previous chapter** returns to the first page of chapter 1.
-4. Repeat through chapter 5. Its **Next chapter** control must be disabled, and chapter 1's **Previous chapter** control must be disabled.
-5. Scroll halfway through a chapter, then return via the series page's **Continue reading** link. The exact page and approximate vertical offset should be restored. Reload the browser to verify local persistence.
-6. Try **Wide view**, the reader themes, the chapter selector, **Jump within chapter**, focus view and Back/Forward navigation. On narrow mobile screens there must be no horizontal scrolling or tiny buttons.
-7. On series details, choose **Download chapter** for one chapter. In **Offline**, open that specific chapter with the device disconnected; the app shell and downloaded images should be usable. Other chapters are **not** downloaded automatically. Removing the offline copy must preserve reading progress.
+## Private manga acceptance is separate
 
-## Architectural boundaries
+The public synthetic fixture does not prove private media access. Owner-authenticated acceptance must separately verify a real private cover, manifest and page through the Manga Cloudflare gateway, without exposing an HF token or private HF URL. See docs/REAL_DEVICE_ACCEPTANCE.md and docs/HF_READONLY_CONNECTION.md.
 
-- Page URLs and local progress retain immutable chapter/page IDs for accurate resume even though navigation is chapter-only.
-- Downloaded images are explicitly opted into and integrity-checked; large chapters are rendered with limited neighbouring images decoded at a time.
-- The source is still fictional fixtures. Personal manga imports, private Hugging Face data, backend authentication, authorised media delivery and cross-device syncing are separate milestones.
+## Architecture boundaries
+
+- Reader progress uses immutable manga/chapter/page IDs; route page numbers are one-based and internal page indexes are zero-based.
+- Whole-chapter vertical scrolling is retained. Previous/Next navigate chapters, not individual pages.
+- Image requests are bounded and nearby images are mounted/decoded to limit display memory.
+- Synthetic offline copies are explicit opt-in. Private chapter pages are not downloaded for offline use.
+- The private catalogue is loaded as a complete owner-authenticated snapshot; ordinary filters are local.
 - No real manga images, credentials or private content belong in public GitHub code, frontend assets or logs.
 
-## Engineering verification
+## Automated verification
 
-GitHub Actions runs TypeScript, unit tests, production build and Playwright Chromium checks. The separate *Live Cloudflare smoke* workflow compares real served asset hashes against the current source build, checks deep links for the trial series, and confirms the service worker and chapter-only controls are present. CI passing alone does not establish real-device acceptance.
+GitHub Actions runs TypeScript, Vitest, production build, bundle budgets and Chromium browser tests. A separate workflow runs Firefox/WebKit smoke. A post-merge Cloudflare workflow verifies the exact public build and anonymous private API denial. None of these substitutes for actual owner sign-in or physical-device testing.
