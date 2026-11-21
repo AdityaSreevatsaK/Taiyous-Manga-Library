@@ -23,7 +23,7 @@ import { MangaCoverArtwork } from './components/MangaCoverArtwork';
 import { MangaSynopsisCard } from './components/MangaSynopsisCard';
 import {clearMangaCoverCache} from './data/coverCache';
 import {ratingLabel,ratingSummary,ratingToneClass} from './domain/ratings';
-import { CATALOGUE_SECTIONS, parseAppRoute, resolveAppRoute, routeHref, type AppRoute, type CatalogueSection } from './domain/routes';
+import { CATALOGUE_SECTIONS, PRIMARY_NAV_SECTIONS, parseAppRoute, resolveAppRoute, routeHref, type AppRoute, type CatalogueSection } from './domain/routes';
 import { loadShelves, saveShelf, type PersonalShelf, type ShelfSelection } from './domain/personalShelves';
 import { collectionBreadcrumb, loadCollections, saveCollections, setCollectionMembership,
   type CollectionState } from './domain/personalCollections';
@@ -65,7 +65,7 @@ const publicationCaption:Record<PublicationStatus,string>={
 const ribbonCaption:Record<PublicationStatus,string>={
   completed:'Story Complete',ongoing:'Updating',hiatus:'On Hiatus',unknown:'Unknown',
 };
-type Screen = { kind: 'catalogue'; section: CatalogueSection } | {kind:'master'} | { kind: 'details' | 'reader'; id: string } | { kind: 'not-found' };
+type Screen = { kind: 'catalogue'; section: CatalogueSection } | {kind:'master';view?:'analytics'} | { kind: 'details' | 'reader'; id: string } | { kind: 'not-found' };
 function currentBrowserRoute(): AppRoute {
   return typeof window === 'undefined' ? { kind: 'home' } :
     parseAppRoute(window.location.pathname, window.location.search, import.meta.env.BASE_URL);
@@ -117,7 +117,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
     status:'checking',message:'Checking private library connection…',
   });
   const [screen, setScreen] = useState<Screen>(() => {
-    if(initialRoute.kind==='master')return {kind:'master'};
+    if(initialRoute.kind==='master')return {kind:'master',view:initialRoute.view};
     if (initialRoute.kind !== 'details' && initialRoute.kind !== 'reader' && initialRoute.kind !== 'not-found') {
       return { kind: 'catalogue', section: initialRoute.kind };
     }
@@ -219,9 +219,9 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
       section === 'analytics' || section === 'home' ? 0 : catalogue.filter(item => onShelf(item, section)).length],
   )) as Record<CatalogueSection, number>;
   const selectedSection = screen.kind === 'catalogue' ? screen.section : null;
-  const currentNav = compactNav ? CATALOGUE_SECTIONS.filter(section =>
-    ['reading','trying','offline'].includes(section)) : CATALOGUE_SECTIONS;
-  const moreNav = compactNav ? CATALOGUE_SECTIONS.filter(section => !currentNav.includes(section)) : [];
+  const currentNav = compactNav ? PRIMARY_NAV_SECTIONS.filter(section =>
+    ['reading','trying','offline'].includes(section)) : PRIMARY_NAV_SECTIONS;
+  const moreNav = compactNav ? PRIMARY_NAV_SECTIONS.filter(section => !currentNav.includes(section)) : [];
 
   const filtered = useMemo(() => {
     const personalId=collection.startsWith('personal:')?collection.slice('personal:'.length):null;
@@ -295,7 +295,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
         }else if(bookmarked.kind==='not-found'){
           setScreen({kind:'not-found'});
         }else if(bookmarked.kind==='master'){
-          setScreen({kind:'master'});
+          setScreen({kind:'master',view:bookmarked.view});
         }else{
           setScreen({kind:'catalogue',section:bookmarked.kind});
         }
@@ -305,7 +305,8 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
   }, []);
   useEffect(()=>{
     const route=resolveAppRoute(currentBrowserRoute(),catalogue);
-    if(route.kind!=='details'&&route.kind!=='reader')return;
+    if(route.kind!=='details'&&route.kind!=='reader'&&route.kind!=='master'&&
+      !(route.kind==='library'&&window.location.pathname.endsWith('/to-read')))return;
     const canonical=routeHref(route,import.meta.env.BASE_URL,catalogue);
     if(window.location.pathname+window.location.search!==canonical)
       window.history.replaceState(null,'',canonical);
@@ -595,7 +596,10 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
     }
     setNotice('');
     if(route.kind==='master'){
-      exitImmersive();setLocation(null);setScreen({kind:'master'});
+      const canonical=routeHref(route,import.meta.env.BASE_URL,catalogue);
+      if(window.location.pathname+window.location.search!==canonical)
+        window.history.replaceState(null,'',canonical);
+      exitImmersive();setLocation(null);setScreen({kind:'master',view:route.view});
       return;
     }
     if (route.kind !== 'details' && route.kind !== 'reader' && route.kind !== 'not-found') {
@@ -946,14 +950,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
           <MangaOwnerTools connected={cloud.status==='connected'}
             href={routeHref({kind:'master'},import.meta.env.BASE_URL,catalogue)}
             active={screen.kind==='master'}
-            onOpen={event=>followLink(event,()=>{
-              if(demo){
-                setDemo(false);
-                setPersonalShelves(loadShelves(remoteEntries).shelves);
-                setAnnotations(loadAnnotations(remoteEntries).annotations);
-              }
-              navigateTo({kind:'master'});
-            })}/>
+            onOpen={event=>followLink(event,()=>navigateTo({kind:'master'}))}/>
         </div>
       </nav>
     </header>
@@ -962,6 +959,14 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
         connected={cloud.status==='connected'} checking={cloud.status==='checking'}
         owner={cloud.status==='connected'?cloud.owner:undefined}
         refreshing={refreshingMetadata} entries={remoteEntries}
+        analytics={analytics} view={screen.view==='analytics'?'analytics':'overview'}
+        overviewHref={routeHref({kind:'master'},import.meta.env.BASE_URL,catalogue)}
+        analyticsHref={routeHref({kind:'master',view:'analytics'},import.meta.env.BASE_URL,catalogue)}
+        onView={(event,view)=>followLink(event,()=>navigateTo(view==='analytics'
+          ?{kind:'master',view:'analytics'}:{kind:'master'}))}
+        onReading={()=>goCatalogue('reading')}
+        analyticsDetailHref={id=>routeHref({kind:'details',mangaId:id},import.meta.env.BASE_URL,catalogue)}
+        onOpenAnalyticsDetails={(event,id)=>followLink(event,()=>navigateTo({kind:'details',mangaId:id}))}
         progress={progress} annotations={annotations} offlineChapterIds={offlineChapterIds}
         onRefresh={()=>{void refreshPrivateCatalogue();}}
         backHref={routeHref({kind:'library'},import.meta.env.BASE_URL,catalogue)}
@@ -1043,53 +1048,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
             })}
           </div>
         </section>}
-        {screen.section === 'analytics' ? <section className="analytics-shelf" aria-label="Personal reading analytics">
-          <p className="eyebrow">YOUR READING SNAPSHOT / THIS DEVICE</p>
-          <h1>Analytics</h1>
-          <p>Only your saved device-local reading positions, personal shelves and ratings. No invented reading duration,
-            historical streaks or external tracking.</p>
-          <div className="analytics-grid">
-            <div><strong>{analytics.started}</strong><span>Series with saved reading progress</span></div>
-            <div><strong>{analytics.reading}</strong><span>Currently reading</span></div>
-            <div><strong>{analytics.finished}</strong><span>Personally finished</span></div>
-            <div><strong>{analytics.toRead}</strong><span>To Be Read</span></div>
-            <div><strong>{analytics.trying}</strong><span>Trying Out</span></div>
-            <div><strong>{analytics.downloadedChapters}</strong><span>Offline chapters in {analytics.offlineSeries} series</span></div>
-            <div><strong>{analytics.avgRating??'–'}</strong><span>Average personal rating / 10 ({analytics.rated} rated)</span></div>
-            <div><strong>{analytics.total}</strong><span>Catalogue series</span></div>
-          </div>
-          <div className="analytics-detail-grid">
-            <section className="analytics-recent">
-              <h2>Recently saved positions</h2>
-              {analytics.recent.length ? <ul>{analytics.recent.slice(0,8).map(item=>
-                <li key={item.mangaId}>
-                  <a href={routeHref({kind:'details',mangaId:item.mangaId},import.meta.env.BASE_URL,catalogue)}
-                    onClick={event=>followLink(event,()=>navigateTo({kind:'details',mangaId:item.mangaId}))}>
-                    <strong>{item.title}</strong></a>
-                  <span>{item.chapter} · Page {item.page}</span>
-                  <time dateTime={item.savedAt}>{new Date(item.savedAt).toLocaleDateString('en-GB')}</time>
-                </li>)}</ul> :
-                <p>No saved reading positions on this device yet.</p>}
-            </section>
-            <section className="analytics-genres">
-              <h2>Genres in currently reading</h2>
-              {analytics.genres.length ? <ul>{analytics.genres.slice(0,8).map(item=>
-                <li key={item.name}><span>{item.name}</span><strong>{item.count}</strong></li>)}</ul> :
-                <p>Start reading a series to see its genres.</p>}
-            </section>
-            <section className="analytics-ratings">
-              <h2>My ratings distribution</h2>
-              {analytics.rated ? <div className="ratings-histogram">
-                {analytics.ratingsDistribution.map(item=><div key={item.score}
-                  className="rating-column" aria-label={item.score+' out of 10: '+item.count+' manga'}>
-                  <span>{item.count||''}</span><div className="rating-bar" style={{height:(item.count/analytics.rated*100)+'%'}} />
-                  <small>{item.score}</small>
-                </div>)}
-              </div> : <p>Rate manga on its details page to see your distribution.</p>}
-            </section>
-          </div>
-          <button className="secondary" type="button" onClick={()=>goCatalogue('reading')}>View currently reading</button>
-        </section> : screen.section === 'offline' ? <section className="offline-shelf" aria-label="Offline manga chapters">
+        {screen.section === 'offline' ? <section className="offline-shelf" aria-label="Offline manga chapters">
           <p className="eyebrow">READY WHEN DISCONNECTED</p>
           <h1>Offline chapters</h1>
           <p>Only chapters you explicitly saved appear here. Removing a copy never clears reading progress.</p>
