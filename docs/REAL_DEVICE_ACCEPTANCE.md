@@ -64,7 +64,7 @@ These checks require the actual owner account and must not be inferred from anon
 
 ## Long chapter acceptance
 
-Use owned/generated disposable images representing intended page sizes at 300, 500 and 1,000 pages. Record initial render, scroll responsiveness, peak memory where available, decoded image count, failures, rotation/restart and recovery after cache eviction. Deterministic unit geometry tests are not a hardware memory benchmark.
+Use owned/generated disposable images representing intended page sizes at 300, 500 and 1,000 pages. Record initial render, total downloaded bytes, retained page-source count/memory, scroll responsiveness, peak memory where available, decoded image count, failures, rotation/restart and recovery after cache eviction. Deterministic unit geometry tests are not a hardware memory benchmark.
 
 ## Current result log
 
