@@ -1,6 +1,6 @@
 # Security policy
 
-This public repository contains application source and synthetic test fixtures only. Private manga, private catalogue exports, personal reading data, credentials and owner-only configuration must never be committed.
+This public repository contains application source, approved brand assets and public demo/test fixtures only. Private manga, private catalogue exports, personal reading data, credentials and owner-only configuration must never be committed.
 
 ## Reporting
 
