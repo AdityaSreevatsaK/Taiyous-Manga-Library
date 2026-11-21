@@ -24,7 +24,7 @@ async function assertNoHorizontalOverflow(page: Page) {
 }
 
 async function openSampleReader(page: Page) {
-  await page.goto('/');
+  await page.goto('/library');
   await page.locator('.book-card').filter({ hasText: 'The Lantern Archive' }).click();
   await expect(page.getByRole('heading', { name: 'The Lantern Archive' })).toBeVisible();
   await page.getByRole('link', { name: /Read from beginning/ }).click();
@@ -38,9 +38,11 @@ test.describe('local manga catalogue and chapter reader', () => {
     test('responsive shelf and details at ' + width + 'px', async ({ page }) => {
       await page.setViewportSize({ width, height: 860 });
       await page.goto('/');
-      await expect(page.getByRole('heading', { name: 'The sample collection' })).toBeVisible();
-      await expect(page.locator('.book-card')).toHaveCount(4);
+      await expect(page.getByRole('heading', { name: /Where worlds unfold/ })).toBeVisible();
+      await expect(page.locator('.editorial-journal')).toBeVisible();
+      await expect(page.locator('.editorial-shelves')).toBeVisible();
       await assertNoHorizontalOverflow(page);
+      await page.goto('/library');
       await page.locator('.book-card').first().click();
       await expect(page.getByRole('heading', { name: 'Chapters', exact:true })).toBeVisible();
       await assertNoHorizontalOverflow(page);
@@ -268,11 +270,11 @@ test.describe('browser history and deep links', () => {
 
   test('home and library have distinct navigation URLs', async ({ page }) => {
     await page.goto('/');
-    await expect(page.getByRole('heading', { name: /A place for every story/ })).toBeVisible();
-    await page.locator('.book-card').first().click();
+    await expect(page.getByRole('heading', { name: /Where worlds unfold/ })).toBeVisible();
+    await page.locator('.editorial-index-row').first().click();
     await page.getByRole('link', { name: 'Back to the shelf' }).click();
     await expect(page).toHaveURL('/library');
-    await expect(page.getByRole('heading', { name: /A place for every story/ })).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: /Where worlds unfold/ })).toHaveCount(0);
     await page.getByRole('link', { name: 'Taiyou Manga home' }).click();
     await expect(page).toHaveURL('/');
   });
@@ -281,22 +283,21 @@ test.describe('browser history and deep links', () => {
 test.describe('continue reading shelf', () => {
   test('does not show continue cards until an actual page is loaded', async ({page}) => {
     await page.goto('/');
-    await expect(page.locator('.continue-card')).toHaveCount(0);
+    await expect(page.locator('.editorial-continue-card')).toHaveCount(0);
+    await page.goto('/library');
     await page.locator('.book-card').filter({hasText:'The Lantern Archive'}).click();
     await page.getByRole('link',{name:/Read from beginning/}).click();
     await expect(page.locator('.vertical-page-image').first()).toBeVisible();
     await page.locator('.vertical-page').nth(2).evaluate(el=>el.scrollIntoView({block:'start'}));
     await expect(page.locator('.page-navigation')).toContainText('Page 3 of 5');
     await page.getByRole('link',{name:'Taiyou Manga home'}).click();
-    const card=page.locator('.continue-card').filter({hasText:'The Lantern Archive'});
-    await expect(card).toContainText('Chapter 1 of 3 · Page 3 of 5');
-    await expect(page.locator('.book-card').filter({hasText:'The Lantern Archive'}))
-      .toContainText('In progress · Chapter 1 of 3');
-    await card.click();
+    const card=page.locator('.editorial-continue-card').filter({hasText:'The Lantern Archive'});
+    await expect(card).toContainText('Chapter 1 of 3');
+    await card.locator('.editorial-rail-read').click();
     await expect(page.locator('.page-navigation')).toContainText('Page 3 of 5');
     await page.reload();
     await page.getByRole('link',{name:'Taiyou Manga home'}).click();
-    await expect(page.locator('.continue-card')).toHaveCount(1);
+    await expect(page.locator('.editorial-continue-card')).toHaveCount(1);
   });
 
   test('recent entries sort by latest saved progress without affecting the empty private catalogue', async ({page}) => {
@@ -307,11 +308,11 @@ test.describe('continue reading shelf', () => {
     await page.getByRole('link',{name:/Read from beginning/}).click();
     await expect(page.locator('.vertical-page-image').first()).toBeVisible();
     await page.getByRole('link',{name:'Taiyou Manga home'}).click();
-    await expect(page.locator('.continue-card')).toHaveCount(2);
-    await expect(page.locator('.continue-card').first()).toContainText('Five Chapter Scroll Trial');
+    await expect(page.locator('.editorial-continue-card')).toHaveCount(2);
+    await expect(page.locator('.editorial-continue-card').first()).toContainText('Five Chapter Scroll Trial');
     await page.locator('.manga-cloud-menu > summary').click();
     await page.getByRole('button',{name:'My library (0)'}).click();
-    await expect(page.locator('.continue-card')).toHaveCount(0);
+    await expect(page.locator('.editorial-continue-card')).toHaveCount(0);
   });
 });
 
@@ -1028,14 +1029,15 @@ test('personal favourites are accessible, persisted and curated only on Home', a
   await add.click();
   await expect(page.getByRole('button',{name:/Remove from favourites/})).toHaveAttribute('aria-pressed','true');
   await page.goto('/');
-  await expect(page.locator('.book-card').first()).toContainText('The Lantern Archive');
-  await expect(page.locator('.book-card').first()).toContainText('Favourite');
+  await expect(page.locator('.editorial-journal')).toBeVisible();
+  await page.goto('/library');
+  await expect(page.locator('.book-card').filter({hasText:'The Lantern Archive'})).toContainText('Favourite');
   await page.reload();
-  await expect(page.locator('.book-card').first()).toContainText('The Lantern Archive');
+  await expect(page.locator('.book-card').filter({hasText:'The Lantern Archive'})).toContainText('Favourite');
   await page.goto('/manga/mng_lanternarchive');
   await page.getByRole('button',{name:/Remove from favourites/}).click();
   await expect(page.getByRole('button',{name:/Add to favourites/})).toHaveAttribute('aria-pressed','false');
-  await page.goto('/');
+  await page.goto('/library');
   await expect(page.locator('.book-favourite')).toHaveCount(0);
 });
 
@@ -1074,17 +1076,17 @@ test('mock authenticated empty HF dataset replaces sample catalogue with a truth
     status:200,contentType:'application/json',body:'{"connected":false}',
   }));
   await page.goto('/');
-  await expect(page.getByText('Your private shelves are ready.',{exact:false})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Your manga library awaits'})).toBeVisible();
   await page.locator('.manga-cloud-menu > summary').click();
   await expect(page.getByRole('button',{name:'My library (0)'})).toBeVisible();
-  await expect(page.getByRole('heading',{name:'Your private library is empty'})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Your manga library awaits'})).toBeVisible();
   await expect(page.locator('.book-card')).toHaveCount(0);
   await expect(page.getByRole('button',{name:'Use Sepia theme'})).toBeVisible();
   await expect(page.locator('.manga-cloud-menu')).toHaveAttribute('open','');
   await page.getByRole('button',{name:'Sign out of Hugging Face'}).click();
   await expect(page.getByRole('button',{name:'My library (0)'})).toBeVisible();
-  await expect(page.locator('.book-card')).toHaveCount(4);
-  await expect(page.getByText('THE READING ROOM / DEMONSTRATION')).toBeVisible();
+  await expect(page.locator('.editorial-journal')).toBeVisible();
+  await expect(page.getByRole('heading',{name:/Where worlds unfold/})).toBeVisible();
 });
 
 test('editorial cover grid stays readable, accessible and unbroken across device widths', async ({page}) => {
@@ -1134,9 +1136,9 @@ test('novel-style masthead keeps logo, real cloud, search, themes and all manga 
     await expect(page.locator('.mode-bar')).toHaveCount(0);
     await assertNoHorizontalOverflow(page);
   }
-  await expect(page.locator('.editorial-hero')).toBeVisible();
-  await expect(page.locator('.editorial-overview')).toBeVisible();
-  const background=await page.locator('.editorial-hero').evaluate(node=>getComputedStyle(node).backgroundImage);
+  await expect(page.locator('.editorial-grand')).toBeVisible();
+  await expect(page.locator('.editorial-journal')).toBeVisible();
+  const background=await page.locator('.editorial-grand').evaluate(node=>getComputedStyle(node).backgroundImage);
   expect(background).toContain('linear-gradient');
   await page.getByRole('button',{name:'Use Paper theme'}).click();
   await expect(page.locator('.app-shell')).toHaveClass(/theme-paper/);
@@ -1163,7 +1165,7 @@ test('cloud icon consolidates sample, private connection and versioned backup to
   await page.locator('.manga-cloud-menu > summary').click();
   await page.locator('.manga-cloud-menu > summary').click();
   await panel.getByRole('button',{name:'Try the sample reader'}).click();
-  await expect(page.locator('.book-card')).toHaveCount(4);
+  await expect(page.locator('.editorial-journal')).toBeVisible();
   await assertNoHorizontalOverflow(page);
 });
 
