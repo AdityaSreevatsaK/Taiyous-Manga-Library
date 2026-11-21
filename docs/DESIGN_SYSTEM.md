@@ -1,27 +1,72 @@
-# Visual, Interaction and Accessibility Guidelines
+# Visual, interaction and accessibility system
 
-## North star
-A polished, warm editorial personal library. Prefer restrained surfaces, strong media cover art, generous spacing and consistent hierarchy over dashboards filled with controls. The existing Novel Library is inspiration only; do not copy its full implementation wholesale.
+## Product direction
 
-## Starter tokens
-Current `src/styles.css` uses a dark navy surface (#101b2b), deeper panels (#192b40), light text and muted gold (#d7ba80). These are **starter tokens**, not a final universal theme API. Future themes (sepia, light, dark, plum) require semantic CSS variables, contrast checks and explicit owner approval.
+The approved direction is a warm, restrained editorial personal library. Use the Novel Library as the current visual reference for shared chrome, hierarchy and interaction patterns. Manga-specific image reading and domain controls remain Manga-owned.
 
-## Layout and responsiveness
-Build mobile first: 320px, 375px, 390px phones; 768px tablet; 1280/1440/1920 desktop. Maintain touch targets of about 44 CSS pixels where practical. Avoid horizontal scrolling, fixed-width modal overflow, clipped tooltips, cramped shelf layouts and controls stacked beside long titles. Preserve aspect ratios of legitimate covers. Use scrollable dialogs with a visible Close action and escape/focus management.
+Do not revert to the early navy/teal scaffold palette or approximate already-approved components from memory. Inspect current Manga source and, for parity work, the corresponding current Novel source.
 
-## Behaviour
-A visible control must perform the stated action. Do not render inactive search, settings, import, sync or playback buttons. Empty state must explicitly say no data is connected. Explain ratings 1–10 with the existing novel scale when adopted; don't assume zero means unrated.
+## Brand and shared chrome
 
-## Accessibility
-Semantic landmarks, labelled inputs, consistent focus rings, keyboard navigation, reduced-motion support, readable high-contrast text, aria-current for the sole selected navigation item, and meaningful text alternatives for covers. Do not depend on colour alone for connected/disconnected state.
+- Product name: Taiyou's Manga Library.
+- Use the approved transparent Taiyou Sun mark, theme-aware favicon and PWA icons.
+- Full-width two-row header; no persistent sidebar.
+- The cloud status control is immediately after the brand wordmark, with a green/red status dot. The icon and dot are a real interactive connection control, not decoration.
+- Search, theme swatches and utility controls retain their approved positions and accessible names.
+- Six visible primary shelves: Home, Currently Reading, Trying Out, Available Offline, Finished, All Manga. Analytics is inside Master Controls; legacy To Be Read state is preserved without a primary tab.
+- Centred footer: © [year] Taiyou's Manga Library · Created by Taiyou.
 
-## Domain notes
-Panel and page ordering, right-to-left versus left-to-right reading, vertical scrolling, chapter/volume structure, image dimensions, page preload limits and full-screen touch navigation.
+## Themes and colour
+
+Six persisted themes:
+1. Sepia (default)
+2. Paper
+3. Charcoal
+4. Midnight
+5. Ocean
+6. Plum
+
+Use the existing semantic CSS variables and theme classes in src/styles.css. Do not hard-code one theme's surface/text colour into a component that should adapt across all six. Maintain legible contrast for muted text, ribbons, disabled states, focus rings and interactive controls. Opening the theme picker must not change the selected theme.
+
+## Home and covers
+
+- Editorial hero uses three distinct manga covers.
+- The centre cover is selected initially.
+- Hover/focus on another cover updates the featured title, creator, synopsis and actions.
+- Keep all covers contained in their intended portrait frames; never allow object-fit/transform styling to crop or escape the frame unexpectedly.
+- Verify full desktop, split-screen and narrow phone layouts.
+- Cover images should remain legible at a useful scale; do not enlarge artwork until only a small part of the cover is visible.
+
+## Details and reader
+
+Use Novel's approved details header/card hierarchy, real Lucide SVG paths, section spacing, scrollable synopsis, chapter-list icons and return-to-top behaviour. Keep manga-specific publication ribbons, chapter ordering and image reader.
+
+The reader displays the entire chapter in one continuous vertical flow. Previous/Next controls navigate chapters only. Preserve image aspect ratio and bounded decoding. Do not port Novel's EPUB page controls.
+
+Publication ribbons are separate from personal reading shelf state. Do not label a manga Finished solely because its publication is complete.
+
+## Master and analytics
+
+Use the Novel Settings2 control and the full-width Master tab layout. Analytics is password-free; owner source corrections remain protected.
+
+The Analytics landing view follows the Novel composition:
+- Active app time, Reading time, Offline app time and Today metrics.
+- Paired active-app and reading bars over the last 14 days.
+- A dynamic date label every three days, including today.
+- Most read manga list.
+- Compact device-only privacy controls.
+- Manga-specific catalogue and journal insights remain available under a collapsed More manga insights disclosure.
+
+## Notifications and feedback
+
+Use the accessible top-right stacked notification treatment, with matching colours and automatic dismissal. The current toast lifetime is 4.5 seconds and stale notices are cleared on navigation. No browser-native alert/confirm dialogs. Every action needs a real result, success/error feedback and a keyboard-operable control.
+
+## Responsive and accessibility requirements
+
+Test at 320, 375, 390, 740, 768, 900 and 1280 px as appropriate. Use 320/390/768/1280 as the minimum acceptance set. Check split-screen and landscape layouts, safe areas, no horizontal overflow, readable cover titles, dialogs, menus and chapter controls.
+
+Use semantic landmarks, labelled form controls, visible keyboard focus, correct focus order, accessible status messages, reduced-motion support and text alternatives for meaningful cover images. Colour alone must not convey connected/disconnected or publication state. Do not claim WCAG compliance without an actual audit.
 
 ## Performance
-Use responsive images, lazy decoding, bounded preloading and virtualised large lists. Avoid shipping unnecessary media assets in the frontend bundle. Measure improvements instead of guessing. Never introduce client-side code that repeatedly fetches private data on every keystroke or navigation event.
 
-
-## Manga fixture-reader visual implementation (feature branch)
-
-The local prototype uses a navy/teal background, warm gold focus and active controls, editorial Georgia headings, original CSS-only fictional covers, a responsive 3-to-2-column catalogue, explicit source-mode tabs and an uncluttered reader. The generated manga illustrations are abstract fixtures, not fetched images. Existing React controls have labelled filter inputs, aria-pressed states, keyboard focus and reduced-motion CSS. Automated responsive and real-device accessibility verification remains outstanding; do not claim WCAG compliance until tested.
+Lazy-load off-screen covers, deduplicate image requests, use the bounded private cover cache, limit page request concurrency and decoded image count, and keep Master code lazy-loaded. Measure bundle/network impact. Preserve scripts/check-bundle.mjs budgets unless measured evidence supports a narrowly justified adjustment.
