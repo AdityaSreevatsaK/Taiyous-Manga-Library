@@ -45,7 +45,7 @@ export function MangaSynopsisCard({entry}:{entry:MangaEntry}){
     }catch{setMessage('Browser storage is unavailable. The original was not restored.');}
   }
   return <section className="manga-detail-card manga-synopsis-card">
-    <div className="manga-synopsis-heading">
+    <div className="manga-synopsis-heading details-section-header">
       <div><p className="manga-card-overline">ABOUT THE STORY</p><h2>Synopsis</h2></div>
       <button type="button" className="manga-synopsis-edit details-text-action"
         aria-expanded={editing} onClick={()=>{
