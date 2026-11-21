@@ -8,13 +8,13 @@ export async function onRequest({request,env}:Context):Promise<Response>{
  if(!production(request))return json({error:'Private authentication is production-only'},403);
  if(!configured(env))return json({error:'OAuth configuration is incomplete'},503);
  const action=new URL(request.url).pathname.split('/').at(-1);
- if(action==='login'&&request.method==='GET'){
+ if((action==='login'||action==='login-write')&&request.method==='GET'){
    const state=random(32),verifier=random(48);
    const url=new URL('https://huggingface.co/oauth/authorize');
    url.searchParams.set('response_type','code');
    url.searchParams.set('client_id',env.HF_CLIENT_ID!);
    url.searchParams.set('redirect_uri',CALLBACK);
-   url.searchParams.set('scope','openid profile read-repos');
+   url.searchParams.set('scope',action==='login-write'?'openid profile read-repos write-repos':'openid profile read-repos');
    url.searchParams.set('state',state);
    url.searchParams.set('code_challenge',await challenge(verifier));
    url.searchParams.set('code_challenge_method','S256');
@@ -45,7 +45,7 @@ export async function onRequest({request,env}:Context):Promise<Response>{
      if(!username)return errorRedirect('wrong_account');
      if(!(await privateRepo(token.access_token)))return errorRedirect('dataset_access');
      const expires=Date.now()+Math.min(28800,token.expires_in)*1000;
-     return redirect(ORIGIN+'/',[clear(FLOW),await sessionCookie({access:token.access_token,owner:username,expires},env)]);
+     return redirect(ORIGIN+'/',[clear(FLOW),await sessionCookie({access:token.access_token,owner:username,expires,scope:token.scope},env)]);
    }catch{return errorRedirect('login_failed');}
  }
  if(action==='session'&&request.method==='GET'){
