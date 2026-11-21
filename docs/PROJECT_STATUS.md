@@ -4,10 +4,10 @@
 **Repository:** [AdityaSreevatsaK/Taiyous-Manga-Library](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library)  
 **Production:** [taiyous-manga-library.pages.dev](https://taiyous-manga-library.pages.dev/)  
 **Default branch:** master  
-**Snapshot commit:** ff519fc175bb61e234bbdea278679e32afd97fe5  
+**Implementation baseline commit:** ff519fc175bb61e234bbdea278679e32afd97fe5  
 **Latest change:** PR #64, rolling calendar labels on the 14-day analytics chart.
 
-> This is a dated snapshot, not a permanent source of truth. Every agent must re-check Git status, the current default-branch SHA, open PRs, workflows, implementation and deployment before acting. See AGENTS.md.
+> This is a dated snapshot of the implementation baseline, not a permanent source of truth. The documentation-only PR may advance master without changing the implementation baseline. Every agent must re-check local Git status, the current default-branch SHA, open PRs, workflows, implementation and deployment before acting. See AGENTS.md.
 
 ## Release and repository state at this snapshot
 
