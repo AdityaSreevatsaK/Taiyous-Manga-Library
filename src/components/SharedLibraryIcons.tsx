@@ -60,6 +60,16 @@ export function PencilIcon(props:Omit<Props,'children'>){
 export function ArrowUpIcon(props:Omit<Props,'children'>){
  return <Icon {...props}><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></Icon>;
 }
+/** Direct paths from the approved Novel Library's Lucide icon family. */
+export function ArrowRightIcon(props:Omit<Props,'children'>){
+ return <Icon {...props}><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></Icon>;
+}
+export function SparklesIcon(props:Omit<Props,'children'>){
+ return <Icon {...props}><path d="M9.937 15.5 9 18l-.937-2.5L5.5 14.5l2.563-.937L9 11l.937 2.563L12.5 14.5z"/><path d="m15 3 .625 1.375L17 5l-1.375.625L15 7l-.625-1.375L13 5l1.375-.625z"/><path d="M21 10a5 5 0 0 0-5 5"/><path d="M16 15a5 5 0 0 0 5 5"/></Icon>;
+}
+export function FeatherIcon(props:Omit<Props,'children'>){
+ return <Icon {...props}><path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L3 12.5V21h8.5z"/><path d="m16 8-2 2"/><path d="M3 21 14 10"/></Icon>;
+}
 export function PlusIcon(props:Omit<Props,'children'>){
   return <Icon {...props}><path d="M12 5v14M5 12h14"/></Icon>;
 }
