@@ -231,7 +231,7 @@ test.describe('browser history and deep links', () => {
   });
 
   test('native links preserve Back/Forward and page selection URLs', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/library');
     await page.locator('.book-card').filter({ hasText: 'The Lantern Archive' }).click();
     await expect(page).toHaveURL(/\/manga\/the-lantern-archive$/);
     await page.getByRole('link', { name: /Read from beginning/ }).click();
@@ -247,14 +247,14 @@ test.describe('browser history and deep links', () => {
   });
 
   test('an actual new tab can open a series independently', async ({ page, context }) => {
-    await page.goto('/');
+    await page.goto('/library');
     const card = page.locator('.book-card').filter({ hasText: 'The Lantern Archive' });
     const href = await card.locator('.book-card-cover-link').getAttribute('href');
     expect(href).toBe('/manga/the-lantern-archive');
     const newTab = await context.newPage();
     await newTab.goto(href!);
     await expect(newTab.getByRole('heading', { name: 'The Lantern Archive' })).toBeVisible();
-    await expect(page).toHaveURL('/');
+    await expect(page).toHaveURL('/library');
   });
 
   test('invalid series, chapter and page deep links recover to Library', async ({ page }) => {
@@ -1305,7 +1305,7 @@ test('verified manga owner sees useful Master controls without unsafe upload API
     }),
   }));
   await page.goto('/');
-  await expect(page.getByText('Your private shelves are ready.',{exact:false})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Your manga library awaits'})).toBeVisible();
   const master=page.getByRole('link',{name:'Master',exact:true});
   await expect(master).toHaveAttribute('href','/master');
   await expect(page.getByRole('link',{name:'Manage manga'})).toHaveCount(0);
@@ -1411,7 +1411,7 @@ test('private ReLIFE-style chapter list opens verified images without endless sc
   await page.route('**/api/media/page?*',route=>route.fulfill({
     status:200,body:bytes,headers:{'Content-Type':'image/png','Content-Length':String(bytes.length)},
   }));
-  await page.goto('/');
+  await page.goto('/library');
   await expect(page.getByRole('link',{name:/ReLIFE/}).first()).toBeVisible();
   await page.locator('.book-card').filter({hasText:'ReLIFE'}).click();
   await expect(page.getByRole('heading',{name:'ReLIFE'})).toBeVisible();
