@@ -45,7 +45,7 @@ test('Master edits personal records, protects progress reset and locks source me
  await page.goto('/master');
  await expect(page.getByRole('heading',{name:'Master Controls'})).toBeVisible();
  await expect(page.getByRole('heading',{name:'Owner controls'})).toBeVisible();
- await expect(page.getByRole('textbox',{name:'Independent owner passphrase'})).toBeVisible();
+ await expect(page.getByLabel('Independent owner passphrase')).toBeVisible();
  await page.getByRole('button',{name:'Edit record'}).click();
  const editor=page.getByLabel('Edit personal record for Sample Manga Journal');
  await expect(editor).toBeVisible();
