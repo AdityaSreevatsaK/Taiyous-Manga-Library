@@ -1,6 +1,6 @@
 import {afterEach,describe,expect,it,vi} from 'vitest';
 import {onRequest as oauth} from '../../functions/api/auth/[action]';
-import {onRequest as library} from '../../functions/api/library';
+import {onRequest as library,parseCloudCatalogue} from '../../functions/api/library';
 import {ORIGIN,REPO,SESSION,configured,sessionCookie,type Env} from '../../functions/_lib/mangaAuth';
 import {demoEntries} from '../data/fixtures';
 
@@ -21,6 +21,22 @@ const api=async(path:string,cookie:string)=>{
 afterEach(()=>vi.restoreAllMocks());
 
 describe('private Cloudflare OAuth read-only gateway',()=>{
+ it('enforces the Controller canonical envelope and positive chapter page counts',()=>{
+   const entries=demoEntries.map(manga=>({
+     ...manga,chapters:manga.chapters.map(chapter=>({
+       ...chapter,pageCount:chapter.pageCount||1,
+     })),
+   }));
+   const document={schemaVersion:1,mediaKind:'manga',entries};
+   expect(parseCloudCatalogue(document)).toHaveLength(entries.length);
+   expect(()=>parseCloudCatalogue({...document,extra:'unexpected'})).toThrow(/envelope/);
+   expect(()=>parseCloudCatalogue({...document,entries:[{
+     ...entries[0],chapters:[{...entries[0]!.chapters[0],pageCount:0}],
+   }]})).toThrow(/pageCount/);
+   expect(()=>parseCloudCatalogue({...document,entries:[{
+     ...entries[0],chapters:[{...entries[0]!.chapters[0],pageCount:undefined}],
+   }]})).toThrow(/pageCount/);
+ });
  it('fails closed without correct secrets and dataset settings',async()=>{
    expect(configured(env)).toBe(true);
    expect(configured({...env,SESSION_SECRET:'invalid'})).toBe(false);
