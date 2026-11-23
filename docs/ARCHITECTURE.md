@@ -1,6 +1,6 @@
 # Architecture: Taiyou's Manga Library
 
-**Current implementation reference:** master as of 21 November 2026.  
+**Current implementation reference:** current master source and tests (reverify commit before changes).  
 **Live application:** https://taiyous-manga-library.pages.dev/
 
 This document describes the deployed architecture. Earlier scaffold-only descriptions are retained in dated reports and are not current.
