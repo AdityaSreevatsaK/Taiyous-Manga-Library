@@ -1,4 +1,5 @@
 import type { PageSource } from './pageSource';
+import {pagePrefetchWindow} from '../domain/pageViewport';
 
 /** Starts the whole chapter immediately, in page order, with a small, bounded
  * number of simultaneous requests. Scrolling does not enqueue any network work.
@@ -35,4 +36,20 @@ export async function preloadChapterPages(
     }
   };
   await Promise.all(Array.from({length:Math.min(count,concurrency)},()=>worker()));
+}
+
+/** Release page blob URLs outside the small reading window. The download
+ * history is tracked separately; this map contains only live in-memory URLs.
+ * No chapter pages are written to CacheStorage or IndexedDB here.
+ */
+export function discardDistantPageSources(sources:Map<number,PageSource>,
+ visibleIndex:number,count:number):number{
+ const keep=new Set(pagePrefetchWindow(visibleIndex,count));
+ let released=0;
+ for(const [index,source] of sources){
+   if(!keep.has(index)){
+     source.release();sources.delete(index);released++;
+   }
+ }
+ return released;
 }

@@ -39,7 +39,7 @@ Personal progress, ratings, notes, tags, collections and analytics remain in bro
 - No automatic cross-device personal-data synchronisation.
 - No in-app original-media upload, bulk migration or permanent deletion. Use the separate Storage Controller.
 - Owner-authenticated private media and protected metadata correction require real production OAuth/secret configuration and separate owner acceptance; anonymous CI does not prove these paths.
-- Private chapters currently preload every page at concurrency 3 and retain page sources until the chapter closes; only the visible image window is mounted/decoded. Total source memory can therefore grow with chapter size. Physical iOS Safari/Android Chrome acceptance and measured low-memory 300–1,000-page hardware testing remain manual unless recorded in docs/REAL_DEVICE_ACCEPTANCE.md.
+- Private chapters verify every page at concurrency 3 while retaining only a three-page window of blob sources. Evicted pages are fetched again on demand. Total network transfer remains chapter-sized, and physical-device memory performance is not yet proven. Physical iOS Safari/Android Chrome acceptance and measured low-memory 300–1,000-page hardware testing remain manual unless recorded in docs/REAL_DEVICE_ACCEPTANCE.md.
 - No standalone software licence has been selected. Public source visibility does not grant rights to manga artwork.
 
 ## Quick start

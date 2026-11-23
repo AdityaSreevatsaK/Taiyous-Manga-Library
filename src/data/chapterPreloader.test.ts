@@ -1,5 +1,5 @@
 import {afterEach,describe,expect,it,vi} from 'vitest';
-import {preloadChapterPages} from './chapterPreloader';
+import {preloadChapterPages,discardDistantPageSources} from './chapterPreloader';
 import type {PageSource} from './pageSource';
 
 const source=(index:number,onRelease=()=>{}):PageSource=>({
@@ -8,6 +8,19 @@ const source=(index:number,onRelease=()=>{}):PageSource=>({
 afterEach(()=>vi.restoreAllMocks());
 
 describe('eager, chapter-wide private page preloading',()=>{
+  it('retains at most three blob sources across 1,000 pages and releases all others',()=>{
+    const released=new Set<number>();
+    const sources=new Map<number,PageSource>();
+    for(let index=0;index<1000;index++)
+      sources.set(index,source(index,()=>{if(released.has(index))throw Error('double release');
+        released.add(index);}));
+    expect(discardDistantPageSources(sources,499,1000)).toBe(997);
+    expect([...sources.keys()]).toEqual([498,499,500]);
+    expect(released.size).toBe(997);
+    expect(discardDistantPageSources(sources,999,1000)).toBe(3);
+    expect(sources.size).toBe(0);
+    expect(released.size).toBe(1000);
+  });
   it('attempts every page without any scroll events and starts work in chapter order',async()=>{
     const starts:number[]=[],completed:number[]=[],failures:number[]=[];
     await preloadChapterPages(17,async index=>{

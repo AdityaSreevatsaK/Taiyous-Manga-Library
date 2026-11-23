@@ -1,6 +1,6 @@
 # Architecture: Taiyou's Manga Library
 
-**Current implementation reference:** master as of 21 November 2026.  
+**Current implementation reference:** current master source and tests (reverify commit before changes).  
 **Live application:** https://taiyous-manga-library.pages.dev/
 
 This document describes the deployed architecture. Earlier scaffold-only descriptions are retained in dated reports and are not current.
@@ -50,7 +50,7 @@ The API response itself is private and no-store. Browser-local cover caching is 
 
 A private chapter manifest is requested only when a chapter is opened or a direct reader bookmark is resolved. src/data/privateMedia.ts validates manga/chapter IDs, response revision and manifest membership.
 
-For a selected private chapter, src/data/chapterPreloader.ts immediately queues every page in reading order with bounded concurrency (default 3, maximum 4). PageSource objects/object URLs are retained in memory until the chapter closes. VerticalReader keeps stable page placeholders and mounts/decodes only the current visible window (three pages before through five after the anchor). This bounds concurrent requests and mounted/decoded image elements, but it does not strictly bound total downloaded bytes or retained page-source memory for very large private chapters. Synthetic chapters instead resolve nearby pages as the reader scrolls. Page loading is actual media traffic, not catalogue metadata fetching.
+For a selected private chapter, src/data/chapterPreloader.ts immediately queues every page in reading order with bounded concurrency (default 3, maximum 4). Only a three-page viewport window retains blob URLs or mounted images; downloaded and verified off-screen pages release their URLs and are fetched again on demand when visible. This bounds retained page sources independently of chapter length while preserving the chapter-wide validation pass. It does not bound total network transfer or guarantee low physical-device memory use (browser decode and extremely large images still need measured acceptance). Synthetic chapters instead resolve nearby pages as the reader scrolls. Page loading is actual media traffic, not catalogue metadata fetching.
 
 The canonical private page fast path accepts the immutable revision and page descriptor already obtained from the authenticated catalogue/manifest. The browser validates manga → chapter → page membership before requesting it. The server validates the owner session, revision/descriptor format, safe ID-derived path, MIME, byte length and SHA-256 of the returned bytes. It deliberately does not re-resolve the moving main revision or refetch catalogue/manifest metadata for each canonical asset request; the supplied revision is immutable. Legacy requests without a pinned descriptor use the slower server-side catalogue/manifest membership path. Private API responses are no-store and the service worker excludes /api/*.
 

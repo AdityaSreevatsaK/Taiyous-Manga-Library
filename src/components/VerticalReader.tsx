@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { resolveSyntheticPage, type PageSource } from '../data/pageSource';
 import { resolvePrivatePage } from '../data/privateMedia';
-import { preloadChapterPages } from '../data/chapterPreloader';
+import { preloadChapterPages,discardDistantPageSources } from '../data/chapterPreloader';
 import { anchoredPageIndex, pagePrefetchWindow } from '../domain/pageViewport';
 import type { ChapterManifest } from '../domain/types';
 import {BookOpenIcon} from './SharedLibraryIcons';
@@ -9,7 +9,8 @@ import {BookOpenIcon} from './SharedLibraryIcons';
 /**
  * Continuous chapter scrolling with stable image aspect ratios.
  * Private chapters fetch ALL pages as soon as they open, in page order.
- * Only nearby downloaded images are mounted/decoded to bound display memory.
+ * Only nearby image sources are retained/mounted. Distant verified pages are
+ * released and fetched again when reached, avoiding chapter-sized blob memory.
  * Demo chapters keep their verified nearby-page fixture behaviour.
  * Scroll observation never counts an unseen page as read.
  */
@@ -35,6 +36,7 @@ export function VerticalReader({ manifest, privateMangaId, privateRevision, fit 
   const images = useRef(new Map<number, PageSource>());
   const loaded = useRef(new Set<number>());
   const privateController = useRef<AbortController | null>(null);
+  const privateInFlight = useRef(new Set<number>());
   const privateReady = useRef(new Set<number>());
   const privateFailed = useRef(new Set<number>());
   const retrying = useRef(new Set<number>());
@@ -65,11 +67,14 @@ export function VerticalReader({ manifest, privateMangaId, privateRevision, fit 
       const source=await resolvePrivatePage(manifest,index,privateMangaId,privateRevision,controller.signal);
       if(controller.signal.aborted){source.release();return;}
       images.current.get(index)?.release();
-      images.current.set(index,source);
+      images.current.delete(index);
+      if(pagePrefetchWindow(visible.current,manifest.pages.length).includes(index))
+        images.current.set(index,source);
+      else source.release();
       privateFailed.current.delete(index);
       privateReady.current.add(index);
       setErrors(previous=>{const next={...previous};delete next[index];return next;});
-      setSources(previous=>({...previous,[index]:source.src}));
+      setSources(Object.fromEntries([...images.current].map(([i,item])=>[i,item.src])));
       publishPreload(preload.done);
     }catch{
       if(!controller.signal.aborted){
@@ -133,6 +138,9 @@ export function VerticalReader({ manifest, privateMangaId, privateRevision, fit 
     if(!privateMangaId||!privateRevision)return;
     const controller=new AbortController();
     privateController.current=controller;
+    const inFlight=new Set<number>();
+    privateInFlight.current=inFlight;
+    visible.current=activeIndex;
     for(const source of images.current.values())source.release();
     images.current.clear();
     privateReady.current.clear();privateFailed.current.clear();retrying.current.clear();
@@ -143,18 +151,31 @@ export function VerticalReader({ manifest, privateMangaId, privateRevision, fit 
     // and a failed page does not stop the remaining downloads.
     void preloadChapterPages(
       manifest.pages.length,
-      (index,signal)=>resolvePrivatePage(manifest,index,privateMangaId,privateRevision,signal),
+      (index,signal)=>{
+        inFlight.add(index);
+        return resolvePrivatePage(manifest,index,privateMangaId,privateRevision,signal)
+          .finally(()=>inFlight.delete(index));
+      },
       (index,source)=>{
-        images.current.set(index,source);
         privateReady.current.add(index);
         privateFailed.current.delete(index);
-        setSources(previous=>({...previous,[index]:source.src}));
+        // The entire chapter is downloaded/verified, but only nearby pages
+        // retain blob URLs. Other pages are re-fetched when read.
+        if(pagePrefetchWindow(visible.current,manifest.pages.length).includes(index)
+          &&!images.current.has(index)){
+          images.current.set(index,source);
+          setSources(previous=>({...previous,[index]:source.src}));
+        }else source.release();
+        setErrors(previous=>{if(!previous[index])return previous;
+          const next={...previous};delete next[index];return next;});
         publishPreload();
       },
       index=>{
-        privateFailed.current.add(index);
-        privateReady.current.delete(index);
-        setErrors(previous=>({...previous,[index]:true}));
+        if(!images.current.has(index)){
+          privateFailed.current.add(index);
+          privateReady.current.delete(index);
+          setErrors(previous=>({...previous,[index]:true}));
+        }
         publishPreload();
       },
       controller.signal,
@@ -171,6 +192,28 @@ export function VerticalReader({ manifest, privateMangaId, privateRevision, fit 
   // Avoid restarting the whole chapter when a page becomes visible.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[manifest,privateMangaId,privateRevision]);
+
+  useEffect(() => {
+    if(!privateMangaId||!privateRevision)return;
+    const controller=privateController.current;
+    if(!controller||controller.signal.aborted)return;
+    visible.current=visibleIndex;
+    const released=discardDistantPageSources(images.current,visibleIndex,manifest.pages.length);
+    if(released){
+      for(const index of loaded.current)if(!images.current.has(index))loaded.current.delete(index);
+      setSources(Object.fromEntries([...images.current].map(([i,item])=>[i,item.src])));
+    }
+    // A page verified during the chapter-wide pass may already have had its
+    // blob released. Restore only nearby pages, with at most three demand
+    // requests, without restarting the chapter-wide preload.
+    for(const index of pagePrefetchWindow(visibleIndex,manifest.pages.length)){
+      if(!images.current.has(index)&&!privateInFlight.current.has(index)
+        &&!retrying.current.has(index)&&!privateFailed.current.has(index))
+        void retryPrivatePage(index);
+    }
+  // Async requests are cancelled by the chapter lifecycle's AbortController.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[visibleIndex,manifest,privateMangaId,privateRevision]);
 
   useEffect(() => () => {
     privateController.current?.abort();
@@ -230,8 +273,8 @@ export function VerticalReader({ manifest, privateMangaId, privateRevision, fit 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [manifest.chapterId, jumpToken]);
 
-  const displayedStart=Math.max(0,visibleIndex-3);
-  const displayedEnd=Math.min(manifest.pages.length-1,visibleIndex+5);
+  const displayedStart=Math.max(0,visibleIndex-1);
+  const displayedEnd=Math.min(manifest.pages.length-1,visibleIndex+1);
   return <>
     {privateMangaId&&<section className={'chapter-preload-progress'+
       (preload.done?' is-finished':'')} aria-label="Chapter download status">
@@ -240,26 +283,26 @@ export function VerticalReader({ manifest, privateMangaId, privateRevision, fit 
         <div className="chapter-preload-message">
           <span className="chapter-preload-eyebrow">YOUR READING ROOM</span>
           <strong>{preload.done
-            ? preload.failed?'Chapter loaded with missing pages':'Chapter ready'
-            : 'Preparing the entire chapter'}</strong>
+            ? preload.failed?'Chapter checked with missing pages':'Chapter verified'
+            : 'Checking the entire chapter'}</strong>
         </div>
         <span className="chapter-preload-count" aria-live="polite">
-          <b>{preload.ready}</b><span> / {manifest.pages.length} pages ready</span>
+          <b>{preload.ready}</b><span> / {manifest.pages.length} pages verified</span>
         </span>
       </div>
       {(!preload.done||preload.failed>0)&&
-        <div className="chapter-preload-track" role="progressbar" aria-label="Chapter pages ready"
+        <div className="chapter-preload-track" role="progressbar" aria-label="Chapter pages verified"
           aria-valuemin={0} aria-valuemax={manifest.pages.length}
           aria-valuenow={preload.ready}
-          aria-valuetext={preload.ready+' of '+manifest.pages.length+' pages ready'}>
+          aria-valuetext={preload.ready+' of '+manifest.pages.length+' pages verified'}>
           <div className="chapter-preload-fill"
             style={{width:(100*preload.ready/Math.max(1,manifest.pages.length))+'%'}}/>
         </div>}
       <p className="chapter-preload-note" role={preload.failed?'alert':undefined}>
         {preload.done
           ? preload.failed?preload.failed+' page(s) need another attempt. Use Retry page on affected artwork.'
-            :'All pages are ready. Enjoy reading.'
-          : 'Pages are downloaded in reading order. You can start reading immediately.'}
+            :'All pages were verified. Distant pages are loaded again as you read to save memory.'
+          : 'Pages are checked in reading order; nearby pages remain available as you scroll.'}
       </p>
     </section>}
     <div ref={root} className={"vertical-reader reader-fit-" + fit}
