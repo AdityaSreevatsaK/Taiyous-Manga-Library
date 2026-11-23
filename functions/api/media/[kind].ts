@@ -1,3 +1,4 @@
+import {parseCloudCatalogue} from '../library';
 import {parseCatalogue,parseChapterManifest} from '../../../src/domain/validation';
 import {REPO,HEADERS,configured,production,getSession,privateRepo,hfFetch,json,type Env}
   from '../../_lib/mangaAuth';
@@ -85,10 +86,8 @@ async function readJson(response:Response,limit:number):Promise<unknown>{
  return JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(await bounded(response,limit)));
 }
 function parseEnvelope(raw:unknown):MangaEntry[]{
- if(!raw||typeof raw!=='object'||Array.isArray(raw))throw Error('Invalid private library');
- const r=raw as Record<string,unknown>;
- if(r.schemaVersion!==1||r.mediaKind!=='manga')throw Error('Unknown private library version');
- return parseCatalogue(r.entries);
+ // Reuse the canonical Controller-compatible validator from /api/library.
+ return parseCloudCatalogue(raw);
 }
 /** Never reinterpret a partially populated canonical dataset as a legacy one. */
 async function fetchCatalogueAt(sha:string,token:string):Promise<VerifiedIndex>{
@@ -122,7 +121,8 @@ async function fetchManifest(sha:string,token:string,layout:Layout,mangaId:strin
  if(!r.ok)throw Error('Chapter manifest unavailable');
  const manifest=parseChapterManifest(await readJson(r,MANIFEST_LIMIT));
  if(manifest.chapterId!==chapterId||manifest.pages.length!==expectedPageCount||
-   manifest.pages.some(page=>!page.assetPath.startsWith('manga/'+mangaId+'/'+chapterId+'/')))
+   manifest.pages.some(page=>!page.assetPath.startsWith('manga/'+mangaId+'/'+chapterId+'/'))||
+   (layout==='canonical'&&manifest.pages.some(page=>!page.sha256)))
    throw Error('Chapter metadata does not match the verified catalogue');
  return manifest;
 }

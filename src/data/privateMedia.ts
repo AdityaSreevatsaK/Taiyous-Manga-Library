@@ -34,6 +34,10 @@ export async function fetchPrivateChapter(mangaId:string,chapterId:string,
  if(manifest.chapterId!==chapterId||manifest.pages.some(p=>
    !p.assetPath.startsWith('manga/'+mangaId+'/'+chapterId+'/')))
    throw Error('Chapter pages do not belong to the selected manga');
+ // A private chapter cannot be considered readable without the checksum of
+ // every page, even when legacy/synthetic domain types allow absent hashes.
+ if(manifest.pages.some(p=>!p.sha256))
+   throw Error('Private chapter manifest is missing page integrity checksums');
  return {manifest,revision:doc.revision};
 }
 /** Returns an ephemeral blob URL for the chapter-wide preload queue.

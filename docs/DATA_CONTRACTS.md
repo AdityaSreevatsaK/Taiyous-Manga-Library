@@ -45,6 +45,8 @@ creatorRoles entries contain name and role (author or artist). The legacy creato
 
 Publication genres/status are independent from personal tags and the Finished reading shelf. A publication status of completed never marks the user's personal shelf as Finished.
 
+The **canonical Controller-managed** `data/library.json` envelope has exactly `schemaVersion`, `mediaKind` and `entries`. Each canonical chapter must declare `pageCount` from 1 to 1,000. The canonical gateway requires SHA-256 for every page. More permissive optional `pageCount` and page-checksum types are retained solely for synthetic and legacy compatibility; they are not authorisation to publish incomplete canonical manifests.
+
 ## 2. Chapters, manifests and pages
 
 A chapter manifest is a version-1 manga document with chapterId and an ordered pages array. Each page has an immutable pg_ ID, relative assetPath, MIME type, dimensions, byte size and optional SHA-256 in the domain type. The canonical private Controller layout provides original page bytes under data/manga/<manga-id>/<chapter-id>/<page-id>.<ext> and manifests under data/manifests/<chapter-id>.json.
