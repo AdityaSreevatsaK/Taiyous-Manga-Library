@@ -1478,7 +1478,7 @@ test('private ReLIFE-style chapter list opens verified images without endless sc
   const chapterStatus=page.locator('.chapter-preload-progress');
   await expect(chapterStatus).toBeVisible();
   await expect(chapterStatus.locator('progress')).toHaveCount(0);
-  await expect(chapterStatus.locator('.chapter-preload-message')).toContainText('Chapter ready');
+  await expect(chapterStatus.locator('.chapter-preload-message')).toContainText('Chapter verified');
   await expect(chapterStatus.locator('.chapter-preload-count')).toContainText('1');
   await expect(chapterStatus.locator('.chapter-preload-emblem svg')).toBeVisible();
   await expect(page.getByRole('button',{name:'Next chapter →'})).toBeEnabled();
