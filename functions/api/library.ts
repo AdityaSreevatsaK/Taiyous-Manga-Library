@@ -40,7 +40,16 @@ export function parseCloudCatalogue(raw:unknown){
  const obj=raw as Partial<CloudCatalogue>;
  if(obj.schemaVersion!==1||obj.mediaKind!=='manga'||!Array.isArray(obj.entries))
    throw Error('Unsupported manga catalogue schema');
- return parseCatalogue(obj.entries);
+ // Controller's canonical index has exactly three envelope keys and requires
+ // an explicit positive pageCount for every chapter. Synthetic and legacy
+ // records are intentionally more permissive in the shared domain validator.
+ if(Object.keys(obj).sort().join(',')!=='entries,mediaKind,schemaVersion')
+   throw Error('Invalid canonical manga catalogue envelope');
+ const entries=parseCatalogue(obj.entries);
+ if(entries.some(entry=>entry.chapters.some(chapter=>
+   chapter.pageCount===undefined||chapter.pageCount<1)))
+   throw Error('Canonical manga chapter pageCount must be 1 to 1000');
+ return entries;
 }
 export async function onRequest({request,env}:Context):Promise<Response>{
  if(!production(request))return json({error:'Private catalogue is production-only'},403);
