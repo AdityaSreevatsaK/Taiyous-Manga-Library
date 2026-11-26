@@ -52,7 +52,7 @@ Source publication metadata corrections are restricted to title, creators and pu
 - Runtime input validation and an exact parent dataset revision.
 - Whole-catalogue validation before the revision-pinned commit.
 
-The correction path preserves manga/chapter/page IDs and the existing public slug. Do not expand editable fields or weaken controls without a reviewed decision and explicit owner approval. Media uploads, permanent deletion and migrations remain with the Storage Controller.
+The correction path preserves manga/chapter/page IDs and the existing public slug. Each approved correction atomically writes an exact pre-change `data/library.json` copy to `control/master-catalogue-backups/<parent-revision>/library.json` alongside the corrected catalogue. The server rejects an existing/unverifiable backup path and verifies the backup bytes after the commit. If post-write verification fails, the change may already be committed: refresh the dataset before retrying. **This same-dataset catalogue backup is not an independent full-original-media backup or a replacement for Controller recovery.** Do not expand editable fields or weaken controls without a reviewed decision and explicit owner approval. Media uploads, permanent deletion and migrations remain with the Storage Controller.
 
 ## Personal data
 

@@ -103,6 +103,20 @@ export function applyMetadataCorrection(document:unknown,patch:MetadataCorrectio
  parseCloudCatalogue(next);
  return next;
 }
+/** Keep the exact pre-change catalogue in the same revision-guarded commit
+ * as a protected Master correction. This is an in-dataset recovery checkpoint,
+ * not an independently verified off-platform full-original-media backup.
+ */
+export function metadataCorrectionCommit(original:string,updated:unknown,parentSha:string){
+ if(!/^[a-f0-9]{40}$/.test(parentSha))throw Error('Invalid catalogue parent revision');
+ const backupPath='control/master-catalogue-backups/'+parentSha+'/library.json';
+ return {backupPath,operations:[
+   {key:'header',value:{summary:'Correct manga publication metadata',parentCommit:parentSha}},
+   {key:'file',value:{path:backupPath,content:original,encoding:'utf-8'}},
+   {key:'file',value:{path:'data/library.json',content:JSON.stringify(updated,null,2)+'\n',encoding:'utf-8'}},
+ ]};
+}
+
 async function updateCatalogue(patch:MetadataCorrection,session:SessionData):Promise<Response>{
  const snapshot=await privateRepo(session.access);
  if(!snapshot)return json({error:'Private dataset access denied'},403);
@@ -110,18 +124,25 @@ async function updateCatalogue(patch:MetadataCorrection,session:SessionData):Pro
  const response=await hfFetch('/datasets/'+REPO+'/resolve/'+snapshot.sha+'/data/library.json',session.access);
  if(!response.ok)return json({error:'Canonical catalogue unavailable; no changes made.'},409);
  if(Number(response.headers.get('Content-Length')||0)>MAX_CATALOGUE)return json({error:'Catalogue too large'},413);
- let doc:unknown;
+ let doc:unknown,original:string,originalBytes:Uint8Array;
  try{
-   const text=await response.text();if(text.length>MAX_CATALOGUE)return json({error:'Catalogue too large'},413);
-   doc=JSON.parse(text);
+   const raw=new Uint8Array(await response.arrayBuffer());
+   if(raw.byteLength>MAX_CATALOGUE)return json({error:'Catalogue too large'},413);
+   original=new TextDecoder('utf-8',{fatal:true,ignoreBOM:true}).decode(raw);
+   originalBytes=new TextEncoder().encode(original);
+   if(originalBytes.length!==raw.length||originalBytes.some((byte,i)=>byte!==raw[i]))
+     throw Error('Catalogue must support lossless UTF-8 recovery');
+   doc=JSON.parse(original);
  }catch{return json({error:'Catalogue could not be safely read'},409);}
  let updated:unknown;
  try{updated=applyMetadataCorrection(doc,patch);}
  catch{return json({error:'Catalogue metadata failed validation; nothing changed.'},409);}
- const operations=[
-   {key:'header',value:{summary:'Correct manga publication metadata',parentCommit:snapshot.sha}},
-   {key:'file',value:{path:'data/library.json',content:JSON.stringify(updated,null,2)+'\n',encoding:'utf-8'}}
- ];
+ const {backupPath,operations}=metadataCorrectionCommit(original,updated,snapshot.sha);
+ // An existing or unavailable backup path is not permission to overwrite it.
+ try{
+   const existing=await hfFetch('/datasets/'+REPO+'/resolve/'+snapshot.sha+'/'+backupPath,session.access);
+   if(existing.status!==404)return json({error:'Catalogue backup path is occupied or unavailable.'},409);
+ }catch{return json({error:'Cannot verify the catalogue backup path.'},502);}
  try{
    const upstream=await fetch('https://huggingface.co/api/datasets/'+REPO+'/commit/main',{
      method:'POST',headers:{Authorization:'Bearer '+session.access,
@@ -132,8 +153,20 @@ async function updateCatalogue(patch:MetadataCorrection,session:SessionData):Pro
    if(upstream.status===409||upstream.status===412)return json({error:'Concurrent upload detected; refresh and retry.'},409);
    if(upstream.status===401||upstream.status===403)return json({error:'Hugging Face write permission required. Reconnect with write access.'},403);
    if(!upstream.ok)return json({error:'Hugging Face rejected the metadata change; nothing was reported as saved.'},502);
-   return json({saved:true});
- }catch{return json({error:'Unable to save to Hugging Face. Check connection and retry.'},502);}
+   // A successful write cannot be declared verified without a matching
+   // recovered copy of the original catalogue at the new immutable revision.
+   const published=await privateRepo(session.access);
+   if(!published||published.sha===snapshot.sha)
+     return json({error:'Commit accepted, but verification is pending. Refresh before retrying.'},502);
+   const backup=await hfFetch('/datasets/'+REPO+'/resolve/'+published.sha+'/'+backupPath,session.access);
+   if(!backup.ok)
+     return json({error:'Commit accepted, but backup verification is pending. Refresh before retrying.'},502);
+   const restored=new Uint8Array(await backup.arrayBuffer());
+   if(restored.length!==originalBytes.length||
+       restored.some((byte,i)=>byte!==originalBytes[i]))
+     return json({error:'Commit accepted, but the catalogue recovery checksum did not match.'},502);
+   return json({saved:true,revision:published.sha,backupPath});
+ }catch{return json({error:'Save or post-commit verification was interrupted. Refresh before retrying.'},502);}
 }
 export async function onRequest({request,env}:Context):Promise<Response>{
  if(!production(request))return json({error:'Owner control is production only'},403);
