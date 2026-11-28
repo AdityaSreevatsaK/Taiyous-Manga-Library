@@ -1101,6 +1101,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
     <main id="content" className="main-area">
       {screen.kind==='journal'&&<Suspense fallback={<p role="status">Loading Journal…</p>}>
         <MangaJournal archiveEntries={cloud.status==='connected'?remoteEntries:undefined}
+          localAnnotations={annotations}
           hrefFor={id=>routeHref({kind:'details',mangaId:id},import.meta.env.BASE_URL,remoteEntries)}/>
       </Suspense>}
       {screen.kind==='master'&&<Suspense fallback={<p role="status">Loading Master Controls…</p>}><MangaMasterControls

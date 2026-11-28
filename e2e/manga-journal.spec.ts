@@ -24,3 +24,23 @@ test('unauthenticated Journal does not show private entries',async({page})=>{
  await expect(page.getByRole('button',{name:'Add manga'})).toBeDisabled();
  await expect(page.getByRole('button',{name:'Export JSON'})).toBeDisabled();
 });
+
+test('backup preview is non-destructive and restores only reviewed missing identities',async({page})=>{
+ const missing={...entry,id:'jrn_'+'b'.repeat(32),title:'Synthetic removed backup',revision:3,deletedAt:now};
+ const changed={...entry,title:'Synthetic conflicting backup'};
+ await page.route('**/api/journal?*',route=>route.fulfill({json:{schemaVersion:1,entries:[entry],nextCursor:null}}));
+ await page.route('**/api/journal/backup/preview',route=>route.fulfill({json:{version:1,rows:[
+  {id:missing.id,status:'addition'},{id:changed.id,status:'conflict',reason:'Existing ID has different data; never overwritten'}]}}));
+ await page.route('**/api/journal/backup/restore',route=>{
+  expect(route.request().postDataJSON()).toEqual({version:1,entries:[missing]});
+  return route.fulfill({json:{count:1,replayed:false}});
+ });
+ await page.goto('/journal');
+ await page.getByRole('button',{name:'Backup and recovery'}).click();
+ await page.getByLabel('Choose Journal backup JSON').setInputFiles({name:'synthetic.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify({format:'taiyou-manga-journal',schemaVersion:1,exportedAt:now,entries:[missing,changed]}))});
+ await page.getByRole('button',{name:'Review recovery batch'}).click();
+ await expect(page.getByText('Synthetic removed backup · addition')).toBeVisible();
+ await expect(page.getByText(/Synthetic conflicting backup · conflict/)).toBeVisible();
+ await page.getByRole('button',{name:'Confirm recovery of 1 missing records'}).click();
+ await expect(page.getByText('Recovered 1 missing records. Existing differences were not changed.')).toBeVisible();
+});

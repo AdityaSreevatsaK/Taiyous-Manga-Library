@@ -2,10 +2,12 @@ import {lazy,Suspense,useEffect,useMemo,useState,type FormEvent} from 'react';
 import {JOURNAL_STATUSES,JOURNAL_TYPES,PUBLICATION_STATUSES,parseJournalFields,journalFields,type JournalFields,type JournalRecord} from '../domain/journal';
 import {JournalError,loadJournal,saveJournal,setJournalDeleted} from '../data/journalGateway';
 import type {MangaEntry} from '../domain/types';
+import type {PersonalAnnotation} from '../domain/personalAnnotations';
+import {archiveCandidates,annotationComparison} from '../domain/journalReconciliation';
 import './manga-journal.css';
 import JournalCsvImport from './JournalCsvImport';
 const JournalBackup=lazy(()=>import('./JournalBackup'));
-type Props={archiveEntries?:readonly MangaEntry[];hrefFor:(id:string)=>string};
+type Props={archiveEntries?:readonly MangaEntry[];localAnnotations?:Readonly<Record<string,PersonalAnnotation>>;hrefFor:(id:string)=>string};
 type Draft={record?:JournalRecord;fields:JournalFields};
 const empty=()=>parseJournalFields({title:'New entry',status:'Plan to Read'});
 const num=(value:string)=>value===''?null:Number(value);
@@ -14,7 +16,7 @@ function download(name:string,content:string,type:string){
  const url=URL.createObjectURL(new Blob([content],{type}));const a=document.createElement('a');a.href=url;a.download=name;a.click();
  setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
-export default function MangaJournal({archiveEntries,hrefFor}:Props){
+export default function MangaJournal({archiveEntries,localAnnotations,hrefFor}:Props){
  const [records,setRecords]=useState<JournalRecord[]>([]);
  const [loading,setLoading]=useState(true),[busy,setBusy]=useState(false);
  const [error,setError]=useState(''),[unauthorised,setUnauthorised]=useState(false);
@@ -32,6 +34,8 @@ export default function MangaJournal({archiveEntries,hrefFor}:Props){
  },[deleted,refresh]);
  const archiveIds=useMemo(()=>new Set(archiveEntries?.map(x=>x.id)),[archiveEntries]);
  const isArchived=(r:JournalRecord)=>!!r.libraryMangaId&&archiveIds.has(r.libraryMangaId);
+ const matches=draft&&archiveEntries?archiveCandidates(draft.fields,archiveEntries,records,draft.record?.id):[];
+ const comparison=draft&&draft.fields.libraryMangaId&&archiveIds.has(draft.fields.libraryMangaId)?annotationComparison(draft.fields,localAnnotations?.[draft.fields.libraryMangaId]):null;
  const filtered=records.filter(r=>(status==='all'||r.status===status)&&(rating==='all'||(rating==='none'?r.rating===null:r.rating===Number(rating)))&&
   (type==='all'||r.type===type)&&(!favourite||r.favourite)&&
   (archived==='all'||archiveEntries===undefined||(archived==='yes'?isArchived(r):!isArchived(r)))&&
@@ -88,9 +92,15 @@ export default function MangaJournal({archiveEntries,hrefFor}:Props){
    {(['startedOn','finishedOn'] as const).map(k=><label key={k}>{k==='startedOn'?'Started on':'Finished on'}<input type="date" value={draft.fields[k]??''} onChange={e=>change(k,e.target.value||null)}/></label>)}
    <label>Personal notes<textarea maxLength={5000} value={draft.fields.notes??''} onChange={e=>change('notes',e.target.value||null)}/></label>
    <label className="journal-check"><input type="checkbox" checked={draft.fields.favourite} onChange={e=>change('favourite',e.target.checked)}/>Favourite</label>
+   <label>External identifiers (provider:id, one per line)<textarea key={(draft.record?.id??'new')+'-external'} defaultValue={draft.fields.externalIds.map(x=>x.provider+':'+x.id).join('\n')} onChange={e=>change('externalIds',lines(e.target.value).map(line=>{const i=line.indexOf(':');return i<0?{provider:'',id:line}:{provider:line.slice(0,i),id:line.slice(i+1)};}))}/></label>
+   {matches.length>0&&<div className="journal-import-preview"><strong>Possible archive matches ({matches.length})</strong><p>Exact title or alias matches only. Confirm the correct edition yourself.</p>{matches.map(({entry,occupied})=><p key={entry.id}><button type="button" className="secondary" disabled={occupied||draft.fields.libraryMangaId===entry.id} onClick={()=>change('libraryMangaId',entry.id)}>{occupied?'Already linked':draft.fields.libraryMangaId===entry.id?'Selected':'Select archive'}: {entry.title}</button></p>)}</div>}
+   {comparison&&(comparison.rating.different||comparison.favourite.different)&&<div className="journal-import-preview"><strong>Device-local preferences differ</strong><p>Choose whether to copy either value into this Journal draft. Your local preferences remain unchanged.</p>
+    {comparison.rating.different&&<p>Journal rating: {comparison.rating.journal??'Unrated'} · Device rating: {comparison.rating.device??'Unrated'} <button type="button" className="secondary" onClick={()=>change('rating',comparison.rating.device)}>Use device rating</button></p>}
+    {comparison.favourite.different&&<p>Journal favourite: {comparison.favourite.journal?'Yes':'No'} · Device favourite: {comparison.favourite.device?'Yes':'No'} <button type="button" className="secondary" onClick={()=>change('favourite',comparison.favourite.device)}>Use device favourite</button></p>}
+   </div>}
    {archiveEntries!==undefined&&<label>Linked archive<select value={draft.fields.libraryMangaId??''} onChange={e=>change('libraryMangaId',e.target.value||null)}>
     <option value="">No link</option>{draft.fields.libraryMangaId&&!archiveIds.has(draft.fields.libraryMangaId)&&<option value={draft.fields.libraryMangaId}>Previously linked (not in current catalogue)</option>}
-    {archiveEntries.map(item=><option key={item.id} value={item.id}>{item.title}</option>)}</select></label>}
+    {archiveEntries.map(item=><option key={item.id} value={item.id} disabled={records.some(record=>record.id!==draft.record?.id&&record.deletedAt===null&&record.libraryMangaId===item.id)}>{item.title}</option>)}</select></label>}
    <div className="journal-actions"><button className="primary" disabled={busy} type="submit">Save entry</button><button className="secondary" disabled={busy} type="button" onClick={()=>setDraft(null)}>Cancel</button></div>
   </form>}
   {confirm&&<div className="journal-editor" role="group" aria-label="Confirm Journal change"><p>{deleted?'Restore':'Remove'} {confirm.title}? {deleted?'The record will return to active entries.':'The record can be recovered. Archived manga and local records remain unchanged.'}</p>
