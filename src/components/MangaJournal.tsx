@@ -33,7 +33,7 @@ export default function MangaJournal({archiveEntries,hrefFor}:Props){
  const isArchived=(r:JournalRecord)=>!!r.libraryMangaId&&archiveIds.has(r.libraryMangaId);
  const filtered=records.filter(r=>(status==='all'||r.status===status)&&(rating==='all'||(rating==='none'?r.rating===null:r.rating===Number(rating)))&&
   (type==='all'||r.type===type)&&(!favourite||r.favourite)&&
-  (archived==='all'||(archiveEntries!==undefined&&(archived==='yes'?isArchived(r):!isArchived(r))))&&
+  (archived==='all'||archiveEntries===undefined||(archived==='yes'?isArchived(r):!isArchived(r)))&&
   [r.title,...r.alternativeTitles,...r.authors,...r.artists,...r.tags].some(x=>x.toLocaleLowerCase().includes(search.toLocaleLowerCase().trim())))
   .sort((a,b)=>sort==='rating'?(b.rating??0)-(a.rating??0)||a.title.localeCompare(b.title):sort==='updated'?b.updatedAt.localeCompare(a.updatedAt):a.title.localeCompare(b.title));
  function change<K extends keyof JournalFields>(key:K,value:JournalFields[K]){setDraft(d=>d?{...d,fields:{...d.fields,[key]:value}}:null);}
@@ -97,15 +97,15 @@ export default function MangaJournal({archiveEntries,hrefFor}:Props){
    <label>Status<select value={status} onChange={e=>setStatus(e.target.value)}><option value="all">All</option>{JOURNAL_STATUSES.map(s=><option key={s}>{s}</option>)}</select></label>
    <label>Rating<select value={rating} onChange={e=>setRating(e.target.value)}><option value="all">All</option><option value="none">Unrated</option>{Array.from({length:10},(_,i)=>i+1).map(n=><option key={n}>{n}</option>)}</select></label>
    <label>Type<select value={type} onChange={e=>setType(e.target.value)}><option value="all">All</option>{JOURNAL_TYPES.map(t=><option key={t}>{t}</option>)}</select></label>
-   <label>Archive<select disabled={archiveEntries===undefined} value={archived} onChange={e=>setArchived(e.target.value)}><option value="all">All</option><option value="yes">Archived</option><option value="no">Not archived</option></select></label>
+   <label>Archive<select disabled={archiveEntries===undefined} value={archiveEntries===undefined?'all':archived} onChange={e=>setArchived(e.target.value)}><option value="all">All</option><option value="yes">Archived</option><option value="no">Not archived</option></select></label>
    <label>Sort<select value={sort} onChange={e=>setSort(e.target.value)}><option value="title">Title</option><option value="rating">Rating</option><option value="updated">Recently updated</option></select></label>
    <label className="journal-check"><input type="checkbox" checked={favourite} onChange={e=>setFavourite(e.target.checked)}/>Favourites only</label>
   </div>
   {!filtered.length&&!error&&<p role="status">{records.length?'No matching entries.':deleted?'No removed entries.':'No entries yet. Add your first manga.'}</p>}
   {filtered.length>0&&<table className="journal-table"><thead><tr>{['Manga','Reading status','Chapters','Rating','Archive','Actions'].map(s=><th scope="col" key={s}>{s}</th>)}</tr></thead><tbody>
    {filtered.map(record=><tr key={record.id}>
-    <td data-label="Manga"><strong>{record.title}</strong>{record.favourite&&<span> · Favourite</span>}<div>{record.authors.join(', ')||'Author unknown'}</div><small>{record.type??'Unknown type'}</small></td>
-    <td data-label="Reading status">{record.status}</td><td data-label="Chapters">{record.chaptersRead??'?'}/{record.totalChapters??'?'}{record.lastReadChapter&&<div>Last read: {record.lastReadChapter}</div>}</td>
+    <td data-label="Manga"><strong>{record.title}</strong>{record.favourite&&<span> · Favourite</span>}<div>{record.authors.join(', ')||'Author unknown'}</div><small>{record.type??'Unknown type'}</small>{record.readingLinks.length>0&&<div>{record.readingLinks.map((link,i)=><div key={link}><a href={link} target="_blank" rel="noopener noreferrer">Reading link {i+1} ({new URL(link).hostname})</a></div>)}</div>}</td>
+    <td data-label="Reading status">{record.status}{record.publicationStatus&&<div><small>Publication: {record.publicationStatus}</small></div>}</td><td data-label="Chapters">{record.chaptersRead??'?'}/{record.totalChapters??'?'}{record.lastReadChapter&&<div>Last read: {record.lastReadChapter}</div>}</td>
     <td data-label="Rating">{record.rating===null?'Unrated':record.rating+'/10'}</td>
     <td data-label="Archive">{isArchived(record)?<a href={hrefFor(record.libraryMangaId!)}>Read in My Library</a>:archiveEntries===undefined?'Availability unknown':'Not archived'}</td>
     <td data-label="Actions"><div className="journal-actions">{!deleted&&<button className="secondary" disabled={busy} onClick={()=>setDraft({record,fields:journalFields(record)})}>Edit</button>}

@@ -497,3 +497,5 @@
   .app-shell .manga-master-page{padding-top:16px}
   .app-shell .manga-master-sections a{padding:9px 12px}
 }
+
+.app-shell .manga-journal-nav-item{display:flex;flex:0 0 auto}

@@ -71,10 +71,13 @@ export default function JournalCsvImport({records,onCommitted}:Props){
   setBusy(true);clear();
   try{const body=eligible.map(x=>({sourceRow:x.sourceRow,fields:x.fields!}));
    if(!body.length){setNotice('No new valid rows in this batch.');return;}
+   // Keep room for the version and JSON envelope under the 64 KiB server limit.
+   while(body.length>1&&new TextEncoder().encode(JSON.stringify({rows:body,version:0})).length>60*1024)body.pop();
+   if(new TextEncoder().encode(JSON.stringify({rows:body,version:0})).length>60*1024)throw Error('An individual row exceeds the request size limit; shorten its fields.');
    const response=await post('preview',{rows:body}) as {version:number;rows:ImportPreviewRow[]};
    if(!Number.isSafeInteger(response.version)||!Array.isArray(response.rows))throw Error('Invalid preview response');
    const result=new Map(response.rows.map(x=>[x.sourceRow,x]));
-   const next=current.map(x=>result.get(x.sourceRow)??x);
+   const next=current.map(x=>result.get(x.sourceRow)??(x.status==='addition'&&!done.includes(x.sourceRow)?{...x,status:'conflict' as const,reason:'Not in this server preview; review remaining rows after confirming'}:x));
    setVersion(response.version);setPreview(next);setSelected(response.rows.filter(x=>x.status==='addition').map(x=>x.sourceRow));
   }catch(e){setNotice(e instanceof Error?e.message:'Preview failed');}finally{setBusy(false);}
  }

@@ -1053,9 +1053,9 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
               {['reading','trying','offline','finished','to-read'].includes(section)&&
                 <span className="nav-count">{counts[section]}</span>}
             </a>)}
-          {!compactNav&&<a className="site-nav-link" aria-current={screen.kind==='journal'?'page':undefined}
+          {!compactNav&&<span className="manga-journal-nav-item"><a className="site-nav-link" aria-current={screen.kind==='journal'?'page':undefined}
             href={routeHref({kind:'journal'},import.meta.env.BASE_URL,catalogue)}
-            onClick={event=>followLink(event,()=>navigateTo({kind:'journal'}))}>Journal</a>}
+            onClick={event=>followLink(event,()=>navigateTo({kind:'journal'}))}>Journal</a></span>}
           {compactNav&&<details className="nav-more"><summary>More</summary>
             <div className="nav-more-menu">{moreNav.map(section=>
               <a key={section} className="site-nav-link"

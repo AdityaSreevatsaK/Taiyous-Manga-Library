@@ -13,6 +13,7 @@ test('home, desktop navigation and transparent brand assets work on both engines
   await page.goto('/');
   await expect(page.getByRole('heading',{name:/Every panel holds a story/})).toBeVisible();
   await expect(page.locator('.manga-nav-links > .site-nav-link')).toHaveCount(6);
+  await expect(page.locator('.manga-journal-nav-item').getByRole('link',{name:'Journal'})).toHaveAttribute('href','/journal');
   await expect(page.locator('.wordmark .brand-sun')).toHaveAttribute('src',/sun-light.webp$/);
   await expect(page.locator('.app-shell')).toHaveClass(/theme-sepia/);
   await expect(page.locator('.editorial-journal')).toBeVisible();
@@ -25,6 +26,7 @@ test('mobile More and six themes stay accessible at narrow widths', async ({page
   await expect(page.locator('.manga-nav-links > .site-nav-link')).toHaveCount(3);
   await page.locator('.nav-more summary').click();
   await expect(page.locator('.nav-more-menu')).not.toContainText('Analytics');
+  await expect(page.locator('.nav-more-menu').getByRole('link',{name:'Journal'})).toHaveAttribute('href','/journal');
   await page.locator('.nav-more-menu').getByRole('link',{name:'All Manga'}).click();
   await expect(page).toHaveURL('/library');
   await page.getByRole('link',{name:'Master',exact:true}).click();
