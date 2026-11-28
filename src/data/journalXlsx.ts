@@ -71,12 +71,27 @@ function colIndex(ref:string){
  const m=/^([A-Z]{1,3})([1-9][0-9]*)$/.exec(ref);if(!m)fail();
  let n=0;for(const c of m![1]!)n=n*26+c.charCodeAt(0)-64;return n-1;
 }
-function parseSheet(doc:Document,strings:string[],name:string):SheetData|null{
+/** Recognise explicit solid RGB yellow only. Do not guess theme/tint or conditional formatting. */
+function yellowStyles(doc:Document):Set<number>{
+ const fills=children(doc,'fills')[0],cellXfs=children(doc,'cellXfs')[0];
+ if(!fills||!cellXfs)return new Set();
+ const yellowFills=new Set<number>();
+ children(fills,'fill').forEach((fill,i)=>{
+  const pattern=children(fill,'patternFill')[0],rgb=pattern&&children(pattern,'fgColor')[0]?.getAttribute('rgb');
+  if(pattern?.getAttribute('patternType')==='solid'&&rgb&&/^(?:FF|00)?FFFF00$/i.test(rgb))yellowFills.add(i);
+ });
+ const styles=new Set<number>();
+ children(cellXfs,'xf').forEach((xf,i)=>{const fillId=xf.getAttribute('fillId');
+  if(fillId!==null&&yellowFills.has(Number(fillId)))styles.add(i);
+ });
+ return styles;
+}
+function parseSheet(doc:Document,strings:string[],name:string,yellow:Set<number>):SheetData|null{
  const sheet=children(doc,'sheetData')[0];if(!sheet)fail();
  const raw:CsvRow[]=[];let previous=0;
  for(const row of children(sheet!,'row')){
   const sourceRow=Number(row.getAttribute('r'));if(!Number.isSafeInteger(sourceRow)||sourceRow<=previous||sourceRow>100000)fail();previous=sourceRow;
-  const cells:string[]=[];const used=new Set<number>();
+  const cells:string[]=[];const used=new Set<number>();const yellowColumns:number[]=[];
   for(const cell of children(row,'c')){
    const ref=cell.getAttribute('r')??'',col=colIndex(ref);
    if(Number(ref.match(/\d+$/)?.[0])!==sourceRow||used.has(col))fail();used.add(col);
@@ -91,8 +106,9 @@ function parseSheet(doc:Document,strings:string[],name:string):SheetData|null{
    else if(t===null||['n','str','d'].includes(t))value=v;
    else fail();
    if(value.length>32768)fail();cells[col]=value;
+   const style=cell.getAttribute('s');if(style!==null&&yellow.has(Number(style)))yellowColumns.push(col);
   }
-  if(cells.some(x=>x?.trim()))raw.push({sourceRow,cells:Array.from(cells,x=>x??'')});
+  if(cells.some(x=>x?.trim()))raw.push({sourceRow,cells:Array.from(cells,x=>x??''),yellowColumns});
   if(raw.length>5005)fail();
  }
  // Locate the actual header, allowing a merged title/banner above it.
@@ -103,7 +119,7 @@ function parseSheet(doc:Document,strings:string[],name:string):SheetData|null{
  const rows=raw.slice(headerAt+1).filter(row=>!!row.cells[mapping.title!]?.trim()||
    row.cells.some((v,i)=>i!==0&&v.trim())).map(row=>{
   if(row.cells.slice(headers.length).some(x=>x.trim()))throw Error('Unexpected worksheet columns');
-  return {sourceRow:row.sourceRow,cells:Array.from({length:headers.length},(_,i)=>row.cells[i]??'')};
+  return {sourceRow:row.sourceRow,cells:Array.from({length:headers.length},(_,i)=>row.cells[i]??''),yellowColumns:row.yellowColumns};
  });
  return {name,headers,rows};
 }
@@ -120,13 +136,14 @@ export async function readJournalXlsx(buffer:ArrayBuffer):Promise<SheetData[]>{
  }
  const strings=zip.index.has('xl/sharedStrings.xml')?children(xml(await part(zip,'xl/sharedStrings.xml')),'si').map(textValue):[];
  if(strings.length>50000||strings.some(s=>s.length>32768))fail();
+ const yellow=zip.index.has('xl/styles.xml')?yellowStyles(xml(await part(zip,'xl/styles.xml'))):new Set<number>();
  const result:SheetData[]=[];const sheets=children(book,'sheet');
  if(sheets.length>20)fail();
  for(const sheet of sheets){
   if(sheet.getAttribute('state')==='hidden'||sheet.getAttribute('state')==='veryHidden')continue;
   const id=sheet.getAttributeNS(REL,'id')??'',path=paths.get(id),name=sheet.getAttribute('name')??'';
   if(!path||!name||name.length>31)fail();
-  const parsed=parseSheet(xml(await part(zip,path!)),strings,name);
+  const parsed=parseSheet(xml(await part(zip,path!)),strings,name,yellow);
   if(parsed)result.push(parsed);
  }
  if(!result.length)throw Error('No worksheet has recognisable title and reading-status headers');

@@ -3,7 +3,8 @@ export const IMPORT_BATCH_LIMIT=50;
 export const IMPORT_COLUMNS=['title','status','type','publicationStatus','lastReadChapter','authors','artists','alternativeTitles','tags','totalChapters','chaptersRead','rating','favourite','startedOn','finishedOn','notes','readingLinks'] as const;
 export type ImportColumn=typeof IMPORT_COLUMNS[number];
 export type Mapping=Partial<Record<ImportColumn,number>>;
-export interface CsvRow {sourceRow:number;cells:string[]}
+export interface CsvRow {sourceRow:number;cells:string[];yellowColumns?:number[]}
+export interface ImportPolicy {blankMeansPlanToRead?:boolean;yellowMeansFavourite?:boolean}
 export interface ImportCandidate {sourceRow:number;fields:JournalFields}
 export interface ImportPreviewRow {sourceRow:number;status:'addition'|'conflict'|'invalid';title:string;reason?:string;fields?:JournalFields}
 export function parseCsv(text:string):{headers:string[];rows:CsvRow[]}{
@@ -38,6 +39,10 @@ const aliases:Record<string,ImportColumn>={
  rating:'rating','my rating':'rating',favourite:'favourite',favorite:'favourite','started on':'startedOn',startedon:'startedOn',
  'finished on':'finishedOn',finishedon:'finishedOn',notes:'notes',opinion:'notes','reading links':'readingLinks',readinglinks:'readingLinks'
 };
+export function legacyReadingList(headers:string[]):boolean{
+ const keys=new Set(headers.map(normaliseImportTitle));
+ return ['name','status','reading status','last read','opinion'].every(h=>keys.has(h));
+}
 export function suggestMapping(headers:string[]):Mapping{
  const matches=new Map<ImportColumn,number[]>();
  const hasReading=headers.some(h=>normaliseImportTitle(h)==='reading status');
@@ -45,7 +50,7 @@ export function suggestMapping(headers:string[]):Mapping{
  return Object.fromEntries([...matches].filter(([,indices])=>indices.length===1).map(([key,indices])=>[key,indices[0]]));
 }
 const statusMap:Record<string,JournalFields['status']>={completed:'Completed',complete:'Completed',finished:'Completed',started:'Reading',reading:'Reading','currently reading':'Reading',dropped:'Dropped','on hold':'On Hold','plan to read':'Plan to Read','to read':'Plan to Read'};
-export function mapCsvRow(row:CsvRow,mapping:Mapping,headerCount:number):ImportPreviewRow{
+export function mapCsvRow(row:CsvRow,mapping:Mapping,headerCount:number,policy:ImportPolicy={}):ImportPreviewRow{
  const read=(key:ImportColumn)=>{const index=mapping[key];return index===undefined?'':(row.cells[index]??'').trim();};
  const title=read('title');
  try{
@@ -62,7 +67,7 @@ export function mapCsvRow(row:CsvRow,mapping:Mapping,headerCount:number):ImportP
    return s.split(/[\n;]+/).map(x=>x.trim()).filter(Boolean);};
   const fav=normaliseImportTitle(read('favourite'));if(fav&&!['yes','no','true','false','1','0'].includes(fav))throw Error('Invalid favourite flag');
   const rawStatus=normaliseImportTitle(read('status'));
-  const status=Object.hasOwn(statusMap,rawStatus)?statusMap[rawStatus]:undefined;
+  const status=policy.blankMeansPlanToRead&&!rawStatus?'Plan to Read':Object.hasOwn(statusMap,rawStatus)?statusMap[rawStatus]:undefined;
   if(!status)throw Error('Personal reading status needs review (blank or ambiguous)');
   const publication=normaliseImportTitle(read('publicationStatus'));
   const publicationStatus=publication==='complete'?'completed':publication===''||publication==='?'||publication==='-'?null:publication;
@@ -70,7 +75,7 @@ export function mapCsvRow(row:CsvRow,mapping:Mapping,headerCount:number):ImportP
   const lastReadChapter=label==='-'||label==='?'||!label?null:label;
   const fields=parseJournalFields({title,status,type:normaliseImportTitle(read('type'))||null,publicationStatus,lastReadChapter,
    authors:list('authors'),artists:list('artists'),alternativeTitles:list('alternativeTitles'),tags:list('tags'),
-   totalChapters:integer('totalChapters'),chaptersRead:integer('chaptersRead'),rating:integer('rating'),favourite:['yes','true','1'].includes(fav),
+   totalChapters:integer('totalChapters'),chaptersRead:integer('chaptersRead'),rating:integer('rating'),favourite:fav?['yes','true','1'].includes(fav):!!(policy.yellowMeansFavourite&&row.yellowColumns?.includes(mapping.title)),
    startedOn:read('startedOn')||null,finishedOn:read('finishedOn')||null,notes:read('notes')||null,readingLinks:list('readingLinks')});
   return {sourceRow:row.sourceRow,status:'addition',title:fields.title,fields};
  }catch(e){return {sourceRow:row.sourceRow,status:'invalid',title,reason:e instanceof Error?e.message:'Invalid row'};}

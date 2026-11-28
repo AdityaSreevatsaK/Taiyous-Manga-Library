@@ -21,19 +21,20 @@ const inline=(ref:string,text:string)=>'<c r="'+ref+'" t="inlineStr"><is><t>'+te
 const headers=['Sl. No','Name','Status','Reading status','Last Read','Opinion'];
 const sheet=(title:string,status:string)=>'<worksheet xmlns="'+ns+'"><sheetData>'+
  '<row r="1">'+inline('A1','Reading list')+'</row><row r="2">'+headers.map((h,i)=>inline(String.fromCharCode(65+i)+'2',h)).join('')+'</row>'+
- '<row r="4"><c r="A4"><v>1</v></c>'+inline('B4',title)+inline('C4','Completed')+inline('D4',status)+'<c r="E4"><v>12.5</v></c></row>'+
+ '<row r="4"><c r="A4"><v>1</v></c>'+inline('B4',title).replace('r="B4"','r="B4" s="1"')+inline('C4','Completed')+inline('D4',status)+'<c r="E4"><v>12.5</v></c></row>'+
  '<row r="5"><c r="A5"><v>2</v></c></row></sheetData></worksheet>';
 test('private XLSX reader detects real headers, worksheet and duplicate review',async({page})=>{
  await page.route('**/api/library',route=>route.fulfill({status:503,json:{error:'Synthetic outage'}}));
  await page.route('**/api/journal?*',route=>route.fulfill({json:{schemaVersion:1,entries:[],nextCursor:null}}));
  await page.route('**/api/journal/import/preview',async route=>{
   const body=route.request().postDataJSON();
-  expect(body.rows[0].fields).toMatchObject({status:'Reading',publicationStatus:'completed',lastReadChapter:'12.5',chaptersRead:null,rating:null});
+  expect(body.rows[0].fields).toMatchObject({status:'Reading',publicationStatus:'completed',lastReadChapter:'12.5',chaptersRead:null,rating:null,favourite:true});
   await route.fulfill({json:{version:1,rows:body.rows.map((r:{sourceRow:number;fields:{title:string}})=>({...r,title:r.fields.title,status:'addition'}))}});
  });
  const workbook=zip({
   'xl/workbook.xml':'<workbook xmlns="'+ns+'" xmlns:r="'+rel+'"><sheets><sheet name="First" sheetId="1" r:id="rId1"/><sheet name="Second" sheetId="2" r:id="rId2"/></sheets></workbook>',
   'xl/_rels/workbook.xml.rels':'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="'+rel+'/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="'+rel+'/worksheet" Target="worksheets/sheet2.xml"/></Relationships>',
+  'xl/styles.xml':'<styleSheet xmlns="'+ns+'"><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFFFF00"/></patternFill></fill></fills><cellXfs count="2"><xf fillId="0"/><xf fillId="1"/></cellXfs></styleSheet>',
   'xl/worksheets/sheet1.xml':sheet('Synthetic duplicate','Started'),
   'xl/worksheets/sheet2.xml':sheet('Synthetic duplicate','')
  });
@@ -46,6 +47,8 @@ test('private XLSX reader detects real headers, worksheet and duplicate review',
  await page.getByRole('button',{name:'Review against Journal'}).click();
  await expect(page.getByRole('button',{name:'Confirm import of 1 new entries'})).toBeVisible();
  await page.getByLabel('Worksheet').selectOption('1');
+ await expect(page.getByText('Row 4: Synthetic duplicate', {exact:false})).toContainText('Plan to Read');
+ await page.getByLabel('Blank reading status means Plan to Read').uncheck();
  await expect(page.getByLabel('Resolve personal status for row 4')).toBeVisible();
  await page.getByLabel('Resolve personal status for row 4').selectOption('Reading');
  await expect(page.getByRole('button',{name:'Retain reviewed row 4'})).toBeVisible();

@@ -1,5 +1,5 @@
 import {useState,type ChangeEvent} from 'react';
-import {IMPORT_COLUMNS,IMPORT_BATCH_LIMIT,parseCsv,suggestMapping,mapCsvRow,previewCandidates,normaliseImportTitle,type CsvRow,type Mapping,type ImportCandidate,type ImportPreviewRow} from '../domain/journalImport';
+import {IMPORT_COLUMNS,IMPORT_BATCH_LIMIT,parseCsv,suggestMapping,mapCsvRow,previewCandidates,normaliseImportTitle,legacyReadingList,type ImportPolicy,type CsvRow,type Mapping,type ImportCandidate,type ImportPreviewRow} from '../domain/journalImport';
 import {JOURNAL_STATUSES,type JournalRecord,type JournalStatus} from '../domain/journal';
 import type {SheetData} from '../data/journalXlsx';
 type Props={records:JournalRecord[];onCommitted:()=>void};
@@ -12,6 +12,7 @@ export default function JournalCsvImport({records,onCommitted}:Props){
  const [headers,setHeaders]=useState<string[]>([]),[rows,setRows]=useState<CsvRow[]>([]),[mapping,setMapping]=useState<Mapping>({});
  const [sheets,setSheets]=useState<SheetData[]>([]),[sheetIndex,setSheetIndex]=useState(0);
  const [duplicateSelection,setDuplicateSelection]=useState<Record<string,string>>({});
+ const [policy,setPolicy]=useState<ImportPolicy>({});
  const [overrides,setOverrides]=useState<Record<number,JournalStatus>>({});
  const [page,setPage]=useState(0),[preview,setPreview]=useState<ImportPreviewRow[]|null>(null),[version,setVersion]=useState<number|null>(null);
  const [busy,setBusy]=useState(false),[notice,setNotice]=useState(''),[selected,setSelected]=useState<number[]>([]);
@@ -34,11 +35,12 @@ export default function JournalCsvImport({records,onCommitted}:Props){
   const sheet=values[index];if(!sheet)return;
   clear();setSheetIndex(index);setHeaders(sheet.headers);setRows(sheet.rows);setMapping(suggestMapping(sheet.headers));
   setPage(0);setDone([]);setOverrides({});
+  const legacy=legacyReadingList(sheet.headers);setPolicy({blankMeansPlanToRead:legacy,yellowMeansFavourite:legacy});
  }
  const mapped=rows.map(row=>{
   const status=overrides[row.sourceRow],column=mapping.status;
-  if(status&&column!==undefined){const cells=[...row.cells];cells[column]=status;return mapCsvRow({...row,cells},mapping,headers.length);}
-  return mapCsvRow(row,mapping,headers.length);
+  if(status&&column!==undefined){const cells=[...row.cells];cells[column]=status;return mapCsvRow({...row,cells},mapping,headers.length,policy);}
+  return mapCsvRow(row,mapping,headers.length,policy);
  });
  // Detect duplicate titles across all spreadsheet rows, not just the active page.
  const candidates=mapped.filter(x=>x.fields).map(x=>({sourceRow:x.sourceRow,fields:x.fields!}));
@@ -91,6 +93,8 @@ export default function JournalCsvImport({records,onCommitted}:Props){
   <label>Choose XLSX or CSV<input type="file" accept=".xlsx,.csv,text/csv" disabled={busy} onChange={e=>void readFile(e)}/></label>
   {sheets.length>1&&<label>Worksheet<select value={sheetIndex} disabled={busy} onChange={e=>selectSheet(sheets,Number(e.target.value))}>{sheets.map((sheet,i)=><option key={i} value={i}>{sheet.name} ({sheet.rows.length} rows)</option>)}</select></label>}
   {headers.length>0&&<>
+   <label className="journal-check"><input type="checkbox" disabled={busy} checked={!!policy.blankMeansPlanToRead} onChange={e=>{clear();setPolicy(old=>({...old,blankMeansPlanToRead:e.target.checked}));}}/>Blank reading status means Plan to Read</label>
+   <label className="journal-check"><input type="checkbox" disabled={busy} checked={!!policy.yellowMeansFavourite} onChange={e=>{clear();setPolicy(old=>({...old,yellowMeansFavourite:e.target.checked}));}}/>Yellow title cells mean Favourite (XLSX only)</label>
    {IMPORT_COLUMNS.map(key=><label key={key}>{key}<select disabled={busy} value={mapping[key]??''} onChange={e=>{clear();setMapping(prev=>({...prev,[key]:e.target.value===''?undefined:Number(e.target.value)}));}}>
     <option value="">Not mapped</option>{headers.map((h,i)=><option value={i} key={i}>{h} (column {i+1})</option>)}</select></label>)}
    <div className="journal-actions"><button type="button" className="secondary" disabled={busy||page===0} onClick={()=>{clear();setPage(n=>n-1);}}>Previous batch</button>
@@ -99,7 +103,7 @@ export default function JournalCsvImport({records,onCommitted}:Props){
     <button type="button" className="primary" disabled={busy||!eligible.length} onClick={()=>void doPreview()}>Review against Journal</button></div>
    <div className="journal-import-preview">{(preview??current).map(x=><div key={x.sourceRow} className="journal-import-row">
     <label className="journal-check">{preview&&x.status==='addition'&&!done.includes(x.sourceRow)&&<input type="checkbox" disabled={busy} checked={selected.includes(x.sourceRow)} onChange={e=>setSelected(old=>e.target.checked?[...old,x.sourceRow]:old.filter(n=>n!==x.sourceRow))}/>}
-     Row {x.sourceRow}: {x.title||'(blank title)'} · {done.includes(x.sourceRow)?'Imported':x.status}{x.reason?' · '+x.reason:''}</label>
+     Row {x.sourceRow}: {x.title||'(blank title)'} · {done.includes(x.sourceRow)?'Imported':x.status}{x.fields?' · '+x.fields.status+(x.fields.favourite?' · Favourite':''):''}{x.reason?' · '+x.reason:''}</label>
      {x.status==='conflict'&&x.reason?.includes('Duplicate title in workbook')&&<button type="button" className="secondary" disabled={busy}
        onClick={()=>{clear();setDuplicateSelection(old=>({...old,[normaliseImportTitle(x.title)]:selectedRow(x.sourceRow)}));}}>Retain reviewed row {x.sourceRow}</button>}
      {(x.status==='invalid'&&x.reason?.includes('reading status needs review')||!!overrides[x.sourceRow])&&mapping.status!==undefined&&<label>Resolve personal status for row {x.sourceRow}

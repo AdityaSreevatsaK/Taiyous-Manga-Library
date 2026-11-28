@@ -37,3 +37,16 @@ describe('legacy reading-list mapping',()=>{
   expect(mapCsvRow({sourceRow:6,cells:['3','Synthetic','Ongoing','Ongoing','','']},mapping,6).status).toBe('invalid');
  });
 });
+
+describe('owner-confirmed workbook conventions',()=>{
+ it('applies blank and yellow rules only when enabled; never invents a rating',()=>{
+  const mapping=suggestMapping(['Name','Status','Reading status','Last Read','Opinion']);
+  const row={sourceRow:3,cells:['Synthetic title','Completed','','12.5',''],yellowColumns:[0]};
+  const policy={blankMeansPlanToRead:true,yellowMeansFavourite:true};
+  expect(mapCsvRow(row,mapping,5,policy).fields).toMatchObject({status:'Plan to Read',favourite:true,rating:null,lastReadChapter:'12.5'});
+  expect(mapCsvRow(row,mapping,5).status).toBe('invalid');
+  expect(mapCsvRow({...row,cells:['Synthetic title','Completed','?','','']},mapping,5,policy).status).toBe('invalid');
+  expect(mapCsvRow({...row,cells:['Synthetic title','Completed','-','','']},mapping,5,policy).status).toBe('invalid');
+  expect(mapCsvRow({...row,yellowColumns:[1]},mapping,5,policy).fields?.favourite).toBe(false);
+ });
+});
