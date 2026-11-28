@@ -41,7 +41,7 @@ export async function fetchPrivateChapter(mangaId:string,chapterId:string,
  return {manifest,revision:doc.revision};
 }
 /** Returns an ephemeral blob URL for the chapter-wide preload queue.
- * The URL lives until the chapter closes; no bytes enter persistent/offline caches.
+ * Nearby URLs live only while their pages stay in the viewport window;\n * distant sources are released promptly. No private page bytes enter persistent caches.
  * Aborted requests are discarded before a blob URL is created.
  */
 export async function resolvePrivatePage(manifest:ChapterManifest,index:number,
