@@ -1,6 +1,7 @@
 import {useState,type ChangeEvent} from 'react';
 import {IMPORT_COLUMNS,IMPORT_BATCH_LIMIT,parseCsv,suggestMapping,mapCsvRow,previewCandidates,type CsvRow,type Mapping,type ImportCandidate,type ImportPreviewRow} from '../domain/journalImport';
-import type {JournalRecord} from '../domain/journal';
+import {JOURNAL_STATUSES,type JournalRecord,type JournalStatus} from '../domain/journal';
+import type {SheetData} from '../data/journalXlsx';
 type Props={records:JournalRecord[];onCommitted:()=>void};
 async function post(action:string,body:unknown){
  const res=await fetch('/api/journal/import/'+action,{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json','X-Taiyou-Request':'journal'},body:JSON.stringify(body)});
@@ -9,18 +10,35 @@ async function post(action:string,body:unknown){
 }
 export default function JournalCsvImport({records,onCommitted}:Props){
  const [headers,setHeaders]=useState<string[]>([]),[rows,setRows]=useState<CsvRow[]>([]),[mapping,setMapping]=useState<Mapping>({});
+ const [sheets,setSheets]=useState<SheetData[]>([]),[sheetIndex,setSheetIndex]=useState(0);
+ const [overrides,setOverrides]=useState<Record<number,JournalStatus>>({});
  const [page,setPage]=useState(0),[preview,setPreview]=useState<ImportPreviewRow[]|null>(null),[version,setVersion]=useState<number|null>(null);
  const [busy,setBusy]=useState(false),[notice,setNotice]=useState(''),[selected,setSelected]=useState<number[]>([]);
  const [done,setDone]=useState<number[]>([]);
  const clear=()=>{setPreview(null);setVersion(null);setSelected([]);setNotice('');};
  async function readFile(event:ChangeEvent<HTMLInputElement>){
-  clear();setHeaders([]);setRows([]);setDone([]);setPage(0);
+  clear();setHeaders([]);setRows([]);setDone([]);setPage(0);setSheets([]);setOverrides({});setSheetIndex(0);
   const file=event.target.files?.[0];if(!file)return;
-  try{if(file.size>2*1024*1024||!file.name.toLowerCase().endsWith('.csv'))throw Error('Choose a CSV file of at most 2 MB.');
-   const parsed=parseCsv(await file.text());setHeaders(parsed.headers);setRows(parsed.rows);setMapping(suggestMapping(parsed.headers));}
-  catch(e){setNotice(e instanceof Error?e.message:'Could not read CSV');}
+  setBusy(true);
+  try{if(file.size>2*1024*1024)throw Error('Choose a workbook or CSV of at most 2 MB.');
+   let parsed:SheetData[];
+   if(file.name.toLowerCase().endsWith('.xlsx')){
+    const {readJournalXlsx}=await import('../data/journalXlsx');parsed=await readJournalXlsx(await file.arrayBuffer());
+   }else if(file.name.toLowerCase().endsWith('.csv'))parsed=[{name:'CSV',...parseCsv(await file.text())}];
+   else throw Error('Choose XLSX or CSV.');
+   setSheets(parsed);selectSheet(parsed,0);
+  }catch(e){setNotice(e instanceof Error?e.message:'Could not read spreadsheet');}finally{setBusy(false);}
  }
- const mapped=rows.map(row=>mapCsvRow(row,mapping,headers.length));
+ function selectSheet(values:SheetData[],index:number){
+  const sheet=values[index];if(!sheet)return;
+  clear();setSheetIndex(index);setHeaders(sheet.headers);setRows(sheet.rows);setMapping(suggestMapping(sheet.headers));
+  setPage(0);setDone([]);setOverrides({});
+ }
+ const mapped=rows.map(row=>{
+  const status=overrides[row.sourceRow],column=mapping.status;
+  if(status&&column!==undefined){const cells=[...row.cells];cells[column]=status;return mapCsvRow({...row,cells},mapping,headers.length);}
+  return mapCsvRow(row,mapping,headers.length);
+ });
  // Detect duplicate titles across all spreadsheet rows, not just the active page.
  const candidates=mapped.filter(x=>x.fields).map(x=>({sourceRow:x.sourceRow,fields:x.fields!}));
  const local=previewCandidates(candidates,records);
@@ -48,9 +66,10 @@ export default function JournalCsvImport({records,onCommitted}:Props){
    setNotice('Imported '+result.count+' new entries.');onCommitted();}
   catch(e){setNotice(e instanceof Error?e.message:'Commit failed');}finally{setBusy(false);}
  }
- return <section className="journal-editor" aria-label="CSV import">
-  <h2>Import CSV</h2><p>Map title and personal reading status. Review additions and conflicts; existing entries are never overwritten. XLSX support is pending.</p>
-  <label>Choose CSV<input type="file" accept=".csv,text/csv" disabled={busy} onChange={e=>void readFile(e)}/></label>
+ return <section className="journal-editor" aria-label="Spreadsheet import">
+  <h2>Import spreadsheet</h2><p>Map title and personal reading status. Review additions and conflicts; existing entries are never overwritten.</p>
+  <label>Choose XLSX or CSV<input type="file" accept=".xlsx,.csv,text/csv" disabled={busy} onChange={e=>void readFile(e)}/></label>
+  {sheets.length>1&&<label>Worksheet<select value={sheetIndex} disabled={busy} onChange={e=>selectSheet(sheets,Number(e.target.value))}>{sheets.map((sheet,i)=><option key={i} value={i}>{sheet.name} ({sheet.rows.length} rows)</option>)}</select></label>}
   {headers.length>0&&<>
    {IMPORT_COLUMNS.map(key=><label key={key}>{key}<select disabled={busy} value={mapping[key]??''} onChange={e=>{clear();setMapping(prev=>({...prev,[key]:e.target.value===''?undefined:Number(e.target.value)}));}}>
     <option value="">Not mapped</option>{headers.map((h,i)=><option value={i} key={i}>{h} (column {i+1})</option>)}</select></label>)}
@@ -61,6 +80,10 @@ export default function JournalCsvImport({records,onCommitted}:Props){
    <div className="journal-import-preview">{(preview??current).map(x=><div key={x.sourceRow} className="journal-import-row">
     <label className="journal-check">{preview&&x.status==='addition'&&!done.includes(x.sourceRow)&&<input type="checkbox" disabled={busy} checked={selected.includes(x.sourceRow)} onChange={e=>setSelected(old=>e.target.checked?[...old,x.sourceRow]:old.filter(n=>n!==x.sourceRow))}/>}
      Row {x.sourceRow}: {x.title||'(blank title)'} · {done.includes(x.sourceRow)?'Imported':x.status}{x.reason?' · '+x.reason:''}</label>
+     {x.status==='invalid'&&x.reason?.includes('reading status needs review')&&mapping.status!==undefined&&<label>Resolve personal status for row {x.sourceRow}
+       <select disabled={busy} value={overrides[x.sourceRow]??''} onChange={e=>{clear();setOverrides(old=>({...old,[x.sourceRow]:e.target.value as JournalStatus}));}}>
+        <option value="">Needs review</option>{JOURNAL_STATUSES.map(s=><option key={s}>{s}</option>)}
+       </select></label>}
    </div>)}</div>
    {preview&&<button type="button" className="primary" disabled={busy||!selected.length} onClick={()=>void commit()}>Confirm import of {selected.length} new entries</button>}
   </>}

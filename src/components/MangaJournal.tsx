@@ -65,7 +65,7 @@ export default function MangaJournal({archiveEntries,hrefFor}:Props){
    <button className="secondary" disabled={loading||busy} onClick={()=>{setDraft(null);setConfirm(null);setRefresh(n=>n+1);}}>Refresh</button>
    <button className="secondary" disabled={busy||loading||unauthorised} onClick={()=>{setDraft(null);setConfirm(null);setDeleted(v=>!v);}}>{deleted?'Active entries':'Recently removed'}</button>
    <button className="primary" disabled={busy||loading||!!error||deleted} onClick={()=>setDraft({fields:{...empty(),title:''}})}>Add manga</button>
-   <button className="secondary" disabled={busy||loading||!!error||deleted} onClick={()=>setShowImport(v=>!v)}>{showImport?'Close import':'Import CSV'}</button>
+   <button className="secondary" disabled={busy||loading||!!error||deleted} onClick={()=>setShowImport(v=>!v)}>{showImport?'Close import':'Import spreadsheet'}</button>
    <button className="secondary" disabled={loading||!!error||busy} onClick={()=>exportData(false)}>Export JSON</button>
    <button className="secondary" disabled={loading||!!error||busy} onClick={()=>exportData(true)}>Export CSV</button>
   </div>
