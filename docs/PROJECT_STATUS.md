@@ -1,5 +1,7 @@
 # Project status: Taiyou's Manga Library
 
+> Journal foundation candidate: separate D1 migration, validated contract and owner-session CRUD are proposed in a feature branch. No production D1 binding, UI or import is verified. See [Journal foundation](MANGA_READING_JOURNAL.md).
+
 **Snapshot date:** 21 November 2026  
 **Repository:** [AdityaSreevatsaK/Taiyous-Manga-Library](https://github.com/AdityaSreevatsaK/Taiyous-Manga-Library)  
 **Production:** [taiyous-manga-library.pages.dev](https://taiyous-manga-library.pages.dev/)  

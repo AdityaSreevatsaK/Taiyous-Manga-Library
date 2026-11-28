@@ -1,0 +1,98 @@
+import {configured,getSession,json,ORIGIN,production,type Env} from './mangaAuth';
+import {JOURNAL_ID,parseJournalFields,parseJournalRecord,journalFields,type JournalRecord} from '../../src/domain/journal';
+// Structural subset of D1 keeps this module independent of Worker type packages.
+interface Statement {
+ bind(...values:(string|number|null)[]):Statement;
+ first<T>():Promise<T|null>;
+ all<T>():Promise<{success:boolean;results:T[]}>;
+ run():Promise<{success:boolean;meta:{changes:number}}>;
+}
+interface Database {prepare(sql:string):Statement}
+interface JournalEnv extends Env {JOURNAL_DB?:Database}
+interface Context {request:Request;env:JournalEnv}
+interface Row {id:string;revision:number;created_at:string;updated_at:string;deleted_at:string|null;library_manga_id:string|null;payload:string}
+const fields='id,revision,created_at,updated_at,deleted_at,library_manga_id,payload';
+function decode(row:Row):JournalRecord{
+ const p:unknown=JSON.parse(row.payload);
+ const parsed=parseJournalFields(p);
+ if(parsed.libraryMangaId!==row.library_manga_id)throw Error('Invalid link index');
+ return parseJournalRecord({...p as object,schemaVersion:1,id:row.id,revision:row.revision,
+  createdAt:row.created_at,updatedAt:row.updated_at,deletedAt:row.deleted_at});
+}
+const error=(message:string,status:number)=>json({error:message},status);
+const MAX_BODY=65536;
+async function input(request:Request):Promise<Record<string,unknown>>{
+ if(Number(request.headers.get('Content-Length')||0)>MAX_BODY||!request.body)throw Error('Invalid body');
+ const reader=request.body.getReader();let size=0;const decoder=new TextDecoder('utf-8',{fatal:true});let text='';
+ try{while(true){const chunk=await reader.read();if(chunk.done)break;
+   size+=chunk.value.byteLength;if(size>MAX_BODY)throw Error('Body too large');
+   text+=decoder.decode(chunk.value,{stream:true});
+ }text+=decoder.decode();}catch(e){await reader.cancel().catch(()=>{});throw e;}finally{reader.releaseLock();}
+ const raw:unknown=JSON.parse(text);
+ if(!raw||typeof raw!=='object'||Array.isArray(raw))throw Error('Invalid body');
+ return raw as Record<string,unknown>;
+}
+const revisionOk=(v:unknown):v is number=>typeof v==='number'&&Number.isSafeInteger(v)&&v>=1&&v<Number.MAX_SAFE_INTEGER;
+export async function journalRequest({request,env}:Context,id?:string):Promise<Response>{
+ if(!production(request))return error('Journal is production-only',403);
+ if(!configured(env))return error('Owner authentication unavailable',503);
+ // The sealed session already verifies the exact owner and expiry. Do not require
+ // HF dataset availability or write-repos permission for independent Journal data.
+ if(!await getSession(request,env))return error('Sign in with Hugging Face',401);
+ const method=request.method;
+ if(id!==undefined&&!JOURNAL_ID.test(id))return error('Invalid journal ID',400);
+ if(!((id===undefined&&['GET','POST'].includes(method))||(id!==undefined&&['PATCH','DELETE'].includes(method))))return error('Method not allowed',405);
+ if(method!=='GET'&&(request.headers.get('Origin')!==ORIGIN||
+   request.headers.get('X-Taiyou-Request')!=='journal'||
+   request.headers.get('Content-Type')?.split(';')[0]?.trim().toLowerCase()!=='application/json'))
+   return error('Same-origin Journal request required',403);
+ const db=env.JOURNAL_DB;if(!db)return error('Journal database is not configured',503);
+ try{
+  if(method==='GET'){
+    const query=new URL(request.url).searchParams;
+    const after=query.get('after')??'';
+    if(after&&!JOURNAL_ID.test(after))return error('Invalid cursor',400);
+    const deleted=query.get('deleted');
+    if(deleted!==null&&deleted!=='true')return error('Invalid deleted filter',400);
+    const predicate=deleted==='true'?'deleted_at IS NOT NULL':'deleted_at IS NULL';
+    const result=await db.prepare('SELECT '+fields+' FROM journal_entries WHERE '+predicate+' AND id > ? ORDER BY id LIMIT 101').bind(after).all<Row>();
+    if(!result.success)throw Error('Read failed');
+    const entries=result.results.slice(0,100).map(decode);
+    return json({schemaVersion:1,entries,nextCursor:result.results.length>100?entries.at(-1)!.id:null});
+  }
+  let body:Record<string,unknown>;try{body=await input(request);}catch{return error('Invalid Journal request',400);}
+  if(method==='POST'){
+    let data;try{data=parseJournalFields(body);}catch{return error('Invalid Journal entry',400);}
+    const now=new Date().toISOString(),newId='jrn_'+crypto.randomUUID().replace(/-/g,'');
+    const record=parseJournalRecord({...data,schemaVersion:1,id:newId,revision:1,createdAt:now,updatedAt:now,deletedAt:null});
+    const result=await db.prepare('INSERT OR IGNORE INTO journal_entries (id,revision,created_at,updated_at,deleted_at,library_manga_id,payload) VALUES (?,1,?,?,NULL,?,?)')
+      .bind(newId,now,now,data.libraryMangaId,JSON.stringify(data)).run();
+    if(!result.success)throw Error('Write failed');
+    return result.meta.changes===1?json(record,201):error('Record or archive link conflict',409);
+  }
+  const {revision,restore,...patch}=body;
+  if(!revisionOk(revision))return error('Record revision required',400);
+  const row=await db.prepare('SELECT '+fields+' FROM journal_entries WHERE id = ?').bind(id!).first<Row>();
+  if(!row)return error('Journal entry not found',404);
+  const previous=decode(row);
+  if(previous.revision!==revision)return error('Record changed; reload before editing',409);
+  let nextFields=journalFields(previous),deletedAt=previous.deletedAt;
+  const now=new Date(Math.max(Date.now(),Date.parse(previous.updatedAt))).toISOString();
+  if(method==='DELETE'){
+    if(Object.keys(patch).length||restore!==undefined||deletedAt!==null)return error('Invalid deletion',400);
+    deletedAt=now;
+  }else if(restore===true){
+    if(Object.keys(patch).length||deletedAt===null)return error('Invalid restoration',400);
+    deletedAt=null;
+  }else{
+    if(restore!==undefined||deletedAt!==null||!Object.keys(patch).length)return error('Invalid update',400);
+    try{nextFields=parseJournalFields({...nextFields,...patch});}catch{return error('Invalid Journal entry',400);}
+  }
+  const record=parseJournalRecord({...nextFields,schemaVersion:1,id:id!,revision:revision+1,
+    createdAt:previous.createdAt,updatedAt:now,deletedAt});
+  const result=await db.prepare('UPDATE OR IGNORE journal_entries SET revision = ?, updated_at = ?, deleted_at = ?, library_manga_id = ?, payload = ? WHERE id = ? AND revision = ?')
+   .bind(record.revision,now,deletedAt,nextFields.libraryMangaId,JSON.stringify(nextFields),id!,revision).run();
+  if(!result.success)throw Error('Write failed');
+  return result.meta.changes===1?json(record):error('Record or archive link conflict; reload before editing',409);
+ }catch{return error('Journal temporarily unavailable; no automatic retry',503);}
+}
