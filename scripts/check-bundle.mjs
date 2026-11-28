@@ -4,6 +4,7 @@ import { gzipSync } from 'node:zlib';
 
 const root = 'dist/assets';
 const assets = readdirSync(root).filter(name => /\.(?:js|css)$/.test(name));
+const isJournal = name => /^(?:MangaJournal|journalXlsx|JournalBackup)-[A-Za-z0-9_-]+\.(?:js|css)$/.test(name);
 const budgets = [
   // The 21 November Manga Master workspace adds private usage tracking,
   // per-title analytics and protected catalogue administration. Its components
@@ -15,18 +16,23 @@ const budgets = [
   // Rolling day/month labels add under 0.25 KiB of compressed CSS to the
   // measured 29 KiB baseline. Keep the limit tightly bounded.
   { extension: '.css', limit: 163 * 1024, gzipLimit: 29.25 * 1024 },
+  // Measured db178bd: Journal JS 24.78 kB (gzip 8.11 kB), CSS 1.89 kB
+  // (gzip 0.74 kB). Aggregate 382.1/164.1 KiB; separate only the named
+  // lazy-loaded route, retaining the prior budgets for every other asset.
+  { extension: '.js', limit: 48 * 1024, gzipLimit: 17 * 1024, journal: true },
+  { extension: '.css', limit: 2.25 * 1024, gzipLimit: 1 * 1024, journal: true },
 ];
-for (const { extension, limit, gzipLimit } of budgets) {
-  const files = assets.filter(name => name.endsWith(extension));
+for (const { extension, limit, gzipLimit, journal = false } of budgets) {
+  const files = assets.filter(name => name.endsWith(extension) && isJournal(name) === journal);
   const bytes = files.reduce((sum, file) => sum + statSync(join(root, file)).size, 0);
   const kb = (bytes / 1024).toFixed(1);
-  console.log(`${extension} total: ${kb} KiB (budget ${limit / 1024} KiB)`);
+  console.log(`${journal?'Journal':'Core'} ${extension} total: ${kb} KiB (budget ${limit / 1024} KiB)`);
   if (gzipLimit) {
     const compressed = files.reduce((sum, file) =>
       sum + gzipSync(readFileSync(join(root,file))).byteLength, 0);
-    console.log(`${extension} gzip total: ${(compressed / 1024).toFixed(1)} KiB (budget ${gzipLimit / 1024} KiB)`);
+    console.log(`${journal?'Journal':'Core'} ${extension} gzip total: ${(compressed / 1024).toFixed(1)} KiB (budget ${gzipLimit / 1024} KiB)`);
     if (compressed > gzipLimit) {
-      console.error('Compressed stylesheet exceeds the network transfer budget');
+      console.error('Compressed asset exceeds the network transfer budget');
       process.exitCode = 1;
     }
   }

@@ -31,11 +31,28 @@ jobs:
         run: node --test scripts/stamp-service-worker.test.mjs
       - name: Verify two-release offline update and rollback safety
         run: node --test scripts/sw-release-transitions.test.mjs
+      - name: Verify Journal migration and transaction invariants in disposable SQLite
+        run: node --test scripts/journal-sql.test.mjs
       - run: npm run build
       - name: Enforce production bundle budgets
         run: node scripts/check-bundle.mjs
       - name: Report bundle assets
         run: du -h dist/assets/* || true
+
+  journal-d1:
+    name: Journal local workerd D1 acceptance
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - run: npm ci --no-audit --no-fund
+      - name: Install isolated pinned Miniflare test runtime
+        run: npm install --prefix "$RUNNER_TEMP/journal-d1" --no-save --no-package-lock --no-audit --no-fund miniflare@4.20260730.0
+      - name: Test production handlers with synthetic local-only D1
+        run: JOURNAL_D1_TEST_PREFIX="$RUNNER_TEMP/journal-d1" node --test scripts/journal-d1-acceptance.mjs
 
   browser:
     name: Responsive, keyboard, touch and offline browser tests

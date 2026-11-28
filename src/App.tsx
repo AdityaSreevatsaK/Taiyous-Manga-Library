@@ -12,6 +12,7 @@ import { MangaBrandMark } from './components/MangaBrandMark';
 import { MangaBackToTop } from './components/MangaBackToTop';
 import { MangaSuccessToast } from './components/MangaSuccessToast';
 import { MangaOwnerTools } from './components/MangaOwnerTools';
+const MangaJournal=lazy(()=>import('./components/MangaJournal'));
 const MangaMasterControls=lazy(()=>import('./components/MangaMasterControls').then(module=>({default:module.MangaMasterControls})));
 import { SearchIcon, HashIcon, LibraryIcon, BookOpenIcon, ChevronDownIcon, BookmarkIcon, InfoIcon, TagIcon, StarIcon, LockKeyholeIcon } from './components/SharedLibraryIcons';
 import { MangaThemeSwatches } from './components/MangaThemeSwatches';
@@ -72,7 +73,7 @@ const publicationCaption:Record<PublicationStatus,string>={
 const ribbonCaption:Record<PublicationStatus,string>={
   completed:'Story Complete',ongoing:'Updating',hiatus:'On Hiatus',dropped:'Dropped',unknown:'Unknown',
 };
-type Screen = { kind: 'catalogue'; section: CatalogueSection } | {kind:'master';view?:'analytics'} | { kind: 'details' | 'reader'; id: string } | { kind: 'not-found' };
+type Screen = { kind: 'catalogue'; section: CatalogueSection } | {kind:'master';view?:'analytics'} | {kind:'journal'} | { kind: 'details' | 'reader'; id: string } | { kind: 'not-found' };
 function currentBrowserRoute(): AppRoute {
   return typeof window === 'undefined' ? { kind: 'home' } :
     parseAppRoute(window.location.pathname, window.location.search, import.meta.env.BASE_URL);
@@ -124,6 +125,7 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
     status:'checking',message:'Checking private library connection…',
   });
   const [screen, setScreen] = useState<Screen>(() => {
+    if(initialRoute.kind==='journal')return {kind:'journal'};
     if(initialRoute.kind==='master')return {kind:'master',view:initialRoute.view};
     if (initialRoute.kind !== 'details' && initialRoute.kind !== 'reader' && initialRoute.kind !== 'not-found') {
       return { kind: 'catalogue', section: initialRoute.kind };
@@ -359,6 +361,8 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
           }
         }else if(bookmarked.kind==='not-found'){
           setScreen({kind:'not-found'});
+        }else if(bookmarked.kind==='journal'){
+          setScreen({kind:'journal'});
         }else if(bookmarked.kind==='master'){
           setScreen({kind:'master',view:bookmarked.view});
         }else{
@@ -664,6 +668,9 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
         window.history.replaceState(null,'',canonical);
     }
     setNotice('');
+    if(route.kind==='journal'){
+      exitImmersive();setLocation(null);setScreen({kind:'journal'});return;
+    }
     if(route.kind==='master'){
       const canonical=routeHref(route,import.meta.env.BASE_URL,catalogue);
       if(window.location.pathname+window.location.search!==canonical)
@@ -1046,6 +1053,9 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
               {['reading','trying','offline','finished','to-read'].includes(section)&&
                 <span className="nav-count">{counts[section]}</span>}
             </a>)}
+          {!compactNav&&<span className="manga-journal-nav-item"><a className="site-nav-link" aria-current={screen.kind==='journal'?'page':undefined}
+            href={routeHref({kind:'journal'},import.meta.env.BASE_URL,catalogue)}
+            onClick={event=>followLink(event,()=>navigateTo({kind:'journal'}))}>Journal</a></span>}
           {compactNav&&<details className="nav-more"><summary>More</summary>
             <div className="nav-more-menu">{moreNav.map(section=>
               <a key={section} className="site-nav-link"
@@ -1055,6 +1065,11 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
                    goCatalogue(section);
                    event.currentTarget.closest('details')?.removeAttribute('open');
                  })}>{labels[section]}</a>)}
+              <a className="site-nav-link" aria-current={screen.kind==='journal'?'page':undefined}
+                href={routeHref({kind:'journal'},import.meta.env.BASE_URL,catalogue)}
+                onClick={event=>followLink(event,()=>{
+                  navigateTo({kind:'journal'});event.currentTarget.closest('details')?.removeAttribute('open');
+                })}>Journal</a>
             </div>
           </details>}
         </div>
@@ -1084,6 +1099,11 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
       </nav>
     </header>}
     <main id="content" className="main-area">
+      {screen.kind==='journal'&&<Suspense fallback={<p role="status">Loading Journal…</p>}>
+        <MangaJournal archiveEntries={cloud.status==='connected'?remoteEntries:undefined}
+          localAnnotations={annotations}
+          hrefFor={id=>routeHref({kind:'details',mangaId:id},import.meta.env.BASE_URL,remoteEntries)}/>
+      </Suspense>}
       {screen.kind==='master'&&<Suspense fallback={<p role="status">Loading Master Controls…</p>}><MangaMasterControls
         connected={cloud.status==='connected'} checking={cloud.status==='checking'}
         owner={cloud.status==='connected'?cloud.owner:undefined}

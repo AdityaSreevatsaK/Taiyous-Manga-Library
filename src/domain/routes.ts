@@ -9,6 +9,7 @@ export const PRIMARY_NAV_SECTIONS=['home','reading','trying','offline','finished
 export type AppRoute=
  | {kind:CatalogueSection}
  | {kind:'master';view?:'analytics'}
+ | {kind:'journal'}
  | {kind:'details';mangaId:string}
  | {kind:'reader';mangaId:string;chapterId:string;pageIndex:number}
  | {kind:'not-found'};
@@ -55,6 +56,7 @@ export function parseAppRoute(pathname:string,search='',basePath='/'):AppRoute{
  const relative=prefix?pathname.slice(prefix.length):pathname;
  const parts=relative.split('/').filter(Boolean);
  if(parts.length===0)return {kind:'home'};
+ if(parts.length===1&&parts[0]==='journal')return {kind:'journal'};
  if(parts.length===1&&parts[0]==='master')return new URLSearchParams(search).get('view')==='analytics'
    ?{kind:'master',view:'analytics'}:{kind:'master'};
  // Old bookmarks stay useful without restoring either removed navigation tab.
