@@ -3,8 +3,11 @@ export const JOURNAL_STATUSES=['Completed','Reading','Dropped','On Hold','Plan t
 export const JOURNAL_TYPES=['manga','manhwa','manhua','other'] as const;
 export type JournalStatus=typeof JOURNAL_STATUSES[number];
 export type JournalType=typeof JOURNAL_TYPES[number];
+export const PUBLICATION_STATUSES=['completed','ongoing','hiatus','indefinite hiatus','dropped'] as const;
+export type JournalPublicationStatus=typeof PUBLICATION_STATUSES[number];
 export interface JournalFields {
  title:string; status:JournalStatus; type:JournalType|null;
+ publicationStatus:JournalPublicationStatus|null; lastReadChapter:string|null;
  alternativeTitles:string[]; authors:string[]; artists:string[]; tags:string[];
  totalChapters:number|null; chaptersRead:number|null; rating:number|null;
  favourite:boolean; startedOn:string|null; finishedOn:string|null; notes:string|null;
@@ -15,7 +18,7 @@ export interface JournalRecord extends JournalFields {
 }
 export const JOURNAL_ID=/^jrn_[0-9a-f]{32}$/;
 const MANGA_ID=/^mng_[A-Za-z0-9_-]{8,64}$/;
-const KEYS=['title','status','type','alternativeTitles','authors','artists','tags','totalChapters','chaptersRead','rating','favourite','startedOn','finishedOn','notes','externalIds','readingLinks','libraryMangaId'] as const;
+const KEYS=['title','status','type','publicationStatus','lastReadChapter','alternativeTitles','authors','artists','tags','totalChapters','chaptersRead','rating','favourite','startedOn','finishedOn','notes','externalIds','readingLinks','libraryMangaId'] as const;
 function object(v:unknown):Record<string,unknown>{
  if(!v||typeof v!=='object'||Array.isArray(v))throw Error('Expected an object');
  return v as Record<string,unknown>;
@@ -54,6 +57,9 @@ export function parseJournalFields(input:unknown):JournalFields{
  if(!(JOURNAL_STATUSES as readonly unknown[]).includes(o.status))throw Error('Invalid reading status');
  const type=o.type??null;
  if(type!==null&&!(JOURNAL_TYPES as readonly unknown[]).includes(type))throw Error('Invalid manga type');
+ const publicationStatus=o.publicationStatus??null;
+ if(publicationStatus!==null&&!(PUBLICATION_STATUSES as readonly unknown[]).includes(publicationStatus))throw Error('Invalid publication status');
+ const lastReadChapter=o.lastReadChapter===undefined||o.lastReadChapter===null?null:str(o.lastReadChapter,100);
  const favourite=o.favourite===undefined?false:o.favourite;
  if(typeof favourite!=='boolean')throw Error('Invalid favourite');
  const startedOn=day(o.startedOn),finishedOn=day(o.finishedOn);
@@ -77,6 +83,7 @@ export function parseJournalFields(input:unknown):JournalFields{
  if(new Set(readingLinks).size!==readingLinks.length)throw Error('Duplicate reading link');
  const notes=o.notes===null||o.notes===undefined?null:str(o.notes,5000,true);
  return {title:str(o.title,240),status:o.status as JournalStatus,type:type as JournalType|null,
+   publicationStatus:publicationStatus as JournalPublicationStatus|null,lastReadChapter,
    alternativeTitles:list(o.alternativeTitles),authors:list(o.authors),artists:list(o.artists),tags:list(o.tags),
    totalChapters:numberOrNull(o.totalChapters,0,1000000),chaptersRead:numberOrNull(o.chaptersRead,0,1000000),
    rating:numberOrNull(o.rating,1,10),favourite,startedOn,finishedOn,notes,externalIds,readingLinks,libraryMangaId};
@@ -85,7 +92,7 @@ export function parseJournalRecord(input:unknown):JournalRecord{
  const {schemaVersion,id,revision,createdAt,updatedAt,deletedAt,...fields}=object(input);
  if(schemaVersion!==1||typeof id!=='string'||!JOURNAL_ID.test(id)||
  typeof revision!=='number'||!Number.isSafeInteger(revision)||revision<1)throw Error('Invalid journal identity');
- if(KEYS.some(k=>!Object.hasOwn(fields,k)))throw Error('Incomplete persisted record');
+ if(KEYS.some(k=>k!=='publicationStatus'&&k!=='lastReadChapter'&&!Object.hasOwn(fields,k)))throw Error('Incomplete persisted record');
  const created=timestamp(createdAt),updated=timestamp(updatedAt),deleted=deletedAt===null?null:timestamp(deletedAt);
  if(updated<created||(deleted!==null&&(deleted<created||deleted>updated)))throw Error('Invalid record chronology');
  return {...parseJournalFields(fields),schemaVersion:1,id,revision,createdAt:created,updatedAt:updated,deletedAt:deleted};

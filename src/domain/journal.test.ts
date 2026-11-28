@@ -9,7 +9,7 @@ describe('independent Journal contract',()=>{
  it.each([{rating:0},{rating:1.5},{rating:'8'},{totalChapters:-1},{chaptersRead:''},{status:'ongoing'},
    {startedOn:'2026-02-30'},{startedOn:'2026-05-02',finishedOn:'2026-05-01'},
    {readingLinks:['javascript:alert(1)']},{readingLinks:['https://user:pass@example.com']},
-   {libraryMangaId:'ch_abcdefgh'},{publicationStatus:'completed'},{favourite:'true'}])('rejects invalid fields %j',patch=>{
+   {libraryMangaId:'ch_abcdefgh'},{publicationStatus:'invalid'},{favourite:'true'}])('rejects invalid fields %j',patch=>{
    expect(()=>parseJournalFields({...base,...patch})).toThrow();
  });
  it('rejects invalid persisted identities and missing fields',()=>{

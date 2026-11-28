@@ -25,3 +25,15 @@ describe('CSV import',()=>{
   expect(previewCandidates(candidates,[{title:'Other',alternativeTitles:['B']}]).map(x=>x.status)).toEqual(['conflict','conflict','conflict']);
  });
 });
+
+describe('legacy reading-list mapping',()=>{
+ it('distinguishes publication from personal status and preserves fractional labels',()=>{
+  const headers=['Sl. No','Name','Status','Reading status','Last Read','Opinion'];
+  const mapping=suggestMapping(headers);
+  expect(mapping).toEqual({title:1,publicationStatus:2,status:3,lastReadChapter:4,notes:5});
+  expect(mapCsvRow({sourceRow:4,cells:['1','Synthetic','Completed','Started','12.5','Synthetic note']},mapping,6).fields)
+   .toMatchObject({status:'Reading',publicationStatus:'completed',lastReadChapter:'12.5',chaptersRead:null,rating:null,notes:'Synthetic note'});
+  expect(mapCsvRow({sourceRow:5,cells:['2','Synthetic','Completed','','','']},mapping,6).status).toBe('invalid');
+  expect(mapCsvRow({sourceRow:6,cells:['3','Synthetic','Ongoing','Ongoing','','']},mapping,6).status).toBe('invalid');
+ });
+});

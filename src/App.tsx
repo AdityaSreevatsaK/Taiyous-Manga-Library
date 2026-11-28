@@ -1053,6 +1053,9 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
               {['reading','trying','offline','finished','to-read'].includes(section)&&
                 <span className="nav-count">{counts[section]}</span>}
             </a>)}
+          {!compactNav&&<a className="site-nav-link" aria-current={screen.kind==='journal'?'page':undefined}
+            href={routeHref({kind:'journal'},import.meta.env.BASE_URL,catalogue)}
+            onClick={event=>followLink(event,()=>navigateTo({kind:'journal'}))}>Journal</a>}
           {compactNav&&<details className="nav-more"><summary>More</summary>
             <div className="nav-more-menu">{moreNav.map(section=>
               <a key={section} className="site-nav-link"
@@ -1062,6 +1065,11 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
                    goCatalogue(section);
                    event.currentTarget.closest('details')?.removeAttribute('open');
                  })}>{labels[section]}</a>)}
+              <a className="site-nav-link" aria-current={screen.kind==='journal'?'page':undefined}
+                href={routeHref({kind:'journal'},import.meta.env.BASE_URL,catalogue)}
+                onClick={event=>followLink(event,()=>{
+                  navigateTo({kind:'journal'});event.currentTarget.closest('details')?.removeAttribute('open');
+                })}>Journal</a>
             </div>
           </details>}
         </div>
@@ -1083,9 +1091,6 @@ export default function App({ initialDemo = true }: { initialDemo?: boolean } = 
                 onClick={event=>{jumpToFilter('collection',name);event.currentTarget.closest('details')?.removeAttribute('open');}}>{name} (source)</button>)}
             </div>
           </details>
-          <a className="site-nav-link" aria-current={screen.kind==='journal'?'page':undefined}
-            href={routeHref({kind:'journal'},import.meta.env.BASE_URL,catalogue)}
-            onClick={event=>followLink(event,()=>navigateTo({kind:'journal'}))}>Journal</a>
           <MangaOwnerTools connected={cloud.status==='connected'}
             href={routeHref({kind:'master'},import.meta.env.BASE_URL,catalogue)}
             active={screen.kind==='master'}

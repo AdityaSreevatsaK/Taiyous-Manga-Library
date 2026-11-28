@@ -1,5 +1,5 @@
 import {useEffect,useMemo,useState,type FormEvent} from 'react';
-import {JOURNAL_STATUSES,JOURNAL_TYPES,parseJournalFields,journalFields,type JournalFields,type JournalRecord} from '../domain/journal';
+import {JOURNAL_STATUSES,JOURNAL_TYPES,PUBLICATION_STATUSES,parseJournalFields,journalFields,type JournalFields,type JournalRecord} from '../domain/journal';
 import {JournalError,loadJournal,saveJournal,setJournalDeleted} from '../data/journalGateway';
 import type {MangaEntry} from '../domain/types';
 import './manga-journal.css';
@@ -50,7 +50,7 @@ export default function MangaJournal({archiveEntries,hrefFor}:Props){
  }
  function exportData(csv:boolean){
   if(!csv){download('manga-journal.json',JSON.stringify({schemaVersion:1,entries:records},null,2),'application/json');return;}
-  const keys=['title','status','type','authors','artists','alternativeTitles','tags','totalChapters','chaptersRead','rating','favourite','startedOn','finishedOn','notes','readingLinks','externalIds','libraryMangaId','id','revision','createdAt','updatedAt','deletedAt'] as const;
+  const keys=['title','status','type','publicationStatus','lastReadChapter','authors','artists','alternativeTitles','tags','totalChapters','chaptersRead','rating','favourite','startedOn','finishedOn','notes','readingLinks','externalIds','libraryMangaId','id','revision','createdAt','updatedAt','deletedAt'] as const;
   const cell=(v:unknown)=>{let s=v===null?'':typeof v==='object'?JSON.stringify(v):String(v);
    if(/^[\s\uFEFF]*[=+\-@]/u.test(s)||/^[\t\r\n]/.test(s))s="'"+s;return '"'+s.replace(/"/g,'""')+'"';};
   download('manga-journal.csv',[keys.join(','),...records.map(r=>keys.map(k=>cell(r[k])).join(','))].join('\r\n'),'text/csv;charset=utf-8');
@@ -75,6 +75,8 @@ export default function MangaJournal({archiveEntries,hrefFor}:Props){
    <h2>{draft.record?'Edit entry':'Add manga'}</h2>
    <label>Title<input required maxLength={240} value={draft.fields.title} onChange={e=>change('title',e.target.value)}/></label>
    <label>Reading status<select value={draft.fields.status} onChange={e=>change('status',e.target.value as JournalFields['status'])}>{JOURNAL_STATUSES.map(s=><option key={s}>{s}</option>)}</select></label>
+   <label>Publication status<select value={draft.fields.publicationStatus??''} onChange={e=>change('publicationStatus',(e.target.value||null) as JournalFields['publicationStatus'])}><option value="">Unknown</option>{PUBLICATION_STATUSES.map(s=><option key={s}>{s}</option>)}</select></label>
+   <label>Last-read chapter label<input maxLength={100} value={draft.fields.lastReadChapter??''} onChange={e=>change('lastReadChapter',e.target.value||null)}/></label>
    <label>Type<select value={draft.fields.type??''} onChange={e=>change('type',(e.target.value||null) as JournalFields['type'])}><option value="">Unknown</option>{JOURNAL_TYPES.map(s=><option key={s}>{s}</option>)}</select></label>
    {(['alternativeTitles','authors','artists','tags','readingLinks'] as const).map(k=><label key={k}>{({alternativeTitles:'Alternative titles',authors:'Authors',artists:'Artists',tags:'Genres / tags',readingLinks:'HTTPS reading links'})[k]} (one per line)
     <textarea key={draft.record?.id??'new'} defaultValue={draft.fields[k].join('\n')} onChange={e=>change(k,lines(e.target.value))}/></label>)}
@@ -103,7 +105,7 @@ export default function MangaJournal({archiveEntries,hrefFor}:Props){
   {filtered.length>0&&<table className="journal-table"><thead><tr>{['Manga','Reading status','Chapters','Rating','Archive','Actions'].map(s=><th scope="col" key={s}>{s}</th>)}</tr></thead><tbody>
    {filtered.map(record=><tr key={record.id}>
     <td data-label="Manga"><strong>{record.title}</strong>{record.favourite&&<span> · Favourite</span>}<div>{record.authors.join(', ')||'Author unknown'}</div><small>{record.type??'Unknown type'}</small></td>
-    <td data-label="Reading status">{record.status}</td><td data-label="Chapters">{record.chaptersRead??'?'}/{record.totalChapters??'?'}</td>
+    <td data-label="Reading status">{record.status}</td><td data-label="Chapters">{record.chaptersRead??'?'}/{record.totalChapters??'?'}{record.lastReadChapter&&<div>Last read: {record.lastReadChapter}</div>}</td>
     <td data-label="Rating">{record.rating===null?'Unrated':record.rating+'/10'}</td>
     <td data-label="Archive">{isArchived(record)?<a href={hrefFor(record.libraryMangaId!)}>Read in My Library</a>:archiveEntries===undefined?'Availability unknown':'Not archived'}</td>
     <td data-label="Actions"><div className="journal-actions">{!deleted&&<button className="secondary" disabled={busy} onClick={()=>setDraft({record,fields:journalFields(record)})}>Edit</button>}

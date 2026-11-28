@@ -1,6 +1,6 @@
 import {parseJournalFields,type JournalFields,type JournalRecord} from './journal';
 export const IMPORT_BATCH_LIMIT=50;
-export const IMPORT_COLUMNS=['title','status','type','authors','artists','alternativeTitles','tags','totalChapters','chaptersRead','rating','favourite','startedOn','finishedOn','notes','readingLinks'] as const;
+export const IMPORT_COLUMNS=['title','status','type','publicationStatus','lastReadChapter','authors','artists','alternativeTitles','tags','totalChapters','chaptersRead','rating','favourite','startedOn','finishedOn','notes','readingLinks'] as const;
 export type ImportColumn=typeof IMPORT_COLUMNS[number];
 export type Mapping=Partial<Record<ImportColumn,number>>;
 export interface CsvRow {sourceRow:number;cells:string[]}
@@ -31,19 +31,20 @@ export function parseCsv(text:string):{headers:string[];rows:CsvRow[]}{
 }
 const normal=(v:string)=>v.trim().normalize('NFKC').toLocaleLowerCase('en').replace(/[\s_-]+/g,' ');
 const aliases:Record<string,ImportColumn>={
- title:'title','manga title':'title',name:'title',status:'status','reading status':'status',
+ title:'title','manga title':'title',name:'title',status:'status','reading status':'status','publication status':'publicationStatus',publicationstatus:'publicationStatus','last read':'lastReadChapter','last read chapter':'lastReadChapter',lastreadchapter:'lastReadChapter',
  type:'type','manga type':'type',author:'authors',authors:'authors',artist:'artists',artists:'artists',
  'alternative titles':'alternativeTitles',alternativetitles:'alternativeTitles',genres:'tags',tags:'tags',
  'total chapters':'totalChapters',totalchapters:'totalChapters','chapters read':'chaptersRead',chaptersread:'chaptersRead',
  rating:'rating','my rating':'rating',favourite:'favourite',favorite:'favourite','started on':'startedOn',startedon:'startedOn',
- 'finished on':'finishedOn',finishedon:'finishedOn',notes:'notes','reading links':'readingLinks',readinglinks:'readingLinks'
+ 'finished on':'finishedOn',finishedon:'finishedOn',notes:'notes',opinion:'notes','reading links':'readingLinks',readinglinks:'readingLinks'
 };
 export function suggestMapping(headers:string[]):Mapping{
  const matches=new Map<ImportColumn,number[]>();
- headers.forEach((h,i)=>{const label=normal(h);const key=Object.hasOwn(aliases,label)?aliases[label]:undefined;if(key)matches.set(key,[...(matches.get(key)??[]),i]);});
+ const hasReading=headers.some(h=>normal(h)==='reading status');
+ headers.forEach((h,i)=>{const label=normal(h);const key=label==='status'&&hasReading?'publicationStatus':Object.hasOwn(aliases,label)?aliases[label]:undefined;if(key)matches.set(key,[...(matches.get(key)??[]),i]);});
  return Object.fromEntries([...matches].filter(([,indices])=>indices.length===1).map(([key,indices])=>[key,indices[0]]));
 }
-const statusMap:Record<string,JournalFields['status']>={completed:'Completed',finished:'Completed',reading:'Reading','currently reading':'Reading',dropped:'Dropped','on hold':'On Hold','plan to read':'Plan to Read','to read':'Plan to Read'};
+const statusMap:Record<string,JournalFields['status']>={completed:'Completed',complete:'Completed',finished:'Completed',started:'Reading',reading:'Reading','currently reading':'Reading',dropped:'Dropped','on hold':'On Hold','plan to read':'Plan to Read','to read':'Plan to Read'};
 export function mapCsvRow(row:CsvRow,mapping:Mapping,headerCount:number):ImportPreviewRow{
  const read=(key:ImportColumn)=>{const index=mapping[key];return index===undefined?'':(row.cells[index]??'').trim();};
  const title=read('title');
@@ -60,7 +61,14 @@ export function mapCsvRow(row:CsvRow,mapping:Mapping,headerCount:number):ImportP
    if(s.startsWith('[')){const v:unknown=JSON.parse(s);if(!Array.isArray(v)||!v.every(x=>typeof x==='string'))throw Error('Invalid list in '+key);return v as string[];}
    return s.split(/[\n;]+/).map(x=>x.trim()).filter(Boolean);};
   const fav=normal(read('favourite'));if(fav&&!['yes','no','true','false','1','0'].includes(fav))throw Error('Invalid favourite flag');
-  const fields=parseJournalFields({title,status:statusMap[normal(read('status'))],type:normal(read('type'))||null,
+  const rawStatus=normal(read('status'));
+  const status=Object.hasOwn(statusMap,rawStatus)?statusMap[rawStatus]:undefined;
+  if(!status)throw Error('Personal reading status needs review (blank or ambiguous)');
+  const publication=normal(read('publicationStatus'));
+  const publicationStatus=publication==='complete'?'completed':publication===''||publication==='?'||publication==='-'?null:publication;
+  const label=read('lastReadChapter');
+  const lastReadChapter=label==='-'||label==='?'||!label?null:label;
+  const fields=parseJournalFields({title,status,type:normal(read('type'))||null,publicationStatus,lastReadChapter,
    authors:list('authors'),artists:list('artists'),alternativeTitles:list('alternativeTitles'),tags:list('tags'),
    totalChapters:integer('totalChapters'),chaptersRead:integer('chaptersRead'),rating:integer('rating'),favourite:['yes','true','1'].includes(fav),
    startedOn:read('startedOn')||null,finishedOn:read('finishedOn')||null,notes:read('notes')||null,readingLinks:list('readingLinks')});
