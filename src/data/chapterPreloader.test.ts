@@ -21,6 +21,39 @@ describe('eager, chapter-wide private page preloading',()=>{
     expect(sources.size).toBe(0);
     expect(released.size).toBe(1000);
   });
+  for(const count of [300,500,1000]){
+    it('verifies all '+count+' synthetic private pages while retaining only nearby sources',async()=>{
+      const controller=new AbortController();
+      const live=new Set<number>(),released=new Set<number>(),kept=new Map<number,PageSource>();
+      const loaded:number[]=[],failed:number[]=[];
+      let active=0,peak=0;
+      await preloadChapterPages(count,async index=>{
+        active++;peak=Math.max(peak,active);
+        await Promise.resolve();
+        active--;
+        live.add(index);
+        return source(index,()=>{
+          if(released.has(index))throw Error('double release');
+          released.add(index);live.delete(index);
+        });
+      },(index,value)=>{
+        loaded.push(index);
+        kept.set(index,value);
+        discardDistantPageSources(kept,0,count);
+      },index=>failed.push(index),controller.signal);
+      expect(loaded).toHaveLength(count);
+      expect(failed).toEqual([]);
+      expect(peak).toBeLessThanOrEqual(3);
+      expect(kept.size).toBeLessThanOrEqual(2);
+      expect(live.size).toBeLessThanOrEqual(2);
+      // Simulate scrolling to the last page: no retained source from the
+      // chapter-wide pass should remain pinned once the viewport moves.
+      discardDistantPageSources(kept,count-1,count);
+      expect(kept.size).toBe(0);
+      expect(released.size).toBe(count);
+      expect(live.size).toBe(0);
+    });
+  }
   it('attempts every page without any scroll events and starts work in chapter order',async()=>{
     const starts:number[]=[],completed:number[]=[],failures:number[]=[];
     await preloadChapterPages(17,async index=>{
