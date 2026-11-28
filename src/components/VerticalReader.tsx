@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { resolveSyntheticPage, type PageSource } from '../data/pageSource';
 import { resolvePrivatePage } from '../data/privateMedia';
-import { preloadChapterPages,discardDistantPageSources } from '../data/chapterPreloader';
+import { preloadChapterPages,discardDistantPageSources,shouldPublishChapterProgress } from '../data/chapterPreloader';
 import { anchoredPageIndex, pagePrefetchWindow } from '../domain/pageViewport';
 import type { ChapterManifest } from '../domain/types';
 import {BookOpenIcon} from './SharedLibraryIcons';
@@ -168,7 +168,11 @@ export function VerticalReader({ manifest, privateMangaId, privateRevision, fit 
         }else source.release();
         setErrors(previous=>{if(!previous[index])return previous;
           const next={...previous};delete next[index];return next;});
-        publishPreload();
+        // For 1,000-page chapters, avoid 1,000 full reader re-renders
+        // solely to change the progress counter by one.
+        if(shouldPublishChapterProgress(
+          privateReady.current.size+privateFailed.current.size,manifest.pages.length))
+          publishPreload();
       },
       index=>{
         if(!images.current.has(index)){
