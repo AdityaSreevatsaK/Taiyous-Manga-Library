@@ -1,5 +1,5 @@
 import {afterEach,describe,expect,it,vi} from 'vitest';
-import {preloadChapterPages,discardDistantPageSources} from './chapterPreloader';
+import {preloadChapterPages,discardDistantPageSources,shouldPublishChapterProgress} from './chapterPreloader';
 import type {PageSource} from './pageSource';
 
 const source=(index:number,onRelease=()=>{}):PageSource=>({
@@ -8,6 +8,19 @@ const source=(index:number,onRelease=()=>{}):PageSource=>({
 afterEach(()=>vi.restoreAllMocks());
 
 describe('eager, chapter-wide private page preloading',()=>{
+  it('bounds progress-driven re-renders without skipping final verification',()=>{
+    for(const count of [1,5,300,500,1000]){
+      const reports=Array.from({length:count},(_,i)=>i+1)
+        .filter(attempted=>shouldPublishChapterProgress(attempted,count));
+      expect(reports[0]).toBe(1);
+      expect(reports.at(-1)).toBe(count);
+      expect(reports.length).toBeLessThanOrEqual(101);
+      expect(reports).toEqual([...new Set(reports)]);
+    }
+    expect(shouldPublishChapterProgress(0,1000)).toBe(false);
+    expect(shouldPublishChapterProgress(1001,1000)).toBe(false);
+  });
+
   it('retains at most three blob sources across 1,000 pages and releases all others',()=>{
     const released=new Set<number>();
     const sources=new Map<number,PageSource>();
@@ -21,6 +34,39 @@ describe('eager, chapter-wide private page preloading',()=>{
     expect(sources.size).toBe(0);
     expect(released.size).toBe(1000);
   });
+  for(const count of [300,500,1000]){
+    it('verifies all '+count+' synthetic private pages while retaining only nearby sources',async()=>{
+      const controller=new AbortController();
+      const live=new Set<number>(),released=new Set<number>(),kept=new Map<number,PageSource>();
+      const loaded:number[]=[],failed:number[]=[];
+      let active=0,peak=0;
+      await preloadChapterPages(count,async index=>{
+        active++;peak=Math.max(peak,active);
+        await Promise.resolve();
+        active--;
+        live.add(index);
+        return source(index,()=>{
+          if(released.has(index))throw Error('double release');
+          released.add(index);live.delete(index);
+        });
+      },(index,value)=>{
+        loaded.push(index);
+        kept.set(index,value);
+        discardDistantPageSources(kept,0,count);
+      },index=>failed.push(index),controller.signal);
+      expect(loaded).toHaveLength(count);
+      expect(failed).toEqual([]);
+      expect(peak).toBeLessThanOrEqual(3);
+      expect(kept.size).toBeLessThanOrEqual(2);
+      expect(live.size).toBeLessThanOrEqual(2);
+      // Simulate scrolling to the last page: no retained source from the
+      // chapter-wide pass should remain pinned once the viewport moves.
+      discardDistantPageSources(kept,count-1,count);
+      expect(kept.size).toBe(0);
+      expect(released.size).toBe(count);
+      expect(live.size).toBe(0);
+    });
+  }
   it('attempts every page without any scroll events and starts work in chapter order',async()=>{
     const starts:number[]=[],completed:number[]=[],failures:number[]=[];
     await preloadChapterPages(17,async index=>{

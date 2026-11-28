@@ -53,3 +53,13 @@ export function discardDistantPageSources(sources:Map<number,PageSource>,
  }
  return released;
 }
+
+/** Limit progress-driven React renders to roughly one update per percent.
+ * The actual hash/bytes verification still runs for every chapter page.
+ */
+export function shouldPublishChapterProgress(attempted:number,count:number):boolean{
+ if(!Number.isSafeInteger(attempted)||!Number.isSafeInteger(count)||count<1)
+   return false;
+ return attempted===1||attempted===count||
+   (attempted>0&&attempted<count&&attempted%Math.max(1,Math.ceil(count/100))===0);
+}

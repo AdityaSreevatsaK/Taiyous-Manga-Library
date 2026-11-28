@@ -1,6 +1,6 @@
 import {afterEach,describe,it,expect,vi} from 'vitest';
 import {demoEntries} from '../../src/data/fixtures';
-import {applyMetadataCorrection,metadataCorrectionCommit,onRequest,parseMetadataCorrection} from './master';
+import {applyMetadataCorrection,matchesRevisionFile,metadataCorrectionCommit,onRequest,parseMetadataCorrection} from './master';
 import {ORIGIN,REPO,sessionCookie} from '../_lib/mangaAuth';
 const revision='a'.repeat(40);
 const source={schemaVersion:1,mediaKind:'manga',entries:demoEntries};
@@ -46,6 +46,16 @@ describe('protected catalogue metadata correction',()=>{
     expect(()=>metadataCorrectionCommit(original,updated,'bad')).toThrow('revision');
     expect(source.entries[0]!.title).not.toBe('Corrected synthetic title');
   });
+  it('refuses altered, truncated and oversized remote revision files',async()=>{
+    const expected=new TextEncoder().encode('synthetic catalogue bytes');
+    expect(await matchesRevisionFile(new Response(expected.slice(),{status:200}),expected)).toBe(true);
+    expect(await matchesRevisionFile(new Response('synthetic catalogue byteX'),expected)).toBe(false);
+    expect(await matchesRevisionFile(new Response(expected.slice(0,-1)),expected)).toBe(false);
+    expect(await matchesRevisionFile(new Response(null,{status:404}),expected)).toBe(false);
+    expect(await matchesRevisionFile(new Response(expected.slice(),{
+      headers:{'Content-Length':String(4*1024*1024+1)},
+    }),expected)).toBe(false);
+  });
   it('backs up original bytes in the same protected remote commit and checks read-back',async()=>{
     const token='hf_'+'t'.repeat(48),nextRevision='b'.repeat(40);
     const original=JSON.stringify(source)+'\n';
@@ -63,7 +73,7 @@ describe('protected catalogue metadata correction',()=>{
     expect(unlock.status).toBe(200);
     const grant=unlock.headers.get('Set-Cookie')?.split(';')[0];
     expect(grant).toMatch(/^__Host-taiyou_manga_master=/);
-    let metadataChecks=0,commitCalls=0;
+    let metadataChecks=0,commitCalls=0,canonicalChecks=0;
     const expectedBackup='control/master-catalogue-backups/'+revision+'/library.json';
     const fetcher=vi.spyOn(globalThis,'fetch').mockImplementation(async(input,init)=>{
       const url=String(input);
@@ -93,6 +103,13 @@ describe('protected catalogue metadata correction',()=>{
       }
       if(url.includes('/resolve/'+nextRevision+'/'+expectedBackup))
         return new Response(original,{status:200});
+      if(url.includes('/resolve/'+nextRevision+'/data/library.json')){
+        canonicalChecks++;
+        const corrected=applyMetadataCorrection(source,{
+          mangaId:demoEntries[0]!.id,revision,title:'Corrected synthetic title',
+        });
+        return new Response(JSON.stringify(corrected,null,2)+'\n',{status:200});
+      }
       throw Error('Unexpected synthetic network call '+url);
     });
     try{
@@ -108,6 +125,7 @@ describe('protected catalogue metadata correction',()=>{
       });
       expect(commitCalls).toBe(1);
       expect(metadataChecks).toBe(2);
+      expect(canonicalChecks).toBe(1);
       expect(fetcher).toHaveBeenCalled();
     }finally{vi.restoreAllMocks();}
   });
