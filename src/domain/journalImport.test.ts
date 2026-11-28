@@ -7,6 +7,10 @@ describe('CSV import',()=>{
   expect(first.fields).toMatchObject({title:'Series, A',status:'Completed',rating:null,notes:'hello "world"\r\nagain'});
   expect(f.rows[1]!.sourceRow).toBe(4);
  });
+ it('allows clearing optional mappings without invalidating rows',()=>{
+  const f=parseCsv('Title,Status,Rating\nA,Reading,8');
+  expect(mapCsvRow(f.rows[0]!,{...suggestMapping(f.headers),rating:undefined},f.headers.length).fields?.rating).toBeNull();
+ });
  it('rejects malformed CSV, unknown statuses, formula-like values and invalid integers',()=>{
   expect(()=>parseCsv('Title,Status\n"bad,Reading')).toThrow();
   for(const line of ['=SUM(1),Reading,8','A,unknown,8','A,Reading,1.5','A,Reading,-1']){

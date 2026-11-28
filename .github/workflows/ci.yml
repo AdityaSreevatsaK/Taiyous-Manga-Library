@@ -31,6 +31,8 @@ jobs:
         run: node --test scripts/stamp-service-worker.test.mjs
       - name: Verify two-release offline update and rollback safety
         run: node --test scripts/sw-release-transitions.test.mjs
+      - name: Verify Journal migration and transaction invariants in disposable SQLite
+        run: node --test scripts/journal-sql.test.mjs
       - run: npm run build
       - name: Enforce production bundle budgets
         run: node scripts/check-bundle.mjs

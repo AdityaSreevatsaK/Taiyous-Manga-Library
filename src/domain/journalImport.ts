@@ -40,7 +40,7 @@ const aliases:Record<string,ImportColumn>={
 };
 export function suggestMapping(headers:string[]):Mapping{
  const matches=new Map<ImportColumn,number[]>();
- headers.forEach((h,i)=>{const key=aliases[normal(h)];if(key)matches.set(key,[...(matches.get(key)??[]),i]);});
+ headers.forEach((h,i)=>{const label=normal(h);const key=Object.hasOwn(aliases,label)?aliases[label]:undefined;if(key)matches.set(key,[...(matches.get(key)??[]),i]);});
  return Object.fromEntries([...matches].filter(([,indices])=>indices.length===1).map(([key,indices])=>[key,indices[0]]));
 }
 const statusMap:Record<string,JournalFields['status']>={completed:'Completed',finished:'Completed',reading:'Reading','currently reading':'Reading',dropped:'Dropped','on hold':'On Hold','plan to read':'Plan to Read','to read':'Plan to Read'};
@@ -50,7 +50,7 @@ export function mapCsvRow(row:CsvRow,mapping:Mapping,headerCount:number):ImportP
  try{
   if(row.cells.length!==headerCount)throw Error('Column count differs from header');
   if(mapping.title===undefined||mapping.status===undefined)throw Error('Map both title and reading status');
-  const values=Object.values(mapping);
+  const values=Object.values(mapping).filter((v):v is number=>v!==undefined);
   if(new Set(values).size!==values.length||values.some(x=>!Number.isInteger(x)||x<0||x>=headerCount))throw Error('Invalid or repeated mapping');
   // Spreadsheet formulas are never evaluated; reject formula-like mapped text.
   for(const key of IMPORT_COLUMNS){const cell=read(key);if(/^[=+@]/.test(cell))throw Error('Formula-like value in '+key);}
