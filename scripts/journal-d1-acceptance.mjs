@@ -15,13 +15,13 @@ const bundle=await build({stdin:{contents:
   "import {onRequest as batch} from './functions/api/journal/import/[action]';\n"+
   "import {sessionCookie} from './functions/_lib/mangaAuth';\n"+
   "export default {async fetch(request,env){const path=new URL(request.url).pathname;"+
-  "if(path==='/__test/session'){const owner=new URL(request.url).searchParams.get('owner')||'SyntheticOwner';"+
-  "return new Response(await sessionCookie({owner,access:'hf_synthetic',expires:Date.now()+60000,scope:'openid profile read-repos'},env));}"+
+  "if(path==='/__test/session'){const owner=new URL(request.url).searchParams.get('owner')||'AdityaSreevatsaK';"+
+  "return new Response(await sessionCookie({owner,access:'hf_synthetic',expires:Date.now()+600000,scope:'openid profile read-repos'},env));}"+
   "if(path==='/api/journal')return list({request,env});"+
   "if(path.startsWith('/api/journal/import/'))return batch({request,env,params:{action:path.split('/').at(-1)}});"+
   "if(path.startsWith('/api/journal/'))return item({request,env,params:{id:path.split('/').at(-1)}});return new Response(null,{status:404});}};",
  resolveDir:process.cwd(),sourcefile:'local-journal-test.ts',loader:'ts'},bundle:true,write:false,format:'esm',platform:'browser',target:'es2022'});
-const bindings={HF_REPO_ID:'AdityaSreevatsaK/Taiyous-Manga',HF_OWNER_USERNAME:'SyntheticOwner',
+const bindings={HF_REPO_ID:'AdityaSreevatsaK/Taiyous-Manga',HF_OWNER_USERNAME:'AdityaSreevatsaK',
  HF_CLIENT_ID:'synthetic-client',HF_CLIENT_SECRET:'synthetic-secret',SESSION_SECRET:Buffer.alloc(32,120).toString('base64')};
 test('local workerd D1: owner CRUD, pagination, import snapshots, receipts, rollback',async()=>{
  const mf=new Miniflare({modules:true,script:bundle.outputFiles[0].text,compatibilityDate:'2025-11-25',
