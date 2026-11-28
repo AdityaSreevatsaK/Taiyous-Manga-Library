@@ -13,11 +13,13 @@ const bundle=await build({stdin:{contents:
   "import {onRequest as list} from './functions/api/journal/index';\n"+
   "import {onRequest as item} from './functions/api/journal/[id]';\n"+
   "import {onRequest as batch} from './functions/api/journal/import/[action]';\n"+
+  "import {onRequest as backup} from './functions/api/journal/backup/[action]';\n"+
   "import {sessionCookie} from './functions/_lib/mangaAuth';\n"+
   "export default {async fetch(request,env){const path=new URL(request.url).pathname;"+
   "if(path==='/__test/session'){const owner=new URL(request.url).searchParams.get('owner')||'AdityaSreevatsaK';"+
   "return new Response(await sessionCookie({owner,access:'hf_synthetic',expires:Date.now()+600000,scope:'openid profile read-repos'},env));}"+
   "if(path==='/api/journal')return list({request,env});"+
+  "if(path.startsWith('/api/journal/backup/'))return backup({request,env,params:{action:path.split('/').at(-1)}});"+
   "if(path.startsWith('/api/journal/import/'))return batch({request,env,params:{action:path.split('/').at(-1)}});"+
   "if(path.startsWith('/api/journal/'))return item({request,env,params:{id:path.split('/').at(-1)}});return new Response(null,{status:404});}};",
  resolveDir:process.cwd(),sourcefile:'local-journal-test.ts',loader:'ts'},bundle:true,write:false,format:'esm',platform:'browser',target:'es2022'});
@@ -84,5 +86,21 @@ test('local workerd D1: owner CRUD, pagination, import snapshots, receipts, roll
   const first=await call();assert.equal(first.status,200);assert.equal(first.body.entries.length,100);assert.ok(first.body.nextCursor);
   const second=await call('?after='+first.body.nextCursor);assert.equal(second.body.entries.length,4);assert.equal(second.body.nextCursor,null);
   assert.equal(new Set([...first.body.entries,...second.body.entries].map(x=>x.id)).size,104);
+  // Consistent backup includes tombstones and retains immutable identity.
+  const removed=await call('/'+id,'DELETE',{revision:4});assert.equal(removed.status,200);
+  const exp=await call('/backup/export');assert.equal(exp.status,200);assert.equal(exp.body.entries.length,100);
+  const more=await call('/backup/export?after='+exp.body.nextCursor+'&version='+exp.body.version);
+  assert.equal(more.status,200);assert.equal(more.body.entries.length,4);
+  const snapshot=[...exp.body.entries,...more.body.entries];assert.ok(snapshot.find(x=>x.id===id).deletedAt);
+  const same=await call('/backup/preview','POST',{entries:[snapshot[0]]});assert.equal(same.body.rows[0].status,'unchanged');
+  const missing={...snapshot[0],id:'jrn_'+'a'.repeat(32),title:'Synthetic recovered',libraryMangaId:null};
+  const previewRecovery=await call('/backup/preview','POST',{entries:[missing]});assert.equal(previewRecovery.body.rows[0].status,'addition');
+  const restored=await call('/backup/restore','POST',{version:previewRecovery.body.version,entries:[missing]});assert.equal(restored.status,201);
+  assert.equal((await call('/backup/restore','POST',{version:previewRecovery.body.version,entries:[missing]})).body.replayed,true);
+  assert.equal((await call('/backup/export?after='+exp.body.nextCursor+'&version='+exp.body.version)).status,409);
+  const differing={...missing,title:'Do not overwrite'};
+  const conflict=await call('/backup/preview','POST',{entries:[differing]});assert.equal(conflict.body.rows[0].status,'conflict');
+  assert.equal((await call('/backup/restore','POST',{version:conflict.body.version,entries:[differing]})).status,409);
+  const exact=await call('/backup/preview','POST',{entries:[missing]});assert.equal(exact.body.rows[0].status,'unchanged');
  }finally{await mf.dispose();}
 });

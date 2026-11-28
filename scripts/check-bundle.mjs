@@ -4,7 +4,7 @@ import { gzipSync } from 'node:zlib';
 
 const root = 'dist/assets';
 const assets = readdirSync(root).filter(name => /\.(?:js|css)$/.test(name));
-const isJournal = name => /^(?:MangaJournal|journalXlsx)-[A-Za-z0-9_-]+\.(?:js|css)$/.test(name);
+const isJournal = name => /^(?:MangaJournal|journalXlsx|JournalBackup)-[A-Za-z0-9_-]+\.(?:js|css)$/.test(name);
 const budgets = [
   // The 21 November Manga Master workspace adds private usage tracking,
   // per-title analytics and protected catalogue administration. Its components
@@ -19,7 +19,7 @@ const budgets = [
   // Measured db178bd: Journal JS 24.78 kB (gzip 8.11 kB), CSS 1.89 kB
   // (gzip 0.74 kB). Aggregate 382.1/164.1 KiB; separate only the named
   // lazy-loaded route, retaining the prior budgets for every other asset.
-  { extension: '.js', limit: 38 * 1024, gzipLimit: 13 * 1024, journal: true },
+  { extension: '.js', limit: 48 * 1024, gzipLimit: 17 * 1024, journal: true },
   { extension: '.css', limit: 2.25 * 1024, gzipLimit: 1 * 1024, journal: true },
 ];
 for (const { extension, limit, gzipLimit, journal = false } of budgets) {

@@ -1,9 +1,10 @@
-import {useEffect,useMemo,useState,type FormEvent} from 'react';
+import {lazy,Suspense,useEffect,useMemo,useState,type FormEvent} from 'react';
 import {JOURNAL_STATUSES,JOURNAL_TYPES,PUBLICATION_STATUSES,parseJournalFields,journalFields,type JournalFields,type JournalRecord} from '../domain/journal';
 import {JournalError,loadJournal,saveJournal,setJournalDeleted} from '../data/journalGateway';
 import type {MangaEntry} from '../domain/types';
 import './manga-journal.css';
 import JournalCsvImport from './JournalCsvImport';
+const JournalBackup=lazy(()=>import('./JournalBackup'));
 type Props={archiveEntries?:readonly MangaEntry[];hrefFor:(id:string)=>string};
 type Draft={record?:JournalRecord;fields:JournalFields};
 const empty=()=>parseJournalFields({title:'New entry',status:'Plan to Read'});
@@ -20,7 +21,7 @@ export default function MangaJournal({archiveEntries,hrefFor}:Props){
  const [refresh,setRefresh]=useState(0),[deleted,setDeleted]=useState(false);
  const [search,setSearch]=useState(''),[status,setStatus]=useState('all'),[rating,setRating]=useState('all');
  const [type,setType]=useState('all'),[favourite,setFavourite]=useState(false),[archived,setArchived]=useState('all'),[sort,setSort]=useState('title');
- const [showImport,setShowImport]=useState(false);
+ const [showImport,setShowImport]=useState(false),[showBackup,setShowBackup]=useState(false);
  const [draft,setDraft]=useState<Draft|null>(null),[confirm,setConfirm]=useState<JournalRecord|null>(null);
  useEffect(()=>{
   const controller=new AbortController();setLoading(true);setError('');setRecords([]);setUnauthorised(false);
@@ -66,10 +67,12 @@ export default function MangaJournal({archiveEntries,hrefFor}:Props){
    <button className="secondary" disabled={busy||loading||unauthorised} onClick={()=>{setDraft(null);setConfirm(null);setDeleted(v=>!v);}}>{deleted?'Active entries':'Recently removed'}</button>
    <button className="primary" disabled={busy||loading||!!error||deleted} onClick={()=>setDraft({fields:{...empty(),title:''}})}>Add manga</button>
    <button className="secondary" disabled={busy||loading||!!error||deleted} onClick={()=>setShowImport(v=>!v)}>{showImport?'Close import':'Import spreadsheet'}</button>
+   <button className="secondary" disabled={loading||!!error||busy} onClick={()=>setShowBackup(v=>!v)}>{showBackup?'Close backup':'Backup and recovery'}</button>
    <button className="secondary" disabled={loading||!!error||busy} onClick={()=>exportData(false)}>Export JSON</button>
    <button className="secondary" disabled={loading||!!error||busy} onClick={()=>exportData(true)}>Export CSV</button>
   </div>
   {!loading&&!unauthorised&&records.length>0&&<p aria-label="Journal status counts">{records.length} entries · {JOURNAL_STATUSES.map(s=>s+': '+records.filter(r=>r.status===s).length).join(' · ')}</p>}
+  {showBackup&&!unauthorised&&!error&&<Suspense fallback={<p role="status">Loading backup tools…</p>}><JournalBackup onCommitted={()=>setRefresh(n=>n+1)}/></Suspense>}
   {showImport&&!deleted&&!unauthorised&&<JournalCsvImport records={records} onCommitted={()=>setRefresh(n=>n+1)}/>}
   {draft&&<form className="journal-editor" onSubmit={save}>
    <h2>{draft.record?'Edit entry':'Add manga'}</h2>

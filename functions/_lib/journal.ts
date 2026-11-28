@@ -1,6 +1,7 @@
 import {configured,getSession,json,ORIGIN,production,type Env} from './mangaAuth';
 import {JOURNAL_ID,parseJournalFields,parseJournalRecord,journalFields,type JournalRecord} from '../../src/domain/journal';
 import {parseImportCandidates,previewCandidates,type ImportCandidate,type TitleIndex} from '../../src/domain/journalImport';
+import {parseBackupEntries,recoveryPreview} from '../../src/domain/journalBackup';
 // Structural subset of D1 keeps this module independent of Worker type packages.
 interface Statement {
  bind(...values:(string|number|null)[]):Statement;
@@ -114,7 +115,7 @@ async function importPreview(db:Database,rows:ImportCandidate[]){
  if(await currentVersion(db)!==version)return null;
  return {version,rows:previewCandidates(rows,index)};
 }
-async function digest(rows:ImportCandidate[]):Promise<string>{
+async function digest(rows:unknown):Promise<string>{
  const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(rows)));
  return Array.from(new Uint8Array(bytes),x=>x.toString(16).padStart(2,'0')).join('');
 }
@@ -156,4 +157,68 @@ export async function journalImportRequest({request,env}:Context,action:string):
   }
   return json({batchId:id,count:rows.length,replayed:false},201);
  }catch{return error('Import unavailable',503);}
+}
+
+/** A consistent, private backup snapshot; recovery only inserts missing IDs. */
+export async function journalBackupRequest({request,env}:Context,action:string):Promise<Response>{
+ if(!production(request))return error('Journal is production-only',403);
+ if(!configured(env))return error('Owner authentication unavailable',503);
+ if(!await getSession(request,env))return error('Sign in with Hugging Face',401);
+ const db=env.JOURNAL_DB;if(!db)return error('Journal database is not configured',503);
+ if(action==='export'&&request.method==='GET'){
+  const q=new URL(request.url).searchParams,after=q.get('after')??'',rawVersion=q.get('version');
+  if(after&&!JOURNAL_ID.test(after)||after&&rawVersion===null||rawVersion!==null&&!/^\d+$/.test(rawVersion))return error('Invalid backup cursor',400);
+  try{
+   const version=await currentVersion(db);
+   if(rawVersion!==null&&Number(rawVersion)!==version)return error('Journal changed during backup; start again',409);
+   const data=await db.prepare('SELECT '+fields+' FROM journal_entries WHERE id > ? ORDER BY id LIMIT 101').bind(after).all<Row>();
+   if(!data.success)throw Error('Backup read failed');
+   const entries=data.results.slice(0,100).map(decode);
+   if(await currentVersion(db)!==version)return error('Journal changed during backup; start again',409);
+   return json({version,entries,nextCursor:data.results.length>100?entries.at(-1)!.id:null});
+  }catch{return error('Backup unavailable',503);}
+ }
+ if(request.method!=='POST'||!['preview','restore'].includes(action))return error('Method not allowed',405);
+ if(request.headers.get('Origin')!==ORIGIN||request.headers.get('X-Taiyou-Request')!=='journal'||
+ request.headers.get('Content-Type')?.split(';')[0]?.trim().toLowerCase()!=='application/json')return error('Same-origin Journal request required',403);
+ let entries:JournalRecord[],requested:unknown;
+ try{
+  const body=await input(request);
+  if(Object.keys(body).sort().join(',')!==(action==='preview'?'entries':'entries,version'))throw Error('Invalid request');
+  entries=parseBackupEntries(body.entries,50);requested=body.version;
+  if(!entries.length||action==='restore'&&(typeof requested!=='number'||!Number.isSafeInteger(requested)||requested<0))throw Error('Invalid request');
+ }catch{return error('Invalid recovery batch',400);}
+ try{
+  const version=await currentVersion(db);
+  const key='backup:'+await digest(entries);
+  const receipt=()=>db.prepare('SELECT entry_count FROM journal_import_receipts WHERE batch_id=?').bind(key).first<{entry_count:number}>();
+  if(action==='restore'){
+   const saved=await receipt();if(saved)return json({count:saved.entry_count,replayed:true});
+   if(requested!==version)return error('Journal changed; review recovery again',409);
+  }
+  // Query only incoming IDs and active archive links, not all private payloads.
+  const ids=entries.map(x=>x.id),links=entries.filter(x=>x.deletedAt===null&&x.libraryMangaId).map(x=>x.libraryMangaId!);
+  const placeholders=(n:number)=>Array(n).fill('?').join(',');
+  const result=await db.prepare('SELECT '+fields+' FROM journal_entries WHERE id IN ('+placeholders(ids.length)+')'+
+    (links.length?' OR (deleted_at IS NULL AND library_manga_id IN ('+placeholders(links.length)+'))':'')).bind(...ids,...links).all<Row>();
+  if(!result.success)throw Error('Recovery index unavailable');
+  const rows=recoveryPreview(entries,result.results.map(decode));
+  if(await currentVersion(db)!==version)return error('Journal changed; review recovery again',409);
+  if(action==='preview')return json({version,rows});
+  if(rows.some(x=>x.status!=='addition'))return error('Recovery has conflicts or existing records; review again',409);
+  const statements=[db.prepare('INSERT INTO journal_import_receipts(batch_id,entry_count,committed_at,snapshot_valid) VALUES (?,?,?,(SELECT revision = ? FROM journal_state WHERE singleton=1))')
+   .bind(key,entries.length,new Date().toISOString(),version),
+   ...entries.map(x=>db.prepare('INSERT INTO journal_entries(id,revision,created_at,updated_at,deleted_at,library_manga_id,payload) VALUES (?,?,?,?,?,?,?)')
+    .bind(x.id,x.revision,x.createdAt,x.updatedAt,x.deletedAt,x.libraryMangaId,JSON.stringify(journalFields(x))))];
+  try{
+   const results=await db.batch(statements);
+   if(results.length!==statements.length||results.some(x=>!x.success||x.meta.changes<1))throw Error('Recovery write failed');
+   const saved=await receipt();if(!saved||saved.entry_count!==entries.length)throw Error('Recovery receipt missing');
+  }catch{
+   const saved=await receipt();if(saved)return json({count:saved.entry_count,replayed:true});
+   if(await currentVersion(db)!==version)return error('Journal changed; review recovery again',409);
+   return error('Recovery unavailable; no automatic retry',503);
+  }
+  return json({count:entries.length,replayed:false},201);
+ }catch{return error('Recovery unavailable',503);}
 }
