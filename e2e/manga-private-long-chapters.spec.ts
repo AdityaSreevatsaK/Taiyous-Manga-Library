@@ -95,7 +95,7 @@ for(const count of [300,500,1000]){
 
     await page.goto('/library');
     await page.locator('.book-card').filter({hasText:title}).click();
-    await page.getByRole('link',{name:/Read from beginning/}).click();
+    await page.getByRole('button',{name:/Chapter 1/}).click({timeout:15_000});
     await expect(page.locator('.vertical-page')).toHaveCount(count);
     await expect(page.locator('.chapter-preload-message'))
       .toContainText('Chapter verified',{timeout:100_000});
