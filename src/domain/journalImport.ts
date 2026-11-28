@@ -77,7 +77,7 @@ export function mapCsvRow(row:CsvRow,mapping:Mapping,headerCount:number):ImportP
 }
 export interface TitleIndex {title:string;alternativeTitles:string[]}
 export function previewCandidates(candidates:ImportCandidate[],existing:TitleIndex[]):ImportPreviewRow[]{
- const keys=(v:TitleIndex)=>new Set([v.title,...v.alternativeTitles].map(normal));
+ const keys=(v:TitleIndex)=>new Set([v.title,...v.alternativeTitles].map(normaliseImportTitle));
  const used=new Set(existing.flatMap(e=>[...keys(e)]));
  const counts=new Map<string,number>();
  for(const c of candidates)for(const k of keys(c.fields))counts.set(k,(counts.get(k)??0)+1);
