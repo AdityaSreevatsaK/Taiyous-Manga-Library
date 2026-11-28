@@ -62,7 +62,7 @@ These checks require the actual owner account and must not be inferred from anon
 - [ ] Verify the separate write OAuth scope and configured Master passphrase without exposing their values.
 - [ ] Test one title/creator/publicationStatus correction against a disposable dataset or explicitly approved test record; confirm revision conflict behaviour and immutable IDs/slugs.
 
-## Long chapter acceptance
+## Automated synthetic release regression\n\nThe repository also runs `e2e/manga-private-long-chapters.spec.ts` against the production build in desktop Chromium with a 390px viewport, fake same-origin owner/session responses and locally generated page bytes. It exercises 300, 500 and 1,000-page manifest/reader flows, verifies full-chapter fetch completion, bounded live blob URLs, page jumps and mobile horizontal overflow. `src/data/chapterPreloader.test.ts` separately checks 300/500/1,000-page loading and release. These are synthetic checks only. They do **not** demonstrate production Hugging Face OAuth, real private images, or physical-device memory performance.\n\n## Long chapter acceptance
 
 Use owned/generated disposable images representing intended page sizes at 300, 500 and 1,000 pages. Record initial render, total downloaded bytes, retained page-source count/memory, scroll responsiveness, peak memory where available, decoded image count, failures, rotation/restart and recovery after cache eviction. Deterministic unit geometry tests are not a hardware memory benchmark.
 
