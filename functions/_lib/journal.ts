@@ -66,10 +66,10 @@ export async function journalRequest({request,env}:Context,id?:string):Promise<R
     let data;try{data=parseJournalFields(body);}catch{return error('Invalid Journal entry',400);}
     const now=new Date().toISOString(),newId='jrn_'+crypto.randomUUID().replace(/-/g,'');
     const record=parseJournalRecord({...data,schemaVersion:1,id:newId,revision:1,createdAt:now,updatedAt:now,deletedAt:null});
-    const result=await db.prepare('INSERT OR IGNORE INTO journal_entries (id,revision,created_at,updated_at,deleted_at,library_manga_id,payload) VALUES (?,1,?,?,NULL,?,?)')
-      .bind(newId,now,now,data.libraryMangaId,JSON.stringify(data)).run();
+    const result=await db.prepare('INSERT OR IGNORE INTO journal_entries (id,revision,created_at,updated_at,deleted_at,library_manga_id,payload) VALUES (?,1,?,?,NULL,?,?) RETURNING id')
+      .bind(newId,now,now,data.libraryMangaId,JSON.stringify(data)).all<{id:string}>();
     if(!result.success)throw Error('Write failed');
-    return result.meta.changes===1?json(record,201):error('Record or archive link conflict',409);
+    return result.results.length===1&&result.results[0]?.id===newId?json(record,201):error('Record or archive link conflict',409);
   }
   const {revision,restore,...patch}=body;
   if(!revisionOk(revision))return error('Record revision required',400);
@@ -91,10 +91,10 @@ export async function journalRequest({request,env}:Context,id?:string):Promise<R
   }
   const record=parseJournalRecord({...nextFields,schemaVersion:1,id:id!,revision:revision+1,
     createdAt:previous.createdAt,updatedAt:now,deletedAt});
-  const result=await db.prepare('UPDATE OR IGNORE journal_entries SET revision = ?, updated_at = ?, deleted_at = ?, library_manga_id = ?, payload = ? WHERE id = ? AND revision = ?')
-   .bind(record.revision,now,deletedAt,nextFields.libraryMangaId,JSON.stringify(nextFields),id!,revision).run();
+  const result=await db.prepare('UPDATE OR IGNORE journal_entries SET revision = ?, updated_at = ?, deleted_at = ?, library_manga_id = ?, payload = ? WHERE id = ? AND revision = ? RETURNING id')
+   .bind(record.revision,now,deletedAt,nextFields.libraryMangaId,JSON.stringify(nextFields),id!,revision).all<{id:string}>();
   if(!result.success)throw Error('Write failed');
-  return result.meta.changes===1?json(record):error('Record or archive link conflict; reload before editing',409);
+  return result.results.length===1&&result.results[0]?.id===id?json(record):error('Record or archive link conflict; reload before editing',409);
  }catch{return error('Journal temporarily unavailable; no automatic retry',503);}
 }
 
@@ -145,7 +145,10 @@ export async function journalImportRequest({request,env}:Context,action:string):
     .bind('jrn_'+crypto.randomUUID().replace(/-/g,''),now,now,JSON.stringify(row.fields)))];
   try{
    const results=await db.batch(statements);
-   if(results.length!==statements.length||results.some(x=>!x.success||x.meta.changes!==1))throw Error('Batch verification failed');
+   // These are strict INSERTs, not OR IGNORE. A constraint failure aborts the whole D1 batch.
+   // D1 meta.changes can include the journal_state trigger; do not equate it to row count.
+   if(results.length!==statements.length||results.some(x=>!x.success||x.meta.changes<1))throw Error('Batch verification failed');
+   const saved=await receipt();if(!saved||saved.entry_count!==rows.length)throw Error('Missing batch receipt');
   }catch{
    const saved=await receipt();if(saved)return json({batchId:id,count:saved.entry_count,replayed:true});
    if(await currentVersion(db)!==version)return error('Journal changed; preview again',409);
