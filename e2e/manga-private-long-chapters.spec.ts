@@ -17,6 +17,9 @@ const mangaId='mng_'+'e'.repeat(24);
 const chapterId='ch_'+'d'.repeat(24);
 const pageId=(index:number)=>'pg_'+index.toString(16).padStart(24,'0');
 
+// These large synthetic DOMs deliberately run sequentially to avoid runner OOM.
+test.describe.configure({mode:'serial'});
+
 for(const count of [300,500,1000]){
   test('bounded private browser image sources across '+count+' synthetic pages',async({page})=>{
     test.setTimeout(120_000);
