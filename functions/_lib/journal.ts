@@ -1,5 +1,6 @@
 import {configured,getSession,json,ORIGIN,production,type Env} from './mangaAuth';
 import {JOURNAL_ID,parseJournalFields,parseJournalRecord,journalFields,type JournalRecord} from '../../src/domain/journal';
+import {parseImportCandidates,previewCandidates,type ImportCandidate,type TitleIndex} from '../../src/domain/journalImport';
 // Structural subset of D1 keeps this module independent of Worker type packages.
 interface Statement {
  bind(...values:(string|number|null)[]):Statement;
@@ -7,7 +8,7 @@ interface Statement {
  all<T>():Promise<{success:boolean;results:T[]}>;
  run():Promise<{success:boolean;meta:{changes:number}}>;
 }
-interface Database {prepare(sql:string):Statement}
+interface Database {prepare(sql:string):Statement;batch(statements:Statement[]):Promise<{success:boolean;meta:{changes:number}}[]>}
 interface JournalEnv extends Env {JOURNAL_DB?:Database}
 interface Context {request:Request;env:JournalEnv}
 interface Row {id:string;revision:number;created_at:string;updated_at:string;deleted_at:string|null;library_manga_id:string|null;payload:string}
@@ -95,4 +96,61 @@ export async function journalRequest({request,env}:Context,id?:string):Promise<R
   if(!result.success)throw Error('Write failed');
   return result.meta.changes===1?json(record):error('Record or archive link conflict; reload before editing',409);
  }catch{return error('Journal temporarily unavailable; no automatic retry',503);}
+}
+
+async function currentVersion(db:Database):Promise<number>{
+ const state=await db.prepare('SELECT revision FROM journal_state WHERE singleton = 1').first<{revision:number}>();
+ if(!state||!Number.isSafeInteger(state.revision)||state.revision<0)throw Error('Import migration missing');
+ return state.revision;
+}
+async function importPreview(db:Database,rows:ImportCandidate[]){
+ const version=await currentVersion(db);
+ const data=await db.prepare("SELECT json_extract(payload,'$.title') AS title,json_extract(payload,'$.alternativeTitles') AS aliases FROM journal_entries LIMIT 10001").all<{title:string;aliases:string}>();
+ if(!data.success||data.results.length>10000)throw Error('Import index unavailable');
+ const index:TitleIndex[]=data.results.map(x=>{
+  const aliases:unknown=JSON.parse(x.aliases);if(typeof x.title!=='string'||!Array.isArray(aliases)||!aliases.every(y=>typeof y==='string'))throw Error('Invalid title index');
+  return {title:x.title,alternativeTitles:aliases as string[]};
+ });
+ if(await currentVersion(db)!==version)return null;
+ return {version,rows:previewCandidates(rows,index)};
+}
+async function digest(rows:ImportCandidate[]):Promise<string>{
+ const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(rows)));
+ return Array.from(new Uint8Array(bytes),x=>x.toString(16).padStart(2,'0')).join('');
+}
+export async function journalImportRequest({request,env}:Context,action:string):Promise<Response>{
+ if(!production(request))return error('Journal is production-only',403);
+ if(!configured(env))return error('Owner authentication unavailable',503);
+ if(!await getSession(request,env))return error('Sign in with Hugging Face',401);
+ if(request.method!=='POST'||!['preview','commit'].includes(action))return error('Method not allowed',405);
+ if(request.headers.get('Origin')!==ORIGIN||request.headers.get('X-Taiyou-Request')!=='journal'||
+ request.headers.get('Content-Type')?.split(';')[0]?.trim().toLowerCase()!=='application/json')return error('Same-origin Journal request required',403);
+ const db=env.JOURNAL_DB;if(!db)return error('Journal database is not configured',503);
+ let rows:ImportCandidate[],version:unknown;
+ try{const body=await input(request);if(Object.keys(body).sort().join(',')!==(action==='preview'?'rows':'rows,version'))throw Error('Invalid request');
+  rows=parseImportCandidates(body.rows);version=body.version;
+  if(action==='commit'&&(typeof version!=='number'||!Number.isSafeInteger(version)||version<0))throw Error('Invalid version');
+ }catch{return error('Invalid import request',400);}
+ try{
+  if(action==='preview'){const result=await importPreview(db,rows);return result?json(result):error('Journal changed; preview again',409);}
+  const id=await digest(rows);
+  const receipt=()=>db.prepare('SELECT entry_count FROM journal_import_receipts WHERE batch_id = ?').bind(id).first<{entry_count:number}>();
+  const earlier=await receipt();if(earlier)return json({batchId:id,count:earlier.entry_count,replayed:true});
+  const result=await importPreview(db,rows);
+  if(!result||result.version!==version||result.rows.some(x=>x.status!=='addition'))return error('Journal changed or title conflict; preview again',409);
+  const now=new Date().toISOString();
+  const statements=[db.prepare('INSERT INTO journal_import_receipts(batch_id,entry_count,committed_at,snapshot_valid) VALUES (?,?,?,(SELECT revision = ? FROM journal_state WHERE singleton=1))')
+   .bind(id,rows.length,now,version as number),
+   ...rows.map(row=>db.prepare('INSERT INTO journal_entries(id,revision,created_at,updated_at,deleted_at,library_manga_id,payload) VALUES (?,1,?,?,NULL,NULL,?)')
+    .bind('jrn_'+crypto.randomUUID().replace(/-/g,''),now,now,JSON.stringify(row.fields)))];
+  try{
+   const results=await db.batch(statements);
+   if(results.length!==statements.length||results.some(x=>!x.success||x.meta.changes!==1))throw Error('Batch verification failed');
+  }catch{
+   const saved=await receipt();if(saved)return json({batchId:id,count:saved.entry_count,replayed:true});
+   if(await currentVersion(db)!==version)return error('Journal changed; preview again',409);
+   return error('Import unavailable; no automatic retry',503);
+  }
+  return json({batchId:id,count:rows.length,replayed:false},201);
+ }catch{return error('Import unavailable',503);}
 }
