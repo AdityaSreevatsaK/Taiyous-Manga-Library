@@ -3,6 +3,11 @@ import { parseAppRoute, resolveAppRoute, routeHref, publicSeriesSlug, slugify } 
 import {demoEntries} from '../data/fixtures';
 
 describe('stable browser routes', () => {
+  it('keeps Journal independent of the catalogue and deployment base',()=>{
+    expect(parseAppRoute('/journal')).toEqual({kind:'journal'});
+    expect(resolveAppRoute({kind:'journal'},[])).toEqual({kind:'journal'});
+    expect(routeHref({kind:'journal'},'/Taiyous-Manga-Library/')).toBe('/Taiyous-Manga-Library/journal');
+  });
   it('keeps six visible shelves and sends legacy bookmarks to their replacement views', () => {
     for (const section of ['reading','trying','offline','finished','library'] as const) {
       expect(parseAppRoute('/'+section)).toEqual({kind:section});
