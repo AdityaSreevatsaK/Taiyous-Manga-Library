@@ -1,5 +1,5 @@
 import {useState,type ChangeEvent} from 'react';
-import {IMPORT_COLUMNS,IMPORT_BATCH_LIMIT,parseCsv,suggestMapping,mapCsvRow,previewCandidates,type CsvRow,type Mapping,type ImportCandidate,type ImportPreviewRow} from '../domain/journalImport';
+import {IMPORT_COLUMNS,IMPORT_BATCH_LIMIT,parseCsv,suggestMapping,mapCsvRow,previewCandidates,normaliseImportTitle,type CsvRow,type Mapping,type ImportCandidate,type ImportPreviewRow} from '../domain/journalImport';
 import {JOURNAL_STATUSES,type JournalRecord,type JournalStatus} from '../domain/journal';
 import type {SheetData} from '../data/journalXlsx';
 type Props={records:JournalRecord[];onCommitted:()=>void};
@@ -11,13 +11,14 @@ async function post(action:string,body:unknown){
 export default function JournalCsvImport({records,onCommitted}:Props){
  const [headers,setHeaders]=useState<string[]>([]),[rows,setRows]=useState<CsvRow[]>([]),[mapping,setMapping]=useState<Mapping>({});
  const [sheets,setSheets]=useState<SheetData[]>([]),[sheetIndex,setSheetIndex]=useState(0);
+ const [duplicateSelection,setDuplicateSelection]=useState<Record<string,string>>({});
  const [overrides,setOverrides]=useState<Record<number,JournalStatus>>({});
  const [page,setPage]=useState(0),[preview,setPreview]=useState<ImportPreviewRow[]|null>(null),[version,setVersion]=useState<number|null>(null);
  const [busy,setBusy]=useState(false),[notice,setNotice]=useState(''),[selected,setSelected]=useState<number[]>([]);
  const [done,setDone]=useState<number[]>([]);
  const clear=()=>{setPreview(null);setVersion(null);setSelected([]);setNotice('');};
  async function readFile(event:ChangeEvent<HTMLInputElement>){
-  clear();setHeaders([]);setRows([]);setDone([]);setPage(0);setSheets([]);setOverrides({});setSheetIndex(0);
+  clear();setHeaders([]);setRows([]);setDone([]);setPage(0);setSheets([]);setOverrides({});setSheetIndex(0);setDuplicateSelection({});
   const file=event.target.files?.[0];if(!file)return;
   setBusy(true);
   try{if(file.size>2*1024*1024)throw Error('Choose a workbook or CSV of at most 2 MB.');
@@ -43,7 +44,26 @@ export default function JournalCsvImport({records,onCommitted}:Props){
  const candidates=mapped.filter(x=>x.fields).map(x=>({sourceRow:x.sourceRow,fields:x.fields!}));
  const local=previewCandidates(candidates,records);
  const byRow=new Map(local.map(x=>[x.sourceRow,x]));
- const current=mapped.slice(page*IMPORT_BATCH_LIMIT,(page+1)*IMPORT_BATCH_LIMIT).map(x=>byRow.get(x.sourceRow)??x);
+ // Include unresolved and invalid rows in duplicate detection, across worksheets.
+ const titleCounts=new Map<string,number>();
+ for(const [i,sheet] of sheets.entries()){
+  const col=i===sheetIndex?mapping.title:suggestMapping(sheet.headers).title;
+  if(col===undefined)continue;
+  for(const row of sheet.rows){const key=normaliseImportTitle(row.cells[col]??'');if(key)titleCounts.set(key,(titleCounts.get(key)??0)+1);}
+ }
+ const selectedRow=(row:number)=>sheetIndex+':'+row;
+ const existingKeys=new Set(records.flatMap(r=>[r.title,...r.alternativeTitles].map(normaliseImportTitle)));
+ function displayRow(x:ImportPreviewRow):ImportPreviewRow{
+  const key=normaliseImportTitle(x.title),localRow=byRow.get(x.sourceRow)??x;
+  if(!x.fields||!key||(titleCounts.get(key)??0)<2)return localRow;
+  if(existingKeys.has(key))return {...x,status:'conflict',reason:'Possible existing entry; review manually'};
+  if(duplicateSelection[key]!==selectedRow(x.sourceRow))return {...x,status:'conflict',reason:'Duplicate title in workbook; select one reviewed row'};
+  // Do not bypass alias conflicts: only override the exact duplicate-title group.
+  const otherAliases=new Set(x.fields.alternativeTitles.map(normaliseImportTitle));
+  if(candidates.some(c=>c.sourceRow!==x.sourceRow&&[c.fields.title,...c.fields.alternativeTitles].some(a=>otherAliases.has(normaliseImportTitle(a)))))return localRow;
+  return {...x,status:'addition'};
+ }
+ const current=mapped.slice(page*IMPORT_BATCH_LIMIT,(page+1)*IMPORT_BATCH_LIMIT).map(displayRow);
  const eligible=current.filter(x=>x.status==='addition'&&!done.includes(x.sourceRow));
  async function doPreview(){
   setBusy(true);clear();
@@ -80,7 +100,9 @@ export default function JournalCsvImport({records,onCommitted}:Props){
    <div className="journal-import-preview">{(preview??current).map(x=><div key={x.sourceRow} className="journal-import-row">
     <label className="journal-check">{preview&&x.status==='addition'&&!done.includes(x.sourceRow)&&<input type="checkbox" disabled={busy} checked={selected.includes(x.sourceRow)} onChange={e=>setSelected(old=>e.target.checked?[...old,x.sourceRow]:old.filter(n=>n!==x.sourceRow))}/>}
      Row {x.sourceRow}: {x.title||'(blank title)'} · {done.includes(x.sourceRow)?'Imported':x.status}{x.reason?' · '+x.reason:''}</label>
-     {x.status==='invalid'&&x.reason?.includes('reading status needs review')&&mapping.status!==undefined&&<label>Resolve personal status for row {x.sourceRow}
+     {x.status==='conflict'&&x.reason?.includes('Duplicate title in workbook')&&<button type="button" className="secondary" disabled={busy}
+       onClick={()=>{clear();setDuplicateSelection(old=>({...old,[normaliseImportTitle(x.title)]:selectedRow(x.sourceRow)}));}}>Retain reviewed row {x.sourceRow}</button>}
+     {(x.status==='invalid'&&x.reason?.includes('reading status needs review')||!!overrides[x.sourceRow])&&mapping.status!==undefined&&<label>Resolve personal status for row {x.sourceRow}
        <select disabled={busy} value={overrides[x.sourceRow]??''} onChange={e=>{clear();setOverrides(old=>({...old,[x.sourceRow]:e.target.value as JournalStatus}));}}>
         <option value="">Needs review</option>{JOURNAL_STATUSES.map(s=><option key={s}>{s}</option>)}
        </select></label>}

@@ -29,7 +29,7 @@ export function parseCsv(text:string):{headers:string[];rows:CsvRow[]}{
  if(headers.length<2||headers.some(s=>!s))throw Error('CSV requires non-empty column headers');
  return {headers,rows};
 }
-const normal=(v:string)=>v.trim().normalize('NFKC').toLocaleLowerCase('en').replace(/[\s_-]+/g,' ');
+export const normaliseImportTitle=(v:string)=>v.trim().normalize('NFKC').toLocaleLowerCase('en').replace(/[\s_-]+/g,' ');
 const aliases:Record<string,ImportColumn>={
  title:'title','manga title':'title',name:'title',status:'status','reading status':'status','publication status':'publicationStatus',publicationstatus:'publicationStatus','last read':'lastReadChapter','last read chapter':'lastReadChapter',lastreadchapter:'lastReadChapter',
  type:'type','manga type':'type',author:'authors',authors:'authors',artist:'artists',artists:'artists',
@@ -40,8 +40,8 @@ const aliases:Record<string,ImportColumn>={
 };
 export function suggestMapping(headers:string[]):Mapping{
  const matches=new Map<ImportColumn,number[]>();
- const hasReading=headers.some(h=>normal(h)==='reading status');
- headers.forEach((h,i)=>{const label=normal(h);const key=label==='status'&&hasReading?'publicationStatus':Object.hasOwn(aliases,label)?aliases[label]:undefined;if(key)matches.set(key,[...(matches.get(key)??[]),i]);});
+ const hasReading=headers.some(h=>normaliseImportTitle(h)==='reading status');
+ headers.forEach((h,i)=>{const label=normaliseImportTitle(h);const key=label==='status'&&hasReading?'publicationStatus':Object.hasOwn(aliases,label)?aliases[label]:undefined;if(key)matches.set(key,[...(matches.get(key)??[]),i]);});
  return Object.fromEntries([...matches].filter(([,indices])=>indices.length===1).map(([key,indices])=>[key,indices[0]]));
 }
 const statusMap:Record<string,JournalFields['status']>={completed:'Completed',complete:'Completed',finished:'Completed',started:'Reading',reading:'Reading','currently reading':'Reading',dropped:'Dropped','on hold':'On Hold','plan to read':'Plan to Read','to read':'Plan to Read'};
@@ -60,15 +60,15 @@ export function mapCsvRow(row:CsvRow,mapping:Mapping,headerCount:number):ImportP
    // JSON arrays from our CSV export are supported, otherwise use newline or semicolon.
    if(s.startsWith('[')){const v:unknown=JSON.parse(s);if(!Array.isArray(v)||!v.every(x=>typeof x==='string'))throw Error('Invalid list in '+key);return v as string[];}
    return s.split(/[\n;]+/).map(x=>x.trim()).filter(Boolean);};
-  const fav=normal(read('favourite'));if(fav&&!['yes','no','true','false','1','0'].includes(fav))throw Error('Invalid favourite flag');
-  const rawStatus=normal(read('status'));
+  const fav=normaliseImportTitle(read('favourite'));if(fav&&!['yes','no','true','false','1','0'].includes(fav))throw Error('Invalid favourite flag');
+  const rawStatus=normaliseImportTitle(read('status'));
   const status=Object.hasOwn(statusMap,rawStatus)?statusMap[rawStatus]:undefined;
   if(!status)throw Error('Personal reading status needs review (blank or ambiguous)');
-  const publication=normal(read('publicationStatus'));
+  const publication=normaliseImportTitle(read('publicationStatus'));
   const publicationStatus=publication==='complete'?'completed':publication===''||publication==='?'||publication==='-'?null:publication;
   const label=read('lastReadChapter');
   const lastReadChapter=label==='-'||label==='?'||!label?null:label;
-  const fields=parseJournalFields({title,status,type:normal(read('type'))||null,publicationStatus,lastReadChapter,
+  const fields=parseJournalFields({title,status,type:normaliseImportTitle(read('type'))||null,publicationStatus,lastReadChapter,
    authors:list('authors'),artists:list('artists'),alternativeTitles:list('alternativeTitles'),tags:list('tags'),
    totalChapters:integer('totalChapters'),chaptersRead:integer('chaptersRead'),rating:integer('rating'),favourite:['yes','true','1'].includes(fav),
    startedOn:read('startedOn')||null,finishedOn:read('finishedOn')||null,notes:read('notes')||null,readingLinks:list('readingLinks')});
