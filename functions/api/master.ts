@@ -103,6 +103,16 @@ export function applyMetadataCorrection(document:unknown,patch:MetadataCorrectio
  parseCloudCatalogue(next);
  return next;
 }
+/** Verify both original and corrected catalogue bytes after a remote commit.
+ * A successful HF commit response alone is not evidence of publication.
+ * Reject unexpected HTTP status, implausible body size or a single changed byte.
+ */
+export async function matchesRevisionFile(response:Response,expected:Uint8Array):Promise<boolean>{
+ if(!response.ok||Number(response.headers.get('Content-Length')||0)>MAX_CATALOGUE)return false;
+ const actual=new Uint8Array(await response.arrayBuffer());
+ return actual.length===expected.length&&actual.every((byte,i)=>byte===expected[i]);
+}
+
 /** Keep the exact pre-change catalogue in the same revision-guarded commit
  * as a protected Master correction. This is an in-dataset recovery checkpoint,
  * not an independently verified off-platform full-original-media backup.
@@ -138,6 +148,9 @@ async function updateCatalogue(patch:MetadataCorrection,session:SessionData):Pro
  try{updated=applyMetadataCorrection(doc,patch);}
  catch{return json({error:'Catalogue metadata failed validation; nothing changed.'},409);}
  const {backupPath,operations}=metadataCorrectionCommit(original,updated,snapshot.sha);
+ const expectedCatalogue=new TextEncoder().encode(JSON.stringify(updated,null,2)+'\n');
+ if(expectedCatalogue.byteLength>MAX_CATALOGUE)
+   return json({error:'Corrected catalogue exceeds safe size limits.'},413);
  // An existing or unavailable backup path is not permission to overwrite it.
  try{
    const existing=await hfFetch('/datasets/'+REPO+'/resolve/'+snapshot.sha+'/'+backupPath,session.access);
@@ -159,12 +172,11 @@ async function updateCatalogue(patch:MetadataCorrection,session:SessionData):Pro
    if(!published||published.sha===snapshot.sha)
      return json({error:'Commit accepted, but verification is pending. Refresh before retrying.'},502);
    const backup=await hfFetch('/datasets/'+REPO+'/resolve/'+published.sha+'/'+backupPath,session.access);
-   if(!backup.ok)
-     return json({error:'Commit accepted, but backup verification is pending. Refresh before retrying.'},502);
-   const restored=new Uint8Array(await backup.arrayBuffer());
-   if(restored.length!==originalBytes.length||
-       restored.some((byte,i)=>byte!==originalBytes[i]))
+   if(!await matchesRevisionFile(backup,originalBytes))
      return json({error:'Commit accepted, but the catalogue recovery checksum did not match.'},502);
+   const current=await hfFetch('/datasets/'+REPO+'/resolve/'+published.sha+'/data/library.json',session.access);
+   if(!await matchesRevisionFile(current,expectedCatalogue))
+     return json({error:'Commit accepted, but the corrected catalogue could not be verified. Refresh before retrying.'},502);
    return json({saved:true,revision:published.sha,backupPath});
  }catch{return json({error:'Save or post-commit verification was interrupted. Refresh before retrying.'},502);}
 }
